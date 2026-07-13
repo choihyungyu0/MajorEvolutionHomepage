@@ -1,5 +1,7 @@
 import type { AiIdeasRequest, AiJourneyRequest, AiJourneyResult } from "@/lib/ai-journey";
 import type { Idea } from "@/data/prototype";
+import type { PaperAnalysisRequest, PaperAnalysisResult } from "@/lib/paper-analysis";
+import type { AiCoachRequest, AiCoachResult } from "@/lib/ai-coach";
 
 type ApiErrorPayload = { error?: { message?: string } };
 
@@ -22,3 +24,10 @@ export function requestAiIdeas(body: AiIdeasRequest): Promise<{ ideas: Idea[]; g
   return postJson<{ ideas: Idea[]; generatedAt: string; model: string }>("/api/ai/ideas", body);
 }
 
+export function requestPaperAnalysis(body: PaperAnalysisRequest): Promise<PaperAnalysisResult> {
+  return postJson<PaperAnalysisResult>("/api/ai/paper", body);
+}
+
+export function requestAiCoach(body: AiCoachRequest): Promise<AiCoachResult> {
+  return postJson<AiCoachResult>("/api/ai/coach", body);
+}

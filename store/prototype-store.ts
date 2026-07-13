@@ -18,6 +18,11 @@ import {
 import { createPassportFromIdea, getAvailableIdeas, type AiGenerationStatus, type AiJourneyResult } from "@/lib/ai-journey";
 
 type ListField = "interests" | "careers" | "skills";
+export type QuestNotes = {
+  dataPlan: string;
+  methodPlan: string;
+  portfolio: string;
+};
 
 type PrototypeState = {
   hasHydrated: boolean;
@@ -45,6 +50,7 @@ type PrototypeState = {
   comparedProfessorIds: string[];
   editedQuestions: string[];
   editedEmailDraft: string;
+  questNotes: QuestNotes;
   setHasHydrated: (value: boolean) => void;
   setGoal: (goal: Goal | null) => void;
   setDnaStep: (step: number) => void;
@@ -71,6 +77,7 @@ type PrototypeState = {
   toggleComparedProfessor: (id: string) => void;
   setQuestion: (index: number, value: string) => void;
   setEmailDraft: (value: string) => void;
+  setQuestNote: (field: keyof QuestNotes, value: string) => void;
   completeQuest: (id: string) => void;
   resetDemo: () => void;
 };
@@ -100,6 +107,11 @@ const initialState = {
   comparedProfessorIds: [] as string[],
   editedQuestions: defaultQuestions,
   editedEmailDraft: defaultEmailDraft,
+  questNotes: {
+    dataPlan: "핵심 데이터 후보와 접근 경로, 수집 단위를 정리해 주세요.",
+    methodPlan: "가장 단순한 기준 방법부터 비교 방법까지 순서대로 적어 주세요.",
+    portfolio: "문제, 데이터, 방법, 결과를 한 문장으로 연결해 주세요.",
+  } as QuestNotes,
 };
 
 export const usePrototypeStore = create<PrototypeState>()(
@@ -184,6 +196,11 @@ export const usePrototypeStore = create<PrototypeState>()(
           return {
             selectedIdeaId,
             passport: idea ? createPassportFromIdea(idea) : state.passport,
+            questNotes: idea ? {
+              dataPlan: `${idea.data.join(", ")}의 확보 경로와 수집 단위를 확인한다.`,
+              methodPlan: `${idea.methods.join(" → ")} 순서로 기준 방법부터 적용한다.`,
+              portfolio: `${idea.title} 프로젝트에서 ${idea.data.slice(0, 2).join("와 ")}를 활용해 ${idea.question}`,
+            } : state.questNotes,
           };
         }),
       toggleCriterion: (criterion) =>
@@ -226,6 +243,7 @@ export const usePrototypeStore = create<PrototypeState>()(
           ),
         })),
       setEmailDraft: (editedEmailDraft) => set({ editedEmailDraft }),
+      setQuestNote: (field, value) => set((state) => ({ questNotes: { ...state.questNotes, [field]: value } })),
       completeQuest: (id) =>
         set((state) => ({
           completedQuestIds: state.completedQuestIds.includes(id)

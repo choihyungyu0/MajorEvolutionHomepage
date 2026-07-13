@@ -138,7 +138,7 @@ export const goalOptions: { value: Goal; title: string; description: string }[] 
   {
     value: "understand-paper",
     title: "어려운 논문을 이해하고 싶어요",
-    description: "논문 이해 기능은 준비 중이에요. 가까운 경로를 안내할게요.",
+    description: "초록이나 본문을 질문·방법·결과·한계 순서로 풀어드려요.",
   },
 ];
 

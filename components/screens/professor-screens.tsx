@@ -13,6 +13,7 @@ import {
   ExternalLink,
   GitCompareArrows,
   Info,
+  LoaderCircle,
   Microscope,
   Save,
   SearchCheck,
@@ -38,6 +39,8 @@ import {
   cx,
 } from "@/components/app/primitives";
 import { professors, type Professor } from "@/data/prototype";
+import { requestAiCoach } from "@/lib/ai-client";
+import { getAvailableIdeas } from "@/lib/ai-journey";
 import { usePrototypeStore } from "@/store/prototype-store";
 
 function ConfidenceBadge({ value, onExplain }: { value: Professor["confidence"]; onExplain?: () => void }) {
@@ -184,15 +187,35 @@ export function ProfessorDetailScreen({ id }: { id: string }) {
   const saved = usePrototypeStore((state) => state.savedProfessorIds.includes(professor.id));
   const toggleSaved = usePrototypeStore((state) => state.toggleSavedProfessor);
   const setSelectedProfessor = usePrototypeStore((state) => state.setSelectedProfessor);
+  const profile = usePrototypeStore((state) => state.profile);
+  const selectedIdeaId = usePrototypeStore((state) => state.selectedIdeaId);
+  const aiJourney = usePrototypeStore((state) => state.aiJourney);
+  const aiIdeaArchive = usePrototypeStore((state) => state.aiIdeaArchive);
+  const idea = [...getAvailableIdeas(aiJourney), ...aiIdeaArchive].find((item) => item.id === selectedIdeaId);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [confidenceOpen, setConfidenceOpen] = useState(false);
   const [sourceIndex, setSourceIndex] = useState<number | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiResult, setAiResult] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const createQuest = () => {
     setSelectedProfessor(professor.id);
     router.push("/quest");
+  };
+
+  const runAiHelp = async (task: "interview-question" | "idea-summary") => {
+    setAiLoading(true);
+    try {
+      const result = await requestAiCoach({ task, context: { profile, idea, professor } });
+      setAiResult(result.content);
+      setAiOpen(false);
+    } catch (error) {
+      setAiResult(error instanceof Error ? error.message : "면담 문장을 만들지 못했습니다.");
+      setAiOpen(false);
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   return (
@@ -251,8 +274,8 @@ export function ProfessorDetailScreen({ id }: { id: string }) {
       </BottomSheet>
       <BottomSheet open={aiOpen} onClose={() => setAiOpen(false)} title="어떤 준비가 필요하세요?">
         <div className="sheet-choice-list">
-          <button type="button" onClick={() => { setAiResult("교수님, 친환경 표현과 소비자 신뢰의 관계를 4주 프로젝트로 탐색하고 있습니다. 연구 질문의 범위에 조언을 구하고 싶습니다."); setAiOpen(false); }}><CircleHelp size={19} /><span><strong>교수님께 물어볼 질문 만들기</strong><small>현재 아이디어와 확인할 점을 한 문장으로 연결해요.</small></span><ChevronRight size={18} /></button>
-          <button type="button" onClick={() => { setAiResult("친환경 표시 문구와 소비자 신뢰를 분석하는 4주 프로젝트입니다. 제품 텍스트와 소규모 설문을 활용하고, 범위와 설문 설계에 조언을 구하고 싶습니다."); setAiOpen(false); }}><Microscope size={19} /><span><strong>내 아이디어를 3문장으로 설명해줘</strong><small>면담 첫 설명에 바로 쓸 수 있게 줄여요.</small></span><ChevronRight size={18} /></button>
+          <button type="button" disabled={aiLoading} onClick={() => runAiHelp("interview-question")}>{aiLoading ? <LoaderCircle size={19} className="spin" /> : <CircleHelp size={19} />}<span><strong>교수님께 물어볼 질문 만들기</strong><small>현재 아이디어와 확인할 점을 면담 문장으로 연결해요.</small></span><ChevronRight size={18} /></button>
+          <button type="button" disabled={aiLoading} onClick={() => runAiHelp("idea-summary")}>{aiLoading ? <LoaderCircle size={19} className="spin" /> : <Microscope size={19} />}<span><strong>내 아이디어를 3문장으로 설명해줘</strong><small>면담 첫 설명에 바로 쓸 수 있게 줄여요.</small></span><ChevronRight size={18} /></button>
         </div>
       </BottomSheet>
     </AppShell>

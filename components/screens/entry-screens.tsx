@@ -3,8 +3,6 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  BookOpenText,
-  BriefcaseBusiness,
   Check,
   Circle,
   Compass,
@@ -12,11 +10,9 @@ import {
   GraduationCap,
   Lightbulb,
   LoaderCircle,
-  Search,
   Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BottomSheet } from "@/components/app/bottom-sheet";
 import {
   AppLogo,
   AppShell,
@@ -93,16 +89,14 @@ export function GoalScreen() {
   const router = useRouter();
   const goal = usePrototypeStore((state) => state.goal);
   const setGoal = usePrototypeStore((state) => state.setGoal);
-  const [paperSheet, setPaperSheet] = useState(false);
 
   const selectGoal = (value: Goal) => {
     setGoal(value);
-    if (value === "understand-paper") setPaperSheet(true);
   };
 
   const continueJourney = () => {
     if (goal === "understand-paper") {
-      setPaperSheet(true);
+      router.push("/paper");
       return;
     }
     if (goal) router.push("/dna");
@@ -112,7 +106,7 @@ export function GoalScreen() {
     <AppShell
       title="오늘의 목적"
       backHref="/"
-      stickyAction={<PrimaryButton disabled={!goal} onClick={continueJourney}>내 전공 DNA 만들기</PrimaryButton>}
+      stickyAction={<PrimaryButton disabled={!goal} onClick={continueJourney}>{goal === "understand-paper" ? "논문 이해 시작하기" : "내 전공 DNA 만들기"}</PrimaryButton>}
     >
       <PageHeader
         eyebrow="첫 번째 선택"
@@ -131,29 +125,6 @@ export function GoalScreen() {
           />
         ))}
       </div>
-      <BottomSheet
-        open={paperSheet}
-        onClose={() => setPaperSheet(false)}
-        title="논문 이해 기능은 준비 중이에요"
-        description="이번 프로토타입에서는 가까운 연구 주제 경로를 먼저 경험할 수 있어요."
-        footer={
-          <PrimaryButton
-            onClick={() => {
-              setGoal("find-topic");
-              setPaperSheet(false);
-              router.push("/dna");
-            }}
-          >
-            프로젝트 주제로 시작하기
-          </PrimaryButton>
-        }
-      >
-        <div className="sheet-message-list">
-          <p><Search size={18} aria-hidden="true" /> 관심 있는 분야를 연구 질문으로 정리해요.</p>
-          <p><BookOpenText size={18} aria-hidden="true" /> 필요한 데이터와 방법을 함께 살펴봐요.</p>
-          <p><BriefcaseBusiness size={18} aria-hidden="true" /> 교수 면담과 첫 행동까지 준비해요.</p>
-        </div>
-      </BottomSheet>
     </AppShell>
   );
 }

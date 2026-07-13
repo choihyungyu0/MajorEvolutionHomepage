@@ -7,22 +7,21 @@ import {
   ArrowRight,
   BarChart3,
   BookOpenCheck,
-  Bookmark,
+  CalendarPlus,
   Check,
   CheckCircle2,
   ChevronRight,
-  Clipboard,
-  Compass,
   Copy,
   Database,
+  Download,
+  ExternalLink,
   FileText,
   GraduationCap,
   Home,
   Lightbulb,
   ListChecks,
-  LockKeyhole,
   Mail,
-  Pencil,
+  Printer,
   RotateCcw,
   Save,
   ShieldCheck,
@@ -38,8 +37,8 @@ import {
   AppLogo,
   AppShell,
   Card,
+  cx,
   EmptyState,
-  IconButton,
   LinkButton,
   PageHeader,
   PrimaryButton,
@@ -58,6 +57,7 @@ import {
   professors,
 } from "@/data/prototype";
 import { getAvailableIdeas } from "@/lib/ai-journey";
+import { downloadProjectCalendar, downloadProjectMarkdown, openEmailDraft } from "@/lib/project-actions";
 import { usePrototypeStore } from "@/store/prototype-store";
 
 const weekPlan = [
@@ -67,14 +67,18 @@ const weekPlan = [
   { week: 4, title: "해석·공유", condition: "5페이지 보고서, 발표자료, 면담 자료" },
 ];
 
-const lockedSections = [
-  [Database, "필요한 데이터와 수집 방법"],
-  [BarChart3, "방법론 사다리"],
-  [GraduationCap, "교수 면담 질문 3개"],
-  [Mail, "이메일 초안"],
-  [ListChecks, "4주 실행계획"],
-  [FileText, "포트폴리오 문장"],
+const QUEST_STEPS = [
+  { id: "first-action", label: "첫 30분 행동" },
+  { id: "data-plan", label: "데이터 계획" },
+  { id: "method-plan", label: "방법론 사다리" },
+  { id: "interview-questions", label: "면담 질문" },
+  { id: "email-ready", label: "이메일 준비" },
+  { id: "project-package", label: "실행 패키지" },
 ] as const;
+
+function QuestStepHeader({ number, title, complete, icon: Icon }: { number: number; title: string; complete: boolean; icon: typeof Database }) {
+  return <header className="quest-task-card__header"><span>{complete ? <Check size={17} /> : number}</span><div><small>STEP {number}</small><h2>{title}</h2></div><Icon size={21} aria-hidden="true" /></header>;
+}
 
 export function QuestScreen() {
   const router = useRouter();
@@ -88,11 +92,19 @@ export function QuestScreen() {
   const setQuestion = usePrototypeStore((state) => state.setQuestion);
   const emailDraft = usePrototypeStore((state) => state.editedEmailDraft);
   const setEmailDraft = usePrototypeStore((state) => state.setEmailDraft);
+  const passport = usePrototypeStore((state) => state.passport);
+  const profile = usePrototypeStore((state) => state.profile);
+  const questNotes = usePrototypeStore((state) => state.questNotes);
+  const setQuestNote = usePrototypeStore((state) => state.setQuestNote);
   const [started, setStarted] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
+  const [exportStatus, setExportStatus] = useState("");
   const idea = [...getAvailableIdeas(aiJourney), ...aiIdeaArchive].find((item) => item.id === selectedIdeaId) ?? ideaSets[0][0];
   const professor = professors.find((item) => item.id === selectedProfessorId) ?? professors[0];
-  const complete = completedQuestIds.includes("first-action");
+  const firstComplete = completedQuestIds.includes("first-action");
+  const completedCount = QUEST_STEPS.filter((step) => completedQuestIds.includes(step.id)).length;
+  const allComplete = completedCount === QUEST_STEPS.length;
+  const isComplete = (id: string) => completedQuestIds.includes(id);
 
   const copyEmail = async () => {
     try {
@@ -103,74 +115,103 @@ export function QuestScreen() {
     }
   };
 
+  const exportInput = { profile, idea, professor, passport, questions, emailDraft, questNotes };
+
+  const downloadPlan = () => {
+    downloadProjectMarkdown(exportInput);
+    setExportStatus("프로젝트 문서를 내려받았어요.");
+  };
+
+  const downloadCalendar = () => {
+    downloadProjectCalendar(idea);
+    setExportStatus("캘린더 일정 파일을 내려받았어요.");
+  };
+
   return (
     <AppShell title="실행 퀘스트" backHref={`/professors/${professor.id}`} bottomNav={<BottomNav />}>
       <PageHeader
         eyebrow={`${idea.title} · ${professor.name}`}
-        title={complete ? "첫 걸음을 시작했어요" : "이제 첫 행동만 시작하면 돼요"}
-        description={complete ? "아이디어가 실제 프로젝트 기록으로 남기 시작했어요." : "계획을 다 읽기 전에 30분 이하의 작은 행동부터 시작해보세요."}
+        title={allComplete ? "실행 준비 6단계를 완성했어요" : firstComplete ? "프로젝트를 하나씩 실행하고 있어요" : "이제 첫 행동만 시작하면 돼요"}
+        description={allComplete ? "문서와 일정까지 준비됐어요. 다음 행동을 실제 기록으로 이어가세요." : "완료한 단계는 이 브라우저에 저장되고 홈 진행률에 바로 반영돼요."}
       />
 
       <div className="quest-progress">
-        <div><strong>{complete ? 1 : 0} / 6 완료</strong><span>진화 프로젝트 실행률</span></div>
-        <ProgressBar value={complete ? 1 : 0} max={6} label={`퀘스트 ${complete ? 1 : 0}/6 완료`} />
+        <div><strong>{completedCount} / 6 완료</strong><span>진화 프로젝트 실행률</span></div>
+        <ProgressBar value={completedCount} max={6} label={`퀘스트 ${completedCount}/6 완료`} />
       </div>
 
       <section className="first-action-card">
-        <header><span>1</span><div><Tag tone="violet">FIRST ACTION</Tag><h2>첫 30분 행동</h2></div>{complete && <CheckCircle2 size={24} aria-label="완료" />}</header>
+        <header><span>1</span><div><Tag tone="violet">FIRST ACTION</Tag><h2>첫 30분 행동</h2></div>{firstComplete && <CheckCircle2 size={24} aria-label="완료" />}</header>
         <p>{idea.data[0] || "핵심 데이터"} 후보 10개를 모아 첫 분류 기준 3개를 적어보세요.</p>
         <dl>
           <div><dt><Timer size={16} /> 예상 시간</dt><dd>25분</dd></div>
           <div><dt><Target size={16} /> 완료 조건</dt><dd>스프레드시트 20행 + 분류 기준 3개</dd></div>
         </dl>
-        {!complete && !started && <PrimaryButton onClick={() => setStarted(true)}>첫 행동 시작하기</PrimaryButton>}
-        {!complete && started && (
+        {!firstComplete && !started && <PrimaryButton onClick={() => setStarted(true)}>첫 행동 시작하기</PrimaryButton>}
+        {!firstComplete && started && (
           <div className="action-started">
             <StatusBanner icon={Timer} title="타이머를 시작했어요" tone="lavender">자료를 모은 뒤 아래 버튼으로 완료를 기록하세요.</StatusBanner>
             <PrimaryButton onClick={() => completeQuest("first-action")}><Check size={18} /> 첫 행동 완료로 표시</PrimaryButton>
           </div>
         )}
-        {complete && <StatusBanner icon={CheckCircle2} title="완료 기록됨" tone="success">다음 실행 자료가 모두 열렸어요.</StatusBanner>}
+        {firstComplete && <StatusBanner icon={CheckCircle2} title="완료 기록됨" tone="success">나머지 실행 자료가 열렸어요.</StatusBanner>}
       </section>
 
-      {!complete ? (
+      {!firstComplete ? (
         <>
           <SectionHeading title="첫 행동 뒤에 열려요" description="한 번에 모든 계획을 읽지 않아도 괜찮아요." />
           <div className="locked-list">
-            {lockedSections.map(([Icon, label], index) => <div key={label}><span><Icon size={18} /></span><p>{index + 2}. {label}</p><LockKeyhole size={17} /></div>)}
+            {QUEST_STEPS.slice(1).map((step, index) => <div key={step.id}><span>{index + 2}</span><p>{step.label}</p><span className="lock-mark">잠김</span></div>)}
           </div>
         </>
       ) : (
-        <div className="unlocked-content">
-          <SectionHeading title="교수 면담 질문" description="직접 수정한 내용이 자동으로 저장돼요." />
-          <div className="question-list">
-            {questions.map((question, index) => (
-              <label key={index}>
-                <span>{index + 1}</span>
-                <textarea className="textarea" value={question} onChange={(event) => setQuestion(index, event.target.value)} aria-label={`교수 면담 질문 ${index + 1}`} />
-              </label>
-            ))}
-          </div>
+        <div className="unlocked-content quest-task-list">
+          <section className={cx("quest-task-card", isComplete("data-plan") && "is-complete")}>
+            <QuestStepHeader number={2} title="데이터 계획 확정" complete={isComplete("data-plan")} icon={Database} />
+            <p>{idea.data.join(" · ")}를 어떤 경로와 단위로 확보할지 적어보세요.</p>
+            <textarea className="textarea" value={questNotes.dataPlan} onChange={(event) => setQuestNote("dataPlan", event.target.value)} aria-label="데이터 계획" />
+            <PrimaryButton disabled={isComplete("data-plan") || !questNotes.dataPlan.trim()} onClick={() => completeQuest("data-plan")}><Check size={17} /> {isComplete("data-plan") ? "데이터 계획 완료" : "계획 확정하기"}</PrimaryButton>
+          </section>
 
-          <SectionHeading title="이메일 초안" description="자동 발송되지 않아요. 발송 전 직접 확인해 주세요." />
-          <Card className="email-draft">
-            <div className="email-draft__bar"><span><Mail size={18} /> 면담 요청 초안</span><TextButton onClick={copyEmail}><Copy size={16} /> 복사하기</TextButton></div>
-            <textarea className="textarea" value={emailDraft} onChange={(event) => setEmailDraft(event.target.value)} aria-label="면담 요청 이메일 초안" />
-            {copyStatus && <p role="status">{copyStatus}</p>}
-          </Card>
+          <section className={cx("quest-task-card", isComplete("method-plan") && "is-complete")}>
+            <QuestStepHeader number={3} title="방법론 사다리 만들기" complete={isComplete("method-plan")} icon={BarChart3} />
+            <p>가장 단순한 기준 방법부터 확장 방법까지 실패해도 돌아갈 순서를 남겨두세요.</p>
+            <textarea className="textarea" value={questNotes.methodPlan} onChange={(event) => setQuestNote("methodPlan", event.target.value)} aria-label="방법론 계획" />
+            <PrimaryButton disabled={isComplete("method-plan") || !questNotes.methodPlan.trim()} onClick={() => completeQuest("method-plan")}><Check size={17} /> {isComplete("method-plan") ? "방법 계획 완료" : "방법 계획 확정"}</PrimaryButton>
+          </section>
 
-          <SectionHeading title="4주 실행계획" />
-          <div className="week-plan">
-            {weekPlan.map((item) => (
-              <article key={item.week}><span>{item.week}주</span><div><h3>{item.title}</h3><p>완료 조건: {item.condition}</p></div></article>
-            ))}
-          </div>
+          <section className={cx("quest-task-card", isComplete("interview-questions") && "is-complete")}>
+            <QuestStepHeader number={4} title="교수 면담 질문 준비" complete={isComplete("interview-questions")} icon={GraduationCap} />
+            <div className="question-list">
+              {questions.map((question, index) => <label key={index}><span>{index + 1}</span><textarea className="textarea" value={question} onChange={(event) => setQuestion(index, event.target.value)} aria-label={`교수 면담 질문 ${index + 1}`} /></label>)}
+            </div>
+            <PrimaryButton disabled={isComplete("interview-questions") || questions.some((question) => !question.trim())} onClick={() => completeQuest("interview-questions")}><Check size={17} /> {isComplete("interview-questions") ? "면담 질문 완료" : "질문 3개 확정"}</PrimaryButton>
+          </section>
 
-          <SectionHeading title="포트폴리오 문장" />
-          <StatusBanner icon={FileText} title="프로젝트 소개 문장" tone="lavender">
-            {idea.title} 프로젝트에서 {idea.data.slice(0, 2).join("와 ")}를 활용해 {idea.question}
-          </StatusBanner>
+          <section className={cx("quest-task-card", isComplete("email-ready") && "is-complete")}>
+            <QuestStepHeader number={5} title="면담 이메일 준비" complete={isComplete("email-ready")} icon={Mail} />
+            <div className="email-draft">
+              <div className="email-draft__bar"><span><Mail size={18} /> 면담 요청 초안</span><TextButton onClick={copyEmail}><Copy size={16} /> 복사</TextButton></div>
+              <textarea className="textarea" value={emailDraft} onChange={(event) => setEmailDraft(event.target.value)} aria-label="면담 요청 이메일 초안" />
+              {copyStatus && <p role="status">{copyStatus}</p>}
+            </div>
+            <div className="quest-inline-actions"><SecondaryButton onClick={() => openEmailDraft(professor, idea, emailDraft)}><ExternalLink size={17} /> 이메일 앱 열기</SecondaryButton><PrimaryButton disabled={isComplete("email-ready") || !emailDraft.trim()} onClick={() => completeQuest("email-ready")}><Check size={17} /> {isComplete("email-ready") ? "이메일 준비 완료" : "초안 확정"}</PrimaryButton></div>
+          </section>
 
+          <section className={cx("quest-task-card", isComplete("project-package") && "is-complete")}>
+            <QuestStepHeader number={6} title="실행 패키지 만들기" complete={isComplete("project-package")} icon={ListChecks} />
+            <div className="week-plan">{weekPlan.map((item) => <article key={item.week}><span>{item.week}주</span><div><h3>{item.title}</h3><p>완료 조건: {item.condition}</p></div></article>)}</div>
+            <label className="field-group"><span className="field-label">포트폴리오 문장</span><textarea className="textarea" value={questNotes.portfolio} onChange={(event) => setQuestNote("portfolio", event.target.value)} /></label>
+            <div className="project-export-grid">
+              <button type="button" onClick={downloadPlan}><Download size={19} /><span><strong>프로젝트 문서</strong><small>Markdown 내려받기</small></span></button>
+              <button type="button" onClick={downloadCalendar}><CalendarPlus size={19} /><span><strong>캘린더 등록</strong><small>ICS 일정 파일</small></span></button>
+              <button type="button" onClick={() => window.print()}><Printer size={19} /><span><strong>PDF로 저장</strong><small>인쇄 대화상자</small></span></button>
+            </div>
+            {exportStatus && <p className="action-feedback" role="status">{exportStatus}</p>}
+            <PrimaryButton disabled={isComplete("project-package") || !questNotes.portfolio.trim()} onClick={() => completeQuest("project-package")}><Check size={17} /> {isComplete("project-package") ? "실행 패키지 완료" : "실행 준비 완료"}</PrimaryButton>
+          </section>
+
+          {allComplete && <StatusBanner icon={CheckCircle2} title="6단계 완료" tone="success">문서와 일정을 내려받고 실제 프로젝트 기록을 시작해 보세요.</StatusBanner>}
           <PrimaryButton className="quest-home-button" onClick={() => router.push("/home")}>내 진화 프로젝트 보기 <ArrowRight size={18} /></PrimaryButton>
         </div>
       )}
@@ -184,11 +225,13 @@ export function HomeScreen() {
   const aiJourney = usePrototypeStore((state) => state.aiJourney);
   const aiIdeaArchive = usePrototypeStore((state) => state.aiIdeaArchive);
   const selectedProfessorId = usePrototypeStore((state) => state.selectedProfessorId);
-  const completed = usePrototypeStore((state) => state.completedQuestIds.includes("first-action"));
+  const completedQuestIds = usePrototypeStore((state) => state.completedQuestIds);
   const savedIdeaCount = usePrototypeStore((state) => state.savedIdeaIds.length);
   const savedProfessorCount = usePrototypeStore((state) => state.savedProfessorIds.length);
   const idea = [...getAvailableIdeas(aiJourney), ...aiIdeaArchive].find((item) => item.id === selectedIdeaId);
   const professor = professors.find((item) => item.id === selectedProfessorId);
+  const completedCount = QUEST_STEPS.filter((step) => completedQuestIds.includes(step.id)).length;
+  const nextStep = QUEST_STEPS.find((step) => !completedQuestIds.includes(step.id));
 
   if (!idea) {
     return (
@@ -210,11 +253,11 @@ export function HomeScreen() {
       <header className="home-greeting"><p>안녕하세요, {profile.name || "김학생"}님</p><h1>오늘 이어서 할 일이 있어요</h1></header>
 
       <section className="current-project">
-        <div className="current-project__top"><Tag tone="mint">진행 중</Tag><span>{completed ? "1 / 6 완료" : "0 / 6 완료"}</span></div>
+        <div className="current-project__top"><Tag tone="mint">{completedCount === 6 ? "준비 완료" : "진행 중"}</Tag><span>{completedCount} / 6 완료</span></div>
         <h2>{idea.title}</h2>
         <p>{professor ? `${professor.name} 연결 · ` : ""}{idea.type} · {idea.weeks}주</p>
-        <ProgressBar value={completed ? 1 : 0} max={6} label={`프로젝트 ${completed ? 1 : 0}/6 완료`} />
-        <div className="next-action"><span><ListChecks size={18} /></span><div><small>다음 행동</small><strong>{completed ? "데이터 후보 2개 확인하기" : "첫 30분 행동 시작하기"}</strong></div></div>
+        <ProgressBar value={completedCount} max={6} label={`프로젝트 ${completedCount}/6 완료`} />
+        <div className="next-action"><span><ListChecks size={18} /></span><div><small>{nextStep ? "다음 행동" : "완료"}</small><strong>{nextStep?.label ?? "실제 프로젝트 기록 시작하기"}</strong></div></div>
         <PrimaryButton onClick={() => router.push("/quest")}>계속하기 <ArrowRight size={18} /></PrimaryButton>
       </section>
 
@@ -230,7 +273,7 @@ export function HomeScreen() {
 
       <SectionHeading title="최근 성장 기록" />
       <div className="activity-list">
-        {completed ? <div><CheckCircle2 size={19} /><span><strong>첫 30분 행동 완료</strong><small>오늘</small></span></div> : <div><Timer size={19} /><span><strong>실행 퀘스트 생성</strong><small>첫 행동을 기다리고 있어요</small></span></div>}
+        {completedCount > 0 ? <div><CheckCircle2 size={19} /><span><strong>실행 준비 {completedCount}단계 완료</strong><small>최근 상태가 저장됐어요</small></span></div> : <div><Timer size={19} /><span><strong>실행 퀘스트 생성</strong><small>첫 행동을 기다리고 있어요</small></span></div>}
         <div><Save size={19} /><span><strong>아이디어 패스포트 완성</strong><small>{idea.title}</small></span></div>
       </div>
     </AppShell>
@@ -240,6 +283,7 @@ export function HomeScreen() {
 const exploreItems = [
   { href: "/evolution-report", icon: Sparkles, title: "전공 진화 리포트", description: "내 전공의 AI 연구 방향과 준비 기술 보기", tone: "violet" },
   { href: "/ideas", icon: Lightbulb, title: "아이디어 랩", description: "연구형·프로젝트형·서비스형 아이디어 비교", tone: "mint" },
+  { href: "/paper", icon: FileText, title: "논문 이해", description: "초록과 본문을 질문·방법·결과·한계로 나눠 읽기", tone: "violet" },
   { href: "/professors", icon: GraduationCap, title: "너의 교수님은?", description: "아이디어와 공개 연구 정보의 연결 근거 보기", tone: "blue" },
 ];
 

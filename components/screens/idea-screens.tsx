@@ -53,7 +53,7 @@ import {
   type EditablePassport,
   type Idea,
 } from "@/data/prototype";
-import { requestAiIdeas } from "@/lib/ai-client";
+import { requestAiCoach, requestAiIdeas } from "@/lib/ai-client";
 import { getAvailableIdeas } from "@/lib/ai-journey";
 import { usePrototypeStore } from "@/store/prototype-store";
 
@@ -68,18 +68,27 @@ export function EvolutionReportScreen() {
   const setSelectedTrend = usePrototypeStore((state) => state.setSelectedTrend);
   const [helpOpen, setHelpOpen] = useState(false);
   const [contextNote, setContextNote] = useState("");
+  const [isAdjusting, setIsAdjusting] = useState(false);
   const reportDna = aiJourney?.dna ?? dnaResult;
   const reportTrends = aiJourney?.trends ?? trends;
   const selectedTrend = reportTrends.find((trend) => trend.id === selectedTrendId) ?? reportTrends[0];
   const otherTrends = reportTrends.filter((trend) => trend.id !== selectedTrend.id);
 
-  const applySuggestion = (type: "easy" | "major") => {
-    setContextNote(
-      type === "easy"
-        ? "쉽게 말하면, 제품의 친환경 문구와 소비자 반응을 숫자로 비교해보는 방향이에요."
-        : `${profile.major || "주전공"}의 모델링 강점을 더 쓰도록 지표 설계와 회귀 분석 비중을 높였어요.`,
-    );
-    setHelpOpen(false);
+  const applySuggestion = async (type: "easy" | "major") => {
+    setIsAdjusting(true);
+    try {
+      const result = await requestAiCoach({
+        task: type === "easy" ? "simplify-trend" : "major-focus",
+        context: { profile, trend: selectedTrend },
+      });
+      setContextNote(result.content);
+      setHelpOpen(false);
+    } catch (error) {
+      setContextNote(error instanceof Error ? error.message : "설명을 조정하지 못했습니다.");
+      setHelpOpen(false);
+    } finally {
+      setIsAdjusting(false);
+    }
   };
 
   return (
@@ -170,8 +179,8 @@ export function EvolutionReportScreen() {
 
       <BottomSheet open={helpOpen} onClose={() => setHelpOpen(false)} title="어떻게 바꿔볼까요?" description="현재 전공 진화 리포트에 맞는 요청만 보여드려요.">
         <div className="sheet-choice-list">
-          <button type="button" onClick={() => applySuggestion("easy")}><Lightbulb size={19} /><span><strong>이 분야를 더 쉽게 설명해줘</strong><small>전문용어를 줄이고 한 문장 예시를 붙여요.</small></span><ChevronRight size={18} /></button>
-          <button type="button" onClick={() => applySuggestion("major")}><Target size={19} /><span><strong>내 전공을 더 많이 쓰는 방향 보기</strong><small>모델링과 경제적 해석 비중을 높여요.</small></span><ChevronRight size={18} /></button>
+          <button type="button" disabled={isAdjusting} onClick={() => applySuggestion("easy")}>{isAdjusting ? <LoaderCircle size={19} className="spin" /> : <Lightbulb size={19} />}<span><strong>이 분야를 더 쉽게 설명해줘</strong><small>전문용어를 줄이고 한 문장 예시를 붙여요.</small></span><ChevronRight size={18} /></button>
+          <button type="button" disabled={isAdjusting} onClick={() => applySuggestion("major")}>{isAdjusting ? <LoaderCircle size={19} className="spin" /> : <Target size={19} />}<span><strong>내 전공을 더 많이 쓰는 방향 보기</strong><small>전공 역량을 더 많이 쓰는 데이터와 방법으로 조정해요.</small></span><ChevronRight size={18} /></button>
         </div>
       </BottomSheet>
     </AppShell>
