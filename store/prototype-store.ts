@@ -13,7 +13,9 @@ import {
   type EditablePassport,
   type Goal,
   type StudentProfile,
+  type Idea,
 } from "@/data/prototype";
+import { createPassportFromIdea, getAvailableIdeas, type AiGenerationStatus, type AiJourneyResult } from "@/lib/ai-journey";
 
 type ListField = "interests" | "careers" | "skills";
 
@@ -23,6 +25,10 @@ type PrototypeState = {
   dnaStep: number;
   profile: StudentProfile;
   isSampleMode: boolean;
+  aiStatus: AiGenerationStatus;
+  aiError: string | null;
+  aiJourney: AiJourneyResult | null;
+  aiIdeaArchive: Idea[];
   selectedTrendId: string;
   ideaSetVersion: 0 | 1;
   selectedIdeaIds: string[];
@@ -45,6 +51,11 @@ type PrototypeState = {
   updateProfile: (patch: Partial<StudentProfile>) => void;
   toggleProfileItem: (field: ListField, value: string, max?: number) => void;
   setSampleMode: (value: boolean) => void;
+  setAiLoading: () => void;
+  setAiJourney: (journey: AiJourneyResult) => void;
+  setAiFallback: (journey: AiJourneyResult, message: string) => void;
+  setAiError: (message: string) => void;
+  setAiIdeas: (ideas: Idea[], generatedAt: string, model: string) => void;
   setSelectedTrend: (id: string) => void;
   regenerateIdeas: () => void;
   toggleIdeaSelection: (id: string) => void;
@@ -69,6 +80,10 @@ const initialState = {
   dnaStep: 1,
   profile: emptyProfile,
   isSampleMode: false,
+  aiStatus: "idle" as AiGenerationStatus,
+  aiError: null as string | null,
+  aiJourney: null as AiJourneyResult | null,
+  aiIdeaArchive: [] as Idea[],
   selectedTrendId: "greenwashing",
   ideaSetVersion: 0 as const,
   selectedIdeaIds: [] as string[],
@@ -110,6 +125,45 @@ export const usePrototypeStore = create<PrototypeState>()(
           isSampleMode,
           profile: isSampleMode ? defaultProfile : emptyProfile,
         }),
+      setAiLoading: () => set({ aiStatus: "loading", aiError: null }),
+      setAiJourney: (aiJourney) =>
+        set({
+          aiJourney,
+          aiStatus: "success",
+          aiError: null,
+          aiIdeaArchive: [],
+          selectedTrendId: aiJourney.trends[0]?.id ?? "",
+          selectedIdeaIds: [],
+          selectedIdeaId: null,
+        }),
+      setAiFallback: (aiJourney, aiError) =>
+        set({
+          aiJourney,
+          aiStatus: "fallback",
+          aiError,
+          aiIdeaArchive: [],
+          selectedTrendId: aiJourney.trends[0]?.id ?? "greenwashing",
+          selectedIdeaIds: [],
+          selectedIdeaId: null,
+        }),
+      setAiError: (aiError) => set({ aiStatus: "error", aiError }),
+      setAiIdeas: (ideas, generatedAt, model) =>
+        set((state) => {
+          if (!state.aiJourney) return state;
+          const archivedIds = new Set(state.aiIdeaArchive.map((idea) => idea.id));
+          const aiIdeaArchive = [
+            ...state.aiIdeaArchive,
+            ...state.aiJourney.ideas.filter((idea) => !archivedIds.has(idea.id)),
+          ];
+          return {
+            aiJourney: { ...state.aiJourney, ideas, generatedAt, model },
+            aiIdeaArchive,
+            aiStatus: "success",
+            aiError: null,
+            selectedIdeaIds: [],
+            selectedIdeaId: null,
+          };
+        }),
       setSelectedTrend: (selectedTrendId) => set({ selectedTrendId }),
       regenerateIdeas: () =>
         set((state) => ({
@@ -124,7 +178,14 @@ export const usePrototypeStore = create<PrototypeState>()(
           if (state.selectedIdeaIds.length >= 2) return state;
           return { selectedIdeaIds: [...state.selectedIdeaIds, id] };
         }),
-      setSelectedIdea: (selectedIdeaId) => set({ selectedIdeaId }),
+      setSelectedIdea: (selectedIdeaId) =>
+        set((state) => {
+          const idea = [...getAvailableIdeas(state.aiJourney), ...state.aiIdeaArchive].find((item) => item.id === selectedIdeaId);
+          return {
+            selectedIdeaId,
+            passport: idea ? createPassportFromIdea(idea) : state.passport,
+          };
+        }),
       toggleCriterion: (criterion) =>
         set((state) => {
           const exists = state.comparisonCriteria.includes(criterion);

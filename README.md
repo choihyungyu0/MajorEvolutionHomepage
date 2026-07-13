@@ -6,10 +6,20 @@
 
 ```bash
 npm install
+```
+
+루트에 `.env.local`을 만들고 서버 전용 키를 설정합니다.
+
+```bash
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-5-mini
+```
+
+```bash
 npm run dev
 ```
 
-기본 개발 주소는 `http://localhost:3000`입니다. 현재 로컬 QA 서버는 `http://127.0.0.1:3100`에서 실행됩니다.
+기본 개발 주소는 `http://localhost:3000`입니다.
 
 ## 핵심 흐름
 
@@ -25,10 +35,13 @@ npm run dev
 - Next.js 15 App Router
 - React 19, TypeScript
 - Zustand persist 기반 브라우저 로컬 상태
+- OpenAI Responses API와 strict JSON Schema 기반 맞춤 결과 생성
 - Tailwind CSS 4와 전용 CSS 디자인 시스템
 - Lucide 아이콘
 
-입력값과 진행 상태는 서버로 전송하지 않고 브라우저 `localStorage`에만 저장됩니다. 교수 이름, 연구실, 출처 항목은 기능 검증을 위한 가상 데이터이며 화면에도 이를 명시합니다.
+분석 시 입력 프로필은 앱의 서버 API를 거쳐 OpenAI Responses API로 전송됩니다. API 키는 서버에서만 읽으며 클라이언트 번들에 포함하지 않습니다. 생성 결과와 진행 상태는 브라우저 `localStorage`에 저장됩니다. 교수 이름, 연구실, 출처 항목은 기능 검증을 위한 가상 데이터이며 화면에도 이를 명시합니다.
+
+AI 호출에 실패하면 준비된 샘플 결과로 흐름을 이어가며, 화면에서 샘플 결과임을 표시합니다. AI가 생성한 탐색 방향은 외부 출처 검증을 마친 최신 동향으로 표시하지 않습니다.
 
 ## 에셋과 문서
 

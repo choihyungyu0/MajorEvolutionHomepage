@@ -15,7 +15,7 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BottomSheet } from "@/components/app/bottom-sheet";
 import {
   AppLogo,
@@ -37,6 +37,8 @@ import {
   skillOptions,
   type Goal,
 } from "@/data/prototype";
+import { requestAiJourney } from "@/lib/ai-client";
+import { createFallbackJourney, type AiJourneyResult } from "@/lib/ai-journey";
 import { usePrototypeStore } from "@/store/prototype-store";
 
 const goalIcons = [Compass, Lightbulb, GraduationCap, FileSearch];
@@ -349,7 +351,13 @@ export function DnaScreen() {
 export function AnalyzingScreen() {
   const router = useRouter();
   const profile = usePrototypeStore((state) => state.profile);
+  const goal = usePrototypeStore((state) => state.goal);
+  const setAiLoading = usePrototypeStore((state) => state.setAiLoading);
+  const setAiJourney = usePrototypeStore((state) => state.setAiJourney);
+  const setAiFallback = usePrototypeStore((state) => state.setAiFallback);
   const [activeStep, setActiveStep] = useState(0);
+  const [isTakingLonger, setIsTakingLonger] = useState(false);
+  const requestRef = useRef<Promise<AiJourneyResult> | null>(null);
   const messages = [
     "전공과 강점을 정리하고 있어요",
     "전공별 AI 활용 방향을 연결하고 있어요",
@@ -359,9 +367,40 @@ export function AnalyzingScreen() {
   useEffect(() => {
     const first = window.setTimeout(() => setActiveStep(1), 700);
     const second = window.setTimeout(() => setActiveStep(2), 1450);
-    const done = window.setTimeout(() => router.replace("/evolution-report"), 2350);
-    return () => [first, second, done].forEach(window.clearTimeout);
-  }, [router]);
+    const slow = window.setTimeout(() => setIsTakingLonger(true), 9000);
+    return () => [first, second, slow].forEach(window.clearTimeout);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    setAiLoading();
+    if (!requestRef.current) {
+      requestRef.current = (async () => {
+        const [journey] = await Promise.all([
+          requestAiJourney({ profile, goal }),
+          new Promise((resolve) => window.setTimeout(resolve, 1800)),
+        ]);
+        return journey;
+      })();
+    }
+
+    requestRef.current
+      .then((journey) => {
+        if (!active) return;
+        setAiJourney(journey);
+        router.replace("/evolution-report");
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : "AI 분석을 완료하지 못했습니다.";
+        setAiFallback(createFallbackJourney(), message);
+        router.replace("/evolution-report");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [goal, profile, router, setAiFallback, setAiJourney, setAiLoading]);
 
   return (
     <AppShell showHeader={false} className="analyzing-screen">
@@ -387,7 +426,7 @@ export function AnalyzingScreen() {
             );
           })}
         </div>
-        <p className="analysis-trust"><Sparkles size={16} aria-hidden="true" /> 입력한 정보만 사용해 결과를 만들어요.</p>
+        <p className="analysis-trust"><Sparkles size={16} aria-hidden="true" /> {isTakingLonger ? "맞춤 결과를 조금 더 꼼꼼히 구성하고 있어요." : "입력한 정보로 맞춤 결과를 만들어요."}</p>
       </div>
     </AppShell>
   );

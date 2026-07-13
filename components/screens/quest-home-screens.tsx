@@ -52,12 +52,12 @@ import {
   TextButton,
 } from "@/components/app/primitives";
 import {
-  allIdeas,
   assetPath,
   dnaResult,
   ideaSets,
   professors,
 } from "@/data/prototype";
+import { getAvailableIdeas } from "@/lib/ai-journey";
 import { usePrototypeStore } from "@/store/prototype-store";
 
 const weekPlan = [
@@ -79,6 +79,8 @@ const lockedSections = [
 export function QuestScreen() {
   const router = useRouter();
   const selectedIdeaId = usePrototypeStore((state) => state.selectedIdeaId);
+  const aiJourney = usePrototypeStore((state) => state.aiJourney);
+  const aiIdeaArchive = usePrototypeStore((state) => state.aiIdeaArchive);
   const selectedProfessorId = usePrototypeStore((state) => state.selectedProfessorId);
   const completedQuestIds = usePrototypeStore((state) => state.completedQuestIds);
   const completeQuest = usePrototypeStore((state) => state.completeQuest);
@@ -88,7 +90,7 @@ export function QuestScreen() {
   const setEmailDraft = usePrototypeStore((state) => state.setEmailDraft);
   const [started, setStarted] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
-  const idea = allIdeas.find((item) => item.id === selectedIdeaId) ?? ideaSets[0][0];
+  const idea = [...getAvailableIdeas(aiJourney), ...aiIdeaArchive].find((item) => item.id === selectedIdeaId) ?? ideaSets[0][0];
   const professor = professors.find((item) => item.id === selectedProfessorId) ?? professors[0];
   const complete = completedQuestIds.includes("first-action");
 
@@ -116,7 +118,7 @@ export function QuestScreen() {
 
       <section className="first-action-card">
         <header><span>1</span><div><Tag tone="violet">FIRST ACTION</Tag><h2>첫 30분 행동</h2></div>{complete && <CheckCircle2 size={24} aria-label="완료" />}</header>
-        <p>제품 20개의 친환경 표시 문구를 모아 3개 표현 유형으로 임시 분류해요.</p>
+        <p>{idea.data[0] || "핵심 데이터"} 후보 10개를 모아 첫 분류 기준 3개를 적어보세요.</p>
         <dl>
           <div><dt><Timer size={16} /> 예상 시간</dt><dd>25분</dd></div>
           <div><dt><Target size={16} /> 완료 조건</dt><dd>스프레드시트 20행 + 분류 기준 3개</dd></div>
@@ -166,7 +168,7 @@ export function QuestScreen() {
 
           <SectionHeading title="포트폴리오 문장" />
           <StatusBanner icon={FileText} title="프로젝트 소개 문장" tone="lavender">
-            친환경 표시 문구 100개와 소비자 설문을 결합해 표현 유형별 신뢰도 차이를 분석하고, 재현 가능한 기준 모델과 시각화로 정리했습니다.
+            {idea.title} 프로젝트에서 {idea.data.slice(0, 2).join("와 ")}를 활용해 {idea.question}
           </StatusBanner>
 
           <PrimaryButton className="quest-home-button" onClick={() => router.push("/home")}>내 진화 프로젝트 보기 <ArrowRight size={18} /></PrimaryButton>
@@ -179,11 +181,13 @@ export function HomeScreen() {
   const router = useRouter();
   const profile = usePrototypeStore((state) => state.profile);
   const selectedIdeaId = usePrototypeStore((state) => state.selectedIdeaId);
+  const aiJourney = usePrototypeStore((state) => state.aiJourney);
+  const aiIdeaArchive = usePrototypeStore((state) => state.aiIdeaArchive);
   const selectedProfessorId = usePrototypeStore((state) => state.selectedProfessorId);
   const completed = usePrototypeStore((state) => state.completedQuestIds.includes("first-action"));
   const savedIdeaCount = usePrototypeStore((state) => state.savedIdeaIds.length);
   const savedProfessorCount = usePrototypeStore((state) => state.savedProfessorIds.length);
-  const idea = allIdeas.find((item) => item.id === selectedIdeaId);
+  const idea = [...getAvailableIdeas(aiJourney), ...aiIdeaArchive].find((item) => item.id === selectedIdeaId);
   const professor = professors.find((item) => item.id === selectedProfessorId);
 
   if (!idea) {
@@ -208,14 +212,14 @@ export function HomeScreen() {
       <section className="current-project">
         <div className="current-project__top"><Tag tone="mint">진행 중</Tag><span>{completed ? "1 / 6 완료" : "0 / 6 완료"}</span></div>
         <h2>{idea.title}</h2>
-        <p>{professor ? `${professor.name} 연결 · ` : ""}{idea.type} · 4주</p>
+        <p>{professor ? `${professor.name} 연결 · ` : ""}{idea.type} · {idea.weeks}주</p>
         <ProgressBar value={completed ? 1 : 0} max={6} label={`프로젝트 ${completed ? 1 : 0}/6 완료`} />
         <div className="next-action"><span><ListChecks size={18} /></span><div><small>다음 행동</small><strong>{completed ? "데이터 후보 2개 확인하기" : "첫 30분 행동 시작하기"}</strong></div></div>
         <PrimaryButton onClick={() => router.push("/quest")}>계속하기 <ArrowRight size={18} /></PrimaryButton>
       </section>
 
       <SectionHeading title="내 전공 DNA" />
-      <Card className="home-dna"><Sparkles size={22} /><div><strong>{dnaResult.axes.join(" × ")}</strong><p>{dnaResult.summary}</p></div></Card>
+      <Card className="home-dna"><Sparkles size={22} /><div><strong>{(aiJourney?.dna ?? dnaResult).axes.join(" × ")}</strong><p>{(aiJourney?.dna ?? dnaResult).summary}</p></div></Card>
 
       <SectionHeading title="저장한 항목" />
       <div className="saved-summary">
@@ -240,6 +244,9 @@ const exploreItems = [
 ];
 
 export function ExploreScreen() {
+  const aiJourney = usePrototypeStore((state) => state.aiJourney);
+  const selectedTrendId = usePrototypeStore((state) => state.selectedTrendId);
+  const selectedTrend = aiJourney?.trends.find((trend) => trend.id === selectedTrendId) ?? aiJourney?.trends[0];
   return (
     <AppShell title="탐색" bottomNav={<BottomNav />}>
       <PageHeader eyebrow="EXPLORE" title="전공에서 시작해 더 멀리 탐색해보세요" description="완성한 결과를 다시 열거나 다른 단계로 이동할 수 있어요." />
@@ -249,17 +256,20 @@ export function ExploreScreen() {
         ))}
       </div>
       <SectionHeading title="현재 추천 방향" />
-      <StatusBanner icon={Target} title="ESG·그린워싱 탐지" tone="lavender">친환경 표현을 텍스트와 소비자 반응으로 분석하는 방향이에요.</StatusBanner>
+      <StatusBanner icon={Target} title={selectedTrend?.title ?? "ESG·그린워싱 탐지"} tone="lavender">{selectedTrend?.summary ?? "친환경 표현을 텍스트와 소비자 반응으로 분석하는 방향이에요."}</StatusBanner>
     </AppShell>
   );
 }
 
 export function SavedScreen() {
+  const aiJourney = usePrototypeStore((state) => state.aiJourney);
+  const aiIdeaArchive = usePrototypeStore((state) => state.aiIdeaArchive);
   const savedIdeaIds = usePrototypeStore((state) => state.savedIdeaIds);
   const savedProfessorIds = usePrototypeStore((state) => state.savedProfessorIds);
   const toggleSavedIdea = usePrototypeStore((state) => state.toggleSavedIdea);
   const toggleSavedProfessor = usePrototypeStore((state) => state.toggleSavedProfessor);
-  const ideas = savedIdeaIds.map((id) => allIdeas.find((idea) => idea.id === id)).filter(Boolean);
+  const availableIdeas = [...getAvailableIdeas(aiJourney), ...aiIdeaArchive];
+  const ideas = savedIdeaIds.map((id) => availableIdeas.find((idea) => idea.id === id)).filter(Boolean);
   const savedProfessors = savedProfessorIds.map((id) => professors.find((professor) => professor.id === id)).filter(Boolean);
   const empty = ideas.length === 0 && savedProfessors.length === 0;
 
@@ -292,6 +302,7 @@ export function SavedScreen() {
 export function ProfileScreen() {
   const router = useRouter();
   const profile = usePrototypeStore((state) => state.profile);
+  const aiJourney = usePrototypeStore((state) => state.aiJourney);
   const updateProfile = usePrototypeStore((state) => state.updateProfile);
   const resetDemo = usePrototypeStore((state) => state.resetDemo);
   const [resetOpen, setResetOpen] = useState(false);
@@ -313,13 +324,13 @@ export function ProfileScreen() {
 
       <SectionHeading title="전공 DNA 요약" />
       <Card className="profile-dna">
-        <strong>{dnaResult.axes.join(" × ")}</strong>
+        <strong>{(aiJourney?.dna ?? dnaResult).axes.join(" × ")}</strong>
         <p>{profile.major || "주전공"} · {profile.minor || "부전공 없음"} · {profile.grade}</p>
         <div className="tag-row">{profile.interests.slice(0, 5).map((item) => <Tag key={item}>{item}</Tag>)}</div>
       </Card>
 
       <SectionHeading title="데이터와 설정" />
-      <StatusBanner icon={ShieldCheck} title="입력 정보는 이 기기에만 저장돼요" tone="success">서버나 외부 AI로 전송하지 않으며 데모 초기화로 모두 지울 수 있어요.</StatusBanner>
+      <StatusBanner icon={ShieldCheck} title="API 키는 서버에서만 사용해요" tone="success">분석할 때 입력 정보가 OpenAI API로 전송되며, 결과와 진행 상태는 이 브라우저에 저장돼요.</StatusBanner>
       <button type="button" className="reset-button" onClick={() => setResetOpen(true)}><RotateCcw size={18} /><span><strong>데모 초기화</strong><small>입력, 저장, 진행 상태를 처음으로 되돌려요.</small></span><ChevronRight size={18} /></button>
       <p className="app-version">전공진화소 Prototype v1.0</p>
 

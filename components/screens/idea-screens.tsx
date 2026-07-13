@@ -15,6 +15,7 @@ import {
   Gauge,
   GraduationCap,
   Lightbulb,
+  LoaderCircle,
   Pencil,
   RotateCcw,
   ShieldCheck,
@@ -41,7 +42,6 @@ import {
   cx,
 } from "@/components/app/primitives";
 import {
-  allIdeas,
   comparisonLabels,
   defaultPassport,
   difficultyCopy,
@@ -53,18 +53,25 @@ import {
   type EditablePassport,
   type Idea,
 } from "@/data/prototype";
+import { requestAiIdeas } from "@/lib/ai-client";
+import { getAvailableIdeas } from "@/lib/ai-journey";
 import { usePrototypeStore } from "@/store/prototype-store";
 
 export function EvolutionReportScreen() {
   const router = useRouter();
   const profile = usePrototypeStore((state) => state.profile);
   const isSampleMode = usePrototypeStore((state) => state.isSampleMode);
+  const aiJourney = usePrototypeStore((state) => state.aiJourney);
+  const aiStatus = usePrototypeStore((state) => state.aiStatus);
+  const aiError = usePrototypeStore((state) => state.aiError);
   const selectedTrendId = usePrototypeStore((state) => state.selectedTrendId);
   const setSelectedTrend = usePrototypeStore((state) => state.setSelectedTrend);
   const [helpOpen, setHelpOpen] = useState(false);
   const [contextNote, setContextNote] = useState("");
-  const selectedTrend = trends.find((trend) => trend.id === selectedTrendId) ?? trends[0];
-  const otherTrends = trends.filter((trend) => trend.id !== selectedTrend.id);
+  const reportDna = aiJourney?.dna ?? dnaResult;
+  const reportTrends = aiJourney?.trends ?? trends;
+  const selectedTrend = reportTrends.find((trend) => trend.id === selectedTrendId) ?? reportTrends[0];
+  const otherTrends = reportTrends.filter((trend) => trend.id !== selectedTrend.id);
 
   const applySuggestion = (type: "easy" | "major") => {
     setContextNote(
@@ -87,23 +94,37 @@ export function EvolutionReportScreen() {
         description={`${profile.major || "수학"}과 ${profile.minor || "관심 분야"}를 AI 연구 방향과 연결했어요.`}
       />
 
+      {!isSampleMode && aiStatus === "success" && (
+        <StatusBanner icon={Sparkles} title="OpenAI 맞춤 분석 완료" tone="success">
+          입력한 전공·관심·기간을 바탕으로 새 결과를 만들었어요.
+        </StatusBanner>
+      )}
+      {!isSampleMode && aiStatus === "fallback" && (
+        <>
+          <StatusBanner icon={AlertTriangle} title="샘플 결과로 계속 진행해요" tone="warning">
+            {aiError || "AI 분석을 불러오지 못해 준비된 결과를 표시합니다."}
+          </StatusBanner>
+          <div className="context-actions"><TextButton onClick={() => router.push("/analyzing")}><RotateCcw size={17} /> AI 분석 다시 시도</TextButton></div>
+        </>
+      )}
+
       <section className="dna-result" aria-labelledby="dna-result-title">
         <div className="dna-result__topline" />
         <div className="dna-result__header">
           <div>
             <p className="eyebrow">나의 전공 DNA</p>
-            <h2 id="dna-result-title">{dnaResult.axes.join(" × ")}</h2>
+            <h2 id="dna-result-title">{reportDna.axes.join(" × ")}</h2>
           </div>
           <Tag tone="mint">연결 높음</Tag>
         </div>
-        <p>{dnaResult.summary}</p>
+        <p>{reportDna.summary}</p>
         <div className="tag-row">
-          {dnaResult.strengths.map((strength) => <Tag key={strength} tone="violet">{strength}</Tag>)}
+          {reportDna.strengths.map((strength) => <Tag key={strength} tone="violet">{strength}</Tag>)}
         </div>
       </section>
 
       <SectionHeading title="전공 역량 연결도" description="차트와 숫자를 함께 확인할 수 있어요." />
-      <RadarChart values={dnaResult.radar} labels={dnaResult.radarLabels} />
+      <RadarChart values={reportDna.radar} labels={reportDna.radarLabels} />
 
       <SectionHeading title="가장 가까운 연구 방향" description="관심과 경험을 가장 많이 함께 쓰는 방향이에요." />
       <Card className="trend-hero">
@@ -120,7 +141,7 @@ export function EvolutionReportScreen() {
           <strong>왜 나와 맞나요?</strong>
           <p>{selectedTrend.fitReason}</p>
         </div>
-        <div className="source-meta"><BookOpenCheck size={15} aria-hidden="true" /> 공식·학술 출처 {selectedTrend.sourceCount}개 · {selectedTrend.verifiedAt} 검증</div>
+        <div className="source-meta"><BookOpenCheck size={15} aria-hidden="true" /> {selectedTrend.sourceCount > 0 ? `공식·학술 출처 ${selectedTrend.sourceCount}개 · ${selectedTrend.verifiedAt} 검증` : "AI가 제안한 탐색 방향 · 외부 출처 검증 전"}</div>
       </Card>
 
       <SectionHeading title="다른 가능성" description="카드를 선택하면 대표 방향이 바뀌어요." />
@@ -137,7 +158,7 @@ export function EvolutionReportScreen() {
 
       <SectionHeading title="준비하면 좋은 기술" />
       <div className="preparation-list">
-        {dnaResult.preparation.map((item, index) => (
+        {reportDna.preparation.map((item, index) => (
           <div key={item}><span>{index + 1}</span><p>{item}</p><Check size={17} aria-hidden="true" /></div>
         ))}
       </div>
@@ -201,13 +222,43 @@ function IdeaCard({
 
 export function IdeasScreen() {
   const router = useRouter();
+  const profile = usePrototypeStore((state) => state.profile);
+  const goal = usePrototypeStore((state) => state.goal);
+  const aiJourney = usePrototypeStore((state) => state.aiJourney);
+  const selectedTrendId = usePrototypeStore((state) => state.selectedTrendId);
+  const setAiIdeas = usePrototypeStore((state) => state.setAiIdeas);
   const ideaSetVersion = usePrototypeStore((state) => state.ideaSetVersion);
   const regenerateIdeas = usePrototypeStore((state) => state.regenerateIdeas);
   const selectedIdeaIds = usePrototypeStore((state) => state.selectedIdeaIds);
   const toggleIdeaSelection = usePrototypeStore((state) => state.toggleIdeaSelection);
   const savedIdeaIds = usePrototypeStore((state) => state.savedIdeaIds);
   const toggleSavedIdea = usePrototypeStore((state) => state.toggleSavedIdea);
-  const ideas = ideaSets[ideaSetVersion];
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regenerateError, setRegenerateError] = useState("");
+  const ideas = aiJourney?.ideas ?? ideaSets[ideaSetVersion];
+  const selectedTrend = aiJourney?.trends.find((trend) => trend.id === selectedTrendId) ?? aiJourney?.trends[0];
+
+  const handleRegenerate = async () => {
+    if (!aiJourney || !selectedTrend) {
+      regenerateIdeas();
+      return;
+    }
+    setIsRegenerating(true);
+    setRegenerateError("");
+    try {
+      const result = await requestAiIdeas({
+        profile,
+        goal,
+        selectedTrend,
+        previousIdeaTitles: ideas.map((idea) => idea.title),
+      });
+      setAiIdeas(result.ideas, result.generatedAt, result.model);
+    } catch (error) {
+      setRegenerateError(error instanceof Error ? error.message : "새 아이디어를 만들지 못했습니다.");
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   return (
     <AppShell
@@ -240,9 +291,10 @@ export function IdeasScreen() {
         })}
       </div>
       <div className="regenerate-row">
-        <TextButton onClick={regenerateIdeas}><RotateCcw size={17} aria-hidden="true" /> {ideaSetVersion === 0 ? "다른 방향으로 다시 만들기" : "처음 아이디어로 돌아가기"}</TextButton>
-        <p>고정된 대체 세트를 사용해 결과가 일관되게 유지돼요.</p>
+        <TextButton onClick={handleRegenerate} disabled={isRegenerating}>{isRegenerating ? <LoaderCircle size={17} className="spin" aria-hidden="true" /> : <RotateCcw size={17} aria-hidden="true" />} {isRegenerating ? "새 방향을 만드는 중" : aiJourney ? "다른 방향으로 다시 만들기" : ideaSetVersion === 0 ? "다른 방향으로 다시 만들기" : "처음 아이디어로 돌아가기"}</TextButton>
+        <p>{aiJourney ? "현재 프로필과 선택한 연구 방향으로 새 결과를 만들어요." : "샘플의 대체 아이디어 세트를 보여드려요."}</p>
       </div>
+      {regenerateError && <StatusBanner icon={AlertTriangle} title="다시 만들지 못했어요" tone="warning">{regenerateError}</StatusBanner>}
     </AppShell>
   );
 }
@@ -250,6 +302,8 @@ export function IdeasScreen() {
 export function IdeasCompareScreen() {
   const router = useRouter();
   const ideaSetVersion = usePrototypeStore((state) => state.ideaSetVersion);
+  const aiJourney = usePrototypeStore((state) => state.aiJourney);
+  const aiIdeaArchive = usePrototypeStore((state) => state.aiIdeaArchive);
   const selectedIdeaIds = usePrototypeStore((state) => state.selectedIdeaIds);
   const selectedIdeaId = usePrototypeStore((state) => state.selectedIdeaId);
   const setSelectedIdea = usePrototypeStore((state) => state.setSelectedIdea);
@@ -257,9 +311,10 @@ export function IdeasCompareScreen() {
   const toggleCriterion = usePrototypeStore((state) => state.toggleCriterion);
   const difficulty = usePrototypeStore((state) => state.difficulty);
   const setDifficulty = usePrototypeStore((state) => state.setDifficulty);
-  const ideas = ideaSets[ideaSetVersion];
+  const ideas = aiJourney?.ideas ?? ideaSets[ideaSetVersion];
+  const availableIdeas = [...getAvailableIdeas(aiJourney), ...aiIdeaArchive];
   const compared = selectedIdeaIds.length === 2
-    ? selectedIdeaIds.map((id) => allIdeas.find((idea) => idea.id === id)).filter(Boolean) as Idea[]
+    ? selectedIdeaIds.map((id) => availableIdeas.find((idea) => idea.id === id)).filter(Boolean) as Idea[]
     : ideas.slice(0, 2);
   const activeIdeaId = selectedIdeaId && compared.some((idea) => idea.id === selectedIdeaId) ? selectedIdeaId : compared[0].id;
   const activeIdea = compared.find((idea) => idea.id === activeIdeaId) ?? compared[0];
@@ -311,7 +366,7 @@ export function IdeasCompareScreen() {
       </div>
 
       <StatusBanner icon={Sparkles} title={`AI 추천: ${compared[0].title}`} tone="lavender">
-        ESG 관심과 설문분석 경험, 경제적 해석 강점을 가장 많이 함께 사용할 수 있어요. 데이터 범위는 조정이 필요해요.
+        개인 적합 {compared[0].scores.personalFit}점, 전공 연결 {compared[0].scores.majorFit}점이에요. {compared[0].data.slice(0, 2).join("·")}의 실제 확보 범위는 시작 전에 확인해 주세요.
       </StatusBanner>
 
       <SectionHeading title="최종 아이디어 선택" />
@@ -340,21 +395,26 @@ export function IdeasCompareScreen() {
   );
 }
 
-const feasibilityItems = [
-  { title: "데이터 접근", original: "범위 조정 필요", adjusted: "시작 가능", detail: "제품 설명과 가격은 공개 수집, 설문은 소규모 직접 수집", status: "adjust" },
-  { title: "기간", original: "4주 버전 가능", adjusted: "4주 안에 가능", detail: "범위를 한 식품군과 제품 100개 이하로 제한", status: "ready" },
-  { title: "현재 역량", original: "시작 가능", adjusted: "시작 가능", detail: "Python과 설문분석 경험을 기준 방법에 활용", status: "ready" },
+function buildFeasibilityItems(idea: Idea) {
+  return [
+  { title: "데이터 접근", original: "범위 조정 필요", adjusted: "시작 가능", detail: `${idea.data.slice(0, 2).join("·")}의 공개 여부와 수집 단위를 먼저 확인`, status: "adjust" },
+  { title: "기간", original: `${idea.weeks}주 버전 가능`, adjusted: `${idea.weeks}주 안에 가능`, detail: `핵심 질문 하나와 데이터 ${Math.min(2, idea.data.length)}종으로 범위를 제한`, status: "ready" },
+  { title: "현재 역량", original: "시작 가능", adjusted: "시작 가능", detail: `${idea.methods.slice(0, 2).join("·")}를 기본 방법으로 활용`, status: "ready" },
   { title: "비용·도구", original: "무료 대안 있음", adjusted: "무료로 가능", detail: "공개 데이터와 무료 분석 도구 사용", status: "ready" },
   { title: "윤리·개인정보", original: "확인 필요", adjusted: "확인 필요", detail: "설문 참여 동의와 익명 처리 문구 준비", status: "check" },
-  { title: "평가 기준", original: "보완 필요", adjusted: "기준 추가", detail: "기준 모델, 오류 기록, 해석 가능성을 함께 평가", status: "adjust" },
-];
+  { title: "평가 기준", original: "보완 필요", adjusted: "기준 추가", detail: `${idea.methods[0] || "핵심 방법"}의 기준선, 오류 기록, 해석 가능성을 함께 평가`, status: "adjust" },
+  ];
+}
 
 export function FeasibilityScreen() {
   const router = useRouter();
   const selectedIdeaId = usePrototypeStore((state) => state.selectedIdeaId);
+  const aiJourney = usePrototypeStore((state) => state.aiJourney);
+  const aiIdeaArchive = usePrototypeStore((state) => state.aiIdeaArchive);
   const version = usePrototypeStore((state) => state.feasibilityVersion);
   const setVersion = usePrototypeStore((state) => state.setFeasibilityVersion);
-  const idea = allIdeas.find((item) => item.id === selectedIdeaId) ?? ideaSets[0][0];
+  const idea = [...getAvailableIdeas(aiJourney), ...aiIdeaArchive].find((item) => item.id === selectedIdeaId) ?? ideaSets[0][0];
+  const feasibilityItems = buildFeasibilityItems(idea);
   const adjusted = version === "four-week";
 
   const stickyAction = adjusted ? (
@@ -394,9 +454,9 @@ export function FeasibilityScreen() {
 
       <SectionHeading title="4주 버전 범위" />
       <div className="scope-comparison">
-        <div><span>원래 범위</span><p>여러 식품군, 대규모 설문, 고급 텍스트 모델</p></div>
+        <div><span>원래 범위</span><p>{idea.data.join(" · ")}와 {idea.methods.join(" · ")} 전체 적용</p></div>
         <ChevronRight size={20} aria-hidden="true" />
-        <div className={adjusted ? "is-active" : ""}><span>조정 범위</span><p>한 식품군, 제품 100개 이하, 30~50명 탐색 설문, 키워드 사전 + 회귀분석</p></div>
+        <div className={adjusted ? "is-active" : ""}><span>조정 범위</span><p>{idea.data[0] || "핵심 데이터"} 중심, {idea.methods[0] || "기준 방법"} 한 가지, 검증 가능한 결과물 하나</p></div>
       </div>
       {!adjusted && <TextButton className="keep-original" onClick={() => router.push("/passport")}>원래 범위 유지하고 계속하기</TextButton>}
       <p className="trust-copy"><ShieldCheck size={18} aria-hidden="true" /> 이 점검은 아이디어를 평가하거나 탈락시키지 않아요.</p>
@@ -417,7 +477,9 @@ const passportLabels: Record<keyof EditablePassport, { title: string; icon: type
 export function PassportScreen() {
   const router = useRouter();
   const selectedIdeaId = usePrototypeStore((state) => state.selectedIdeaId);
-  const idea = allIdeas.find((item) => item.id === selectedIdeaId) ?? ideaSets[0][0];
+  const aiJourney = usePrototypeStore((state) => state.aiJourney);
+  const aiIdeaArchive = usePrototypeStore((state) => state.aiIdeaArchive);
+  const idea = [...getAvailableIdeas(aiJourney), ...aiIdeaArchive].find((item) => item.id === selectedIdeaId) ?? ideaSets[0][0];
   const difficulty = usePrototypeStore((state) => state.difficulty);
   const passport = usePrototypeStore((state) => state.passport);
   const updatePassport = usePrototypeStore((state) => state.updatePassport);
