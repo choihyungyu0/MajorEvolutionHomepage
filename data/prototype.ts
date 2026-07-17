@@ -214,7 +214,7 @@ export const trends: Trend[] = [
     fitReason: "수리 모델링과 데이터 분석 강점을 활용할 수 있어요.",
     sourceCount: 4,
     verifiedAt: "2026.05",
-    connection: "높음",
+    connection: "보통",
   },
   {
     id: "food-security",
@@ -429,6 +429,6 @@ export const comparisonLabels: Record<ComparisonCriterion, string> = {
 export const difficultyCopy: Record<Difficulty, { label: string; spice: string; description: string }> = {
   starter: { label: "입문", spice: "순한맛", description: "2주 안에 공개 데이터와 기술통계로 탐색 결과를 만들어요." },
   project: { label: "프로젝트", spice: "보통맛", description: "4주 안에 제품 100개 이하와 소규모 설문, 기준 모델 1개를 완성해요." },
-  advanced: { label: "심화", spice: "교수님맛", description: "6~8주 동안 설문 설계와 모델 비교를 포함한 보고서를 완성해요." },
-  research: { label: "도전", spice: "학회맛", description: "8주 이상 재현 가능한 분석과 선행연구 비교까지 확장해요." },
+  advanced: { label: "심화", spice: "매운맛", description: "6~8주 동안 설문 설계와 모델 비교를 포함한 보고서를 완성해요." },
+  research: { label: "도전", spice: "아주 매운맛", description: "8주 이상 재현 가능한 분석과 선행연구 비교까지 확장해요." },
 };

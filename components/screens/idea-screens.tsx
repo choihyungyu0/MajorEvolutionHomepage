@@ -452,10 +452,10 @@ export function FeasibilityScreen() {
           const ready = adjusted || item.status === "ready";
           const Icon = ready ? CheckCircle2 : item.status === "check" ? CircleHelp : AlertTriangle;
           return (
-            <div key={item.title} className={cx("feasibility-row", ready && "is-ready", !ready && item.status === "check" && "needs-check")}>
+            <div key={item.title} className={cx("feasibility-row", ready && "is-ready", !ready && "needs-check")}>
               <span><Icon size={20} aria-hidden="true" /></span>
               <div><strong>{item.title}</strong><p>{item.detail}</p></div>
-              <Tag tone={ready ? "mint" : item.status === "check" ? "warning" : "blue"}>{adjusted ? item.adjusted : item.original}</Tag>
+              <Tag tone={ready ? "mint" : "warning"}>{adjusted ? item.adjusted : item.original}</Tag>
             </div>
           );
         })}
@@ -519,9 +519,9 @@ export function PassportScreen() {
       </div>
 
       <section className="passport-header">
-        <Tag tone="violet">PROJECT PASSPORT</Tag>
+        <Tag tone="violet">프로젝트 패스포트</Tag>
         <h2>{idea.title}</h2>
-        <p>{idea.type} · {profile.availableWeeks}주 · {difficultyCopy[difficulty].spice}</p>
+        <p>{idea.type} · {profile.availableWeeks}주 · {difficultyCopy[difficulty].label}</p>
         <div className="tag-row"><Tag>{profile.major || "수학"}</Tag><Tag>{profile.minor || "식품자원경제"}</Tag><Tag tone="mint">AI</Tag></div>
       </section>
 

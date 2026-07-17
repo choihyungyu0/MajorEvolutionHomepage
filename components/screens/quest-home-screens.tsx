@@ -141,7 +141,7 @@ export function QuestScreen() {
       </div>
 
       <section className="first-action-card">
-        <header><span>1</span><div><Tag tone="violet">FIRST ACTION</Tag><h2>첫 30분 행동</h2></div>{firstComplete && <CheckCircle2 size={24} aria-label="완료" />}</header>
+        <header><span>1</span><div><Tag tone="violet">첫 행동</Tag><h2>첫 30분 행동</h2></div>{firstComplete && <CheckCircle2 size={24} aria-label="완료" />}</header>
         <p>{idea.data[0] || "핵심 데이터"} 후보 10개를 모아 첫 분류 기준 3개를 적어보세요.</p>
         <dl>
           <div><dt><Timer size={16} /> 예상 시간</dt><dd>25분</dd></div>
@@ -236,7 +236,7 @@ export function HomeScreen() {
   if (!idea) {
     return (
       <AppShell showHeader={false} bottomNav={<BottomNav />}>
-        <div className="home-brand"><AppLogo /><Tag tone="violet">HOME</Tag></div>
+        <div className="home-brand"><AppLogo /><Tag tone="violet">홈</Tag></div>
         <EmptyState
           image={`${assetPath}/01_robot_wave_alpha.png`}
           title="아직 진화 중인 프로젝트가 없어요"
@@ -249,7 +249,7 @@ export function HomeScreen() {
 
   return (
     <AppShell showHeader={false} bottomNav={<BottomNav />}>
-      <div className="home-brand"><AppLogo /><Tag tone="violet">HOME</Tag></div>
+      <div className="home-brand"><AppLogo /><Tag tone="violet">홈</Tag></div>
       <header className="home-greeting"><p>안녕하세요, {profile.name || "김학생"}님</p><h1>오늘 이어서 할 일이 있어요</h1></header>
 
       <section className="current-project">
@@ -293,7 +293,7 @@ export function ExploreScreen() {
   const selectedTrend = aiJourney?.trends.find((trend) => trend.id === selectedTrendId) ?? aiJourney?.trends[0];
   return (
     <AppShell title="탐색" bottomNav={<BottomNav />}>
-      <PageHeader eyebrow="EXPLORE" title="전공에서 시작해 더 멀리 탐색해보세요" description="완성한 결과를 다시 열거나 다른 단계로 이동할 수 있어요." />
+      <PageHeader eyebrow="다시 보기" title="전공에서 시작해 더 멀리 탐색해보세요" description="완성한 결과를 다시 열거나 다른 단계로 이동할 수 있어요." />
       <div className="explore-list">
         {exploreItems.map(({ href, icon: Icon, title, description, tone }) => (
           <Link key={href} href={href}><span className={`explore-icon explore-icon--${tone}`}><Icon size={22} /></span><div><h2>{title}</h2><p>{description}</p></div><ChevronRight size={19} /></Link>
@@ -319,7 +319,7 @@ export function SavedScreen() {
 
   return (
     <AppShell title="보관함" bottomNav={<BottomNav />}>
-      <PageHeader eyebrow="SAVED" title="다시 보고 싶은 결과를 모았어요" description="저장 상태는 이 브라우저에 유지돼요." />
+      <PageHeader eyebrow="저장한 결과" title="다시 보고 싶은 결과를 모았어요" description="저장 상태는 이 브라우저에 유지돼요." />
       {empty ? (
         <EmptyState
           image={`${assetPath}/01_robot_wave_alpha.png`}
@@ -359,7 +359,7 @@ export function ProfileScreen() {
 
   return (
     <AppShell title="마이" bottomNav={<BottomNav />}>
-      <PageHeader eyebrow="MY DNA" title="내 전공 DNA와 설정" description="프로필을 바꾸면 다음 여정에서 입력값으로 사용해요." />
+      <PageHeader eyebrow="프로필" title="내 전공 DNA와 설정" description="프로필을 바꾸면 다음 여정에서 입력값으로 사용해요." />
       <Card className="profile-card">
         <div className="profile-avatar"><UserRound size={26} /></div>
         <label className="field-group"><span className="field-label">이름</span><input className="input" value={profile.name} onChange={(event) => updateProfile({ name: event.target.value })} /></label>

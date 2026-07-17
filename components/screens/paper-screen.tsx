@@ -91,7 +91,7 @@ export function PaperScreen() {
         backHref="/goal"
         stickyAction={<><SecondaryButton onClick={reset}><RotateCcw size={17} /> 다른 논문</SecondaryButton><PrimaryButton onClick={copySummary}><Copy size={17} /> 요약 복사</PrimaryButton></>}
       >
-        <PageHeader eyebrow="AI PAPER READER" title={result.title} description={result.oneLine} />
+        <PageHeader eyebrow="AI 논문 도우미" title={result.title} description={result.oneLine} />
         <StatusBanner icon={CheckCircle2} title="입력한 텍스트 분석 완료" tone="success">초록이나 발췌문만 입력했다면 원문 전체의 결론과 다를 수 있어요.</StatusBanner>
 
         <SectionHeading title="왜 시작한 연구인가요?" />
@@ -121,7 +121,7 @@ export function PaperScreen() {
 
   return (
     <AppShell title="논문 이해" backHref="/goal">
-      <PageHeader eyebrow="AI PAPER READER" title="어려운 논문을 읽는 순서로 풀어드려요" description="초록이나 본문 일부를 붙여 넣으면 질문·방법·결과·한계를 나눠서 설명합니다." />
+      <PageHeader eyebrow="AI 논문 도우미" title="어려운 논문을 읽는 순서로 풀어드려요" description="초록이나 본문 일부를 붙여 넣으면 질문·방법·결과·한계를 나눠서 설명합니다." />
       <StatusBanner icon={Sparkles} title="원문을 대신하지 않아요" tone="lavender">AI 요약은 읽기 보조 도구예요. 인용과 최종 판단은 반드시 원문에서 확인해 주세요.</StatusBanner>
       <Card className="paper-input-card">
         <label className="field-group" htmlFor="paper-title"><span className="field-label">논문 제목 <small>선택</small></span><input id="paper-title" className="input" value={title} onChange={(event) => setTitle(event.target.value.slice(0, 180))} placeholder="제목을 입력하면 결과에 반영돼요" /></label>

@@ -239,7 +239,7 @@ export function DnaScreen() {
           </div>
         )}
         {step === 3 && (
-          <div className="choice-stack">
+          <div className="chip-grid">
             {careerOptions.map((item) => (
               <ChoiceChip key={item} selected={profile.careers.includes(item)} onClick={() => toggleProfileItem("careers", item, 2)} disabled={!profile.careers.includes(item) && profile.careers.length >= 2}>
                 {item}
@@ -329,10 +329,13 @@ export function AnalyzingScreen() {
   const [activeStep, setActiveStep] = useState(0);
   const [isTakingLonger, setIsTakingLonger] = useState(false);
   const requestRef = useRef<Promise<AiJourneyResult> | null>(null);
-  const messages = [
-    "전공과 강점을 정리하고 있어요",
-    "전공별 AI 활용 방향을 연결하고 있어요",
-    `${profile.availableWeeks}주 안에 가능한 아이디어 범위를 계산하고 있어요`,
+  const steps = [
+    { ongoing: "전공과 강점을 정리하고 있어요", done: "전공과 강점을 정리했어요" },
+    { ongoing: "전공별 AI 활용 방향을 연결하고 있어요", done: "전공별 AI 활용 방향을 연결했어요" },
+    {
+      ongoing: `${profile.availableWeeks}주 안에 가능한 아이디어 범위를 계산하고 있어요`,
+      done: `${profile.availableWeeks}주 안에 가능한 아이디어 범위를 계산했어요`,
+    },
   ];
 
   useEffect(() => {
@@ -386,13 +389,13 @@ export function AnalyzingScreen() {
           <p>{profile.major || "수학"} × {profile.minor || "관심 분야"} × AI</p>
         </div>
         <div className="analysis-steps" aria-live="polite">
-          {messages.map((message, index) => {
+          {steps.map((step, index) => {
             const complete = index < activeStep;
             const current = index === activeStep;
             return (
-              <div key={message} className={current ? "is-current" : complete ? "is-complete" : ""}>
+              <div key={step.ongoing} className={current ? "is-current" : complete ? "is-complete" : ""}>
                 <span>{complete ? <Check size={18} /> : current ? <LoaderCircle size={18} className="spin" /> : <Circle size={17} />}</span>
-                <p>{message}</p>
+                <p>{complete ? step.done : step.ongoing}</p>
               </div>
             );
           })}
