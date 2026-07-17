@@ -72,7 +72,7 @@ export function SplashScreen() {
             src={`${cropPath}/02_campus_scene_visible.png`}
             alt=""
             width={371}
-            height={360}
+            height={270}
             priority
             sizes="(max-width: 430px) calc(100vw - 40px), 371px"
           />

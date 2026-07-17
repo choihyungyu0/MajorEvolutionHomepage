@@ -1048,7 +1048,9 @@ strong {
 .splash-art img {
   width: min(100%, 371px);
   height: auto;
-  object-fit: contain;
+  aspect-ratio: 371 / 270;
+  object-fit: cover;
+  object-position: center bottom;
 }
 
 .splash-actions {
@@ -2048,6 +2050,7 @@ strong {
 .current-project > p { color: rgba(255, 255, 255, 0.72); font-size: 12px; }
 .current-project .progress { background: rgba(255, 255, 255, 0.16); }
 .current-project .button { box-shadow: none; }
+.current-project__top .tag { color: var(--text-inverse); background: rgba(53, 196, 179, 0.24); }
 .next-action { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px; border-radius: 15px; background: rgba(255, 255, 255, 0.08); }
 .next-action > span { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 12px; color: var(--brand-cyan); background: rgba(99, 203, 228, 0.12); }
 .next-action > div { display: grid; gap: 3px; }

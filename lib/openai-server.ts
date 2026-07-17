@@ -176,6 +176,15 @@ function clampScore(value: unknown, field: string): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+// Scores and the radar are defined on a 0-100 scale, but models sometimes answer
+// on a 0-10 scale. When every value in a set lands within 0-10, treat the set as
+// 0-10 and rescale to 0-100 so the percentage-based bars and radar stay meaningful.
+function rescaleScoreSet(values: number[]): number[] {
+  const peak = values.reduce((max, value) => Math.max(max, value), 0);
+  const factor = peak > 0 && peak <= 10 ? 10 : 1;
+  return values.map((value) => Math.min(100, Math.round(value * factor)));
+}
+
 function normalizeProfile(profile: StudentProfile): StudentProfile {
   const trim = (value: string, max = 160) => String(value ?? "").trim().slice(0, max);
   const list = (value: string[], maxItems: number) => (Array.isArray(value) ? value : []).slice(0, maxItems).map((item) => trim(item, 50)).filter(Boolean);
@@ -204,7 +213,8 @@ function normalizeIdea(value: unknown, prefix: string): Idea {
   if (!["연구형", "프로젝트형", "서비스형"].includes(type)) throw new AiServiceError("invalid_output", "Invalid idea type", 502);
   const weeks = Number(value.weeks);
   if (![2, 4, 6, 8].includes(weeks)) throw new AiServiceError("invalid_output", "Invalid idea weeks", 502);
-  const scores = Object.fromEntries(SCORE_KEYS.map((key) => [key, clampScore(rawScores[key], `scores.${key}`)])) as Record<ComparisonCriterion, number>;
+  const scoreValues = rescaleScoreSet(SCORE_KEYS.map((key) => clampScore(rawScores[key], `scores.${key}`)));
+  const scores = Object.fromEntries(SCORE_KEYS.map((key, index) => [key, scoreValues[index]])) as Record<ComparisonCriterion, number>;
   return {
     id: `${prefix}-${randomUUID()}`,
     type: type as Idea["type"],
@@ -227,7 +237,7 @@ function normalizeDna(value: unknown): AiDnaResult {
     summary: readString(value.summary, "dna.summary"),
     strengths: readStringArray(value.strengths, "dna.strengths"),
     preparation: readStringArray(value.preparation, "dna.preparation"),
-    radar: value.radar.map((score, index) => clampScore(score, `dna.radar.${index}`)),
+    radar: rescaleScoreSet(value.radar.map((score, index) => clampScore(score, `dna.radar.${index}`))),
     radarLabels: readStringArray(value.radarLabels, "dna.radarLabels", 6),
   };
 }
