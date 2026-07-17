@@ -11,6 +11,7 @@ import {
   ChevronRight,
   CircleHelp,
   Clock3,
+  Crosshair,
   Database,
   Gauge,
   GraduationCap,
@@ -350,7 +351,7 @@ export function IdeasCompareScreen() {
 
       <SectionHeading title="나에게 중요한 기준" description="최대 2개" />
       <div className="chip-grid">
-        {(["personalFit", "dataAccess", "feasibility", "careerValue"] as ComparisonCriterion[]).map((criterion) => (
+        {comparisonKeys.map((criterion) => (
           <ChoiceChip key={criterion} selected={criteria.includes(criterion)} onClick={() => toggleCriterion(criterion)} disabled={!criteria.includes(criterion) && criteria.length >= 2}>
             {comparisonLabels[criterion]}
           </ChoiceChip>
@@ -474,7 +475,7 @@ export function FeasibilityScreen() {
 }
 
 const passportLabels: Record<keyof EditablePassport, { title: string; icon: typeof Lightbulb }> = {
-  problem: { title: "문제", icon: AlertTriangle },
+  problem: { title: "문제", icon: Crosshair },
   question: { title: "연구 질문", icon: CircleHelp },
   data: { title: "데이터", icon: Database },
   methods: { title: "방법론 사다리", icon: BarChart3 },

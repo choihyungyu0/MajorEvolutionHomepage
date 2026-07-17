@@ -12,6 +12,7 @@ import {
   CircleHelp,
   ExternalLink,
   GitCompareArrows,
+  GraduationCap,
   Info,
   LoaderCircle,
   Microscope,
@@ -246,7 +247,7 @@ export function ProfessorDetailScreen({ id }: { id: string }) {
 
       <SectionHeading title="함께 볼 정보" />
       <Card className="course-list">
-        {professor.courses.map((course) => <div key={course}><BookOpenCheck size={18} /><span><strong>{course}</strong><small>관련 강의</small></span></div>)}
+        {professor.courses.map((course) => <div key={course}><GraduationCap size={18} /><span><strong>{course}</strong><small>관련 강의</small></span></div>)}
       </Card>
 
       <StatusBanner icon={AlertTriangle} title="직접 확인할 점" tone="warning">{professor.checkPoint} 면담 요청 전 최신 정보를 직접 확인해 주세요.</StatusBanner>

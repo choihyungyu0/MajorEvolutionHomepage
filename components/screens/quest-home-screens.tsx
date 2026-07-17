@@ -141,7 +141,7 @@ export function QuestScreen() {
       </div>
 
       <section className="first-action-card">
-        <header><span>1</span><div><Tag tone="violet">첫 행동</Tag><h2>첫 30분 행동</h2></div>{firstComplete && <CheckCircle2 size={24} aria-label="완료" />}</header>
+        <header><span>1</span><div><Tag tone="violet">첫 행동</Tag><h2>가장 먼저 할 일</h2></div>{firstComplete && <CheckCircle2 size={24} aria-label="완료" />}</header>
         <p>{idea.data[0] || "핵심 데이터"} 후보 10개를 모아 첫 분류 기준 3개를 적어보세요.</p>
         <dl>
           <div><dt><Timer size={16} /> 예상 시간</dt><dd>25분</dd></div>
@@ -312,6 +312,8 @@ export function SavedScreen() {
   const savedProfessorIds = usePrototypeStore((state) => state.savedProfessorIds);
   const toggleSavedIdea = usePrototypeStore((state) => state.toggleSavedIdea);
   const toggleSavedProfessor = usePrototypeStore((state) => state.toggleSavedProfessor);
+  const setSelectedIdea = usePrototypeStore((state) => state.setSelectedIdea);
+  const router = useRouter();
   const availableIdeas = [...getAvailableIdeas(aiJourney), ...aiIdeaArchive];
   const ideas = savedIdeaIds.map((id) => availableIdeas.find((idea) => idea.id === id)).filter(Boolean);
   const savedProfessors = savedProfessorIds.map((id) => professors.find((professor) => professor.id === id)).filter(Boolean);
@@ -331,7 +333,7 @@ export function SavedScreen() {
         <>
           {ideas.length > 0 && <SectionHeading title={`아이디어 ${ideas.length}`} />}
           <div className="saved-list">
-            {ideas.map((idea) => idea && <article key={idea.id}><span><Lightbulb size={19} /></span><div><Tag tone="violet">{idea.type}</Tag><h2>{idea.title}</h2><p>{idea.subtitle}</p></div><SaveButton saved onClick={() => toggleSavedIdea(idea.id)} label="아이디어 저장" /></article>)}
+            {ideas.map((idea) => idea && <article key={idea.id}><span><Lightbulb size={19} /></span><div><Tag tone="violet">{idea.type}</Tag><h2>{idea.title}</h2><p>{idea.subtitle}</p><button type="button" className="saved-detail" onClick={() => { setSelectedIdea(idea.id); router.push("/passport"); }}>자세히 보기 <ChevronRight size={14} /></button></div><SaveButton saved onClick={() => toggleSavedIdea(idea.id)} label="아이디어 저장" /></article>)}
           </div>
           {savedProfessors.length > 0 && <SectionHeading title={`교수 ${savedProfessors.length}`} />}
           <div className="saved-list">
@@ -369,7 +371,7 @@ export function ProfileScreen() {
       <SectionHeading title="전공 DNA 요약" />
       <Card className="profile-dna">
         <strong>{(aiJourney?.dna ?? dnaResult).axes.join(" × ")}</strong>
-        <p>{profile.major || "주전공"} · {profile.minor || "부전공 없음"} · {profile.grade}</p>
+        <p>{profile.major || "전공 미입력"} · {profile.minor || "부전공 없음"} · {profile.grade}</p>
         <div className="tag-row">{profile.interests.slice(0, 5).map((item) => <Tag key={item}>{item}</Tag>)}</div>
       </Card>
 

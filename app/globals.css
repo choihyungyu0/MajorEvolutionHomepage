@@ -913,7 +913,7 @@ strong {
   min-height: 120px;
   padding: 14px;
   line-height: 1.55;
-  resize: vertical;
+  resize: none;
 }
 
 .input:focus,
@@ -2007,7 +2007,7 @@ strong {
 .locked-list .lock-mark { width: auto; padding: 5px 7px; border-radius: 8px; font-size: 9px; font-weight: 700; }
 
 .paper-input-card { display: grid; gap: 17px; padding: 18px; }
-.paper-input { min-height: 300px; resize: vertical; }
+.paper-input { min-height: 300px; resize: none; }
 .paper-input-meta { display: flex; align-items: center; justify-content: space-between; margin-top: -9px; color: var(--text-tertiary); font-size: 10px; }
 .paper-input-meta span.is-ready { color: var(--success); font-weight: 700; }
 .paper-privacy { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; margin-top: 14px; padding: 12px 14px; color: var(--text-secondary); background: var(--bg-secondary); font-size: 11px; line-height: 1.5; }
@@ -2094,10 +2094,10 @@ strong {
 .saved-list article > div { min-width: 0; }
 .saved-list h2 { margin-top: 6px; font-size: 14px; }
 .saved-list p { margin-top: 4px; color: var(--text-secondary); font-size: 11px; line-height: 1.45; }
-.saved-list a { display: inline-flex; align-items: center; gap: 3px; min-height: 32px; margin-top: 4px; color: var(--text-link); font-size: 11px; font-weight: 700; }
+.saved-list a, .saved-list .saved-detail { display: inline-flex; align-items: center; gap: 3px; min-height: 32px; margin-top: 4px; padding: 0; border: 0; cursor: pointer; color: var(--text-link); background: transparent; font-size: 11px; font-weight: 700; }
 
 .profile-card { display: grid; gap: 14px; padding: 18px; }
-.profile-avatar { display: grid; width: 58px; height: 58px; place-items: center; margin: -4px auto 4px; border-radius: 20px; color: var(--brand-purple); background: var(--bg-lavender); }
+.profile-avatar { display: grid; width: 58px; height: 58px; place-items: center; margin: -4px 0 8px; border-radius: 20px; color: var(--brand-purple); background: var(--bg-lavender); }
 .profile-dna { display: grid; gap: 10px; padding: 18px; }
 .profile-dna strong { font-size: 15px; line-height: 1.5; }
 .profile-dna > p { color: var(--text-secondary); font-size: 12px; }

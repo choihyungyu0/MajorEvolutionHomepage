@@ -153,7 +153,7 @@ export function DnaScreen() {
         };
       case 3:
         return {
-          title: "어떤 경험으로 이어가고 싶나요?",
+          title: "어떤 진로로 이어가고 싶나요?",
           description: "이번 결과를 어디에 활용하고 싶은지 최대 2개 골라주세요.",
         };
       case 4:
@@ -222,7 +222,7 @@ export function DnaScreen() {
               <input className="input" value={profile.minor} onChange={(event) => updateProfile({ minor: event.target.value })} placeholder="예: 식품자원경제" />
             </label>
             <label className="field-group">
-              <span className="field-label">학년</span>
+              <span className="field-label">학년 <small>선택</small></span>
               <select className="select" value={profile.grade} onChange={(event) => updateProfile({ grade: event.target.value })}>
                 {["1학년", "2학년", "3학년", "4학년", "졸업 예정"].map((grade) => <option key={grade}>{grade}</option>)}
               </select>
@@ -313,7 +313,7 @@ export function DnaScreen() {
       <div className="input-summary" aria-live="polite">
         {step === 2 && <span>{profile.interests.length}/5 선택</span>}
         {step === 3 && <span>{profile.careers.length}/2 선택</span>}
-        {step === 4 && <span>{profile.skills.length}개 강점 선택</span>}
+        {step === 4 && <span>{profile.skills.length}개 선택</span>}
       </div>
     </AppShell>
   );
