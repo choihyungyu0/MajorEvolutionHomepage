@@ -26,6 +26,7 @@ import {
   Tag,
 } from "@/components/app/primitives";
 import {
+  assetPath,
   careerOptions,
   cropPath,
   goalOptions,
@@ -145,31 +146,37 @@ export function DnaScreen() {
         return {
           title: "어떤 전공을 공부하고 있나요?",
           description: "주전공을 중심으로 서로 다른 관심과 경험을 연결해볼게요.",
+          tip: "정확하지 않아도 괜찮아요. 마이에서 언제든 바꿀 수 있어요.",
         };
       case 2:
         return {
           title: "요즘 가장 궁금한 분야는 무엇인가요?",
           description: "현재 관심이 가는 주제를 최대 5개 골라주세요.",
+          tip: "지금 눈이 가는 주제부터 편하게 골라보세요.",
         };
       case 3:
         return {
           title: "어떤 진로로 이어가고 싶나요?",
           description: "이번 결과를 어디에 활용하고 싶은지 최대 2개 골라주세요.",
+          tip: "아직 확실하지 않아도 방향만 함께 잡아볼게요.",
         };
       case 4:
         return {
           title: "지금 사용할 수 있는 강점을 골라주세요",
           description: "완벽할 필요 없어요. 한 번이라도 써본 기술이면 충분해요.",
+          tip: "지금 자신 있는 것만 골라도 충분해요.",
         };
       case 5:
         return {
           title: "해본 프로젝트가 있나요?",
           description: "없어도 괜찮아요. 기억나는 경험을 짧게 적어주세요.",
+          tip: "한두 문장이면 충분해요. 없으면 건너뛰어도 돼요.",
         };
       default:
         return {
           title: "이번에는 어느 정도까지 해보고 싶나요?",
           description: "가용 시간과 원하는 결과물을 기준으로 범위를 계산할게요.",
+          tip: "범위는 다음 단계에서도 다시 조절할 수 있어요.",
         };
     }
   }, [step]);
@@ -199,6 +206,7 @@ export function DnaScreen() {
 
   return (
     <AppShell
+      className="dna-screen"
       title="나의 전공 DNA 만들기"
       onBack={back}
       step={{ current: step, total: 6 }}
@@ -315,6 +323,12 @@ export function DnaScreen() {
         {step === 3 && <span>{profile.careers.length}/2 선택</span>}
         {step === 4 && <span>{profile.skills.length}개 선택</span>}
       </div>
+      {stepContent.tip && (
+        <div className="dna-tip" aria-hidden="true">
+          <Image src={`${assetPath}/02_common_header_robot_alpha.png`} alt="" width={64} height={74} />
+          <p>{stepContent.tip}</p>
+        </div>
+      )}
     </AppShell>
   );
 }

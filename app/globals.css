@@ -1087,6 +1087,28 @@ strong {
   margin: 0 0 22px;
 }
 
+.dna-screen .screen-content { display: flex; flex-direction: column; }
+.dna-screen .screen-enter { display: flex; flex: 1 1 auto; flex-direction: column; }
+
+.dna-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 28px;
+  text-align: center;
+}
+
+.dna-tip img { width: 64px; height: auto; }
+
+.dna-tip p {
+  max-width: 26ch;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .dna-error {
   margin-top: 16px;
 }
@@ -1542,7 +1564,7 @@ strong {
   background: var(--surface);
 }
 
-.compare-headings strong { min-height: 42px; font-size: 13px; line-height: 1.45; }
+.compare-headings strong { font-size: 13px; line-height: 1.45; }
 
 .comparison-list {
   display: grid;
