@@ -149,7 +149,7 @@ export function ResearchResultScreen() {
 
   useEffect(() => {
     if (result === null) {
-      router.replace("/");
+      router.replace("/research");
       return;
     }
   }, [result, router]);
@@ -180,7 +180,7 @@ export function ResearchResultScreen() {
 
   const stickyAction = (
     <>
-      <SecondaryButton onClick={() => router.push("/")}>조건 바꾸기</SecondaryButton>
+      <SecondaryButton onClick={() => router.push("/research")}>조건 바꾸기</SecondaryButton>
       <PrimaryButton onClick={onReRecommend} disabled={cooldown || loading}>
         <RotateCw size={17} className={cooldown ? "spin" : ""} /> 다시 추천
       </PrimaryButton>
@@ -188,7 +188,7 @@ export function ResearchResultScreen() {
   );
 
   return (
-    <AppShell title="추천 결과" onBack={() => router.push("/")} className="research-screen" stickyAction={stickyAction}>
+    <AppShell title="추천 결과" onBack={() => router.push("/research")} className="research-screen" stickyAction={stickyAction}>
       {loading ? (
         <div className="research-loading">
           <Image src="/mvp-assets/robot-pose-2.png" alt="" width={92} height={104} priority />
@@ -204,11 +204,11 @@ export function ResearchResultScreen() {
           </div>
 
           {result.kind === "unsupported-major" && (
-            <EmptyBlock icon={CircleAlert} title="현재 파일럿에서는 이 전공을 아직 지원하지 않아요." desc="지원 전공을 선택해 다시 시도해 주세요." onChange={() => router.push("/")} />
+            <EmptyBlock icon={CircleAlert} title="현재 파일럿에서는 이 전공을 아직 지원하지 않아요." desc="지원 전공을 선택해 다시 시도해 주세요." onChange={() => router.push("/research")} />
           )}
 
           {result.kind === "empty" && (
-            <EmptyBlock icon={CircleAlert} title="현재 조건에 맞는 연구주제를 찾지 못했어요." desc="관심 분야나 준비 조건을 바꿔 다시 시도해 주세요." onChange={() => router.push("/")} onRetry={onReRecommend} />
+            <EmptyBlock icon={CircleAlert} title="현재 조건에 맞는 연구주제를 찾지 못했어요." desc="관심 분야나 준비 조건을 바꿔 다시 시도해 주세요." onChange={() => router.push("/research")} onRetry={onReRecommend} />
           )}
 
           {result.kind === "insufficient" && (
