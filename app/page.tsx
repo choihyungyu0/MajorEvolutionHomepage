@@ -1,5 +1,5 @@
-import { SplashScreen } from "@/components/screens/entry-screens";
+import { ConditionSelectScreen } from "@/components/screens/research-condition";
 
 export default function Page() {
-  return <SplashScreen />;
+  return <ConditionSelectScreen />;
 }
