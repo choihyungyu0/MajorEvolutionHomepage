@@ -51,7 +51,6 @@ import {
   TextButton,
 } from "@/components/app/primitives";
 import {
-  assetPath,
   dnaResult,
   ideaSets,
   professors,
@@ -238,7 +237,7 @@ export function HomeScreen() {
       <AppShell showHeader={false} bottomNav={<BottomNav />}>
         <div className="home-brand"><AppLogo /><Tag tone="violet">홈</Tag></div>
         <EmptyState
-          image={`${assetPath}/01_robot_wave_alpha.png`}
+          image="/mvp-assets/robot-pose-3.png"
           title="아직 진화 중인 프로젝트가 없어요"
           description="전공 DNA부터 첫 아이디어를 만들어보세요."
           action={<PrimaryButton onClick={() => router.push("/goal")}>전공 진화 시작하기</PrimaryButton>}
@@ -324,7 +323,7 @@ export function SavedScreen() {
       <PageHeader eyebrow="저장한 결과" title="다시 보고 싶은 결과를 모았어요" description="저장 상태는 이 브라우저에 유지돼요." />
       {empty ? (
         <EmptyState
-          image={`${assetPath}/01_robot_wave_alpha.png`}
+          image="/mvp-assets/robot-pose-3.png"
           title="아직 저장한 항목이 없어요"
           description="아이디어나 교수 카드의 저장 아이콘을 누르면 이곳에 모여요."
           action={<LinkButton href="/ideas">아이디어 둘러보기</LinkButton>}
