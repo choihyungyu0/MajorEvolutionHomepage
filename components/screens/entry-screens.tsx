@@ -27,7 +27,6 @@ import {
   Tag,
 } from "@/components/app/primitives";
 import {
-  assetPath,
   careerOptions,
   cropPath,
   goalOptions,
@@ -333,7 +332,7 @@ export function DnaScreen() {
       </div>
       {stepContent.tip && (
         <div className="dna-tip" aria-hidden="true">
-          <Image src={`${assetPath}/02_common_header_robot_alpha.png`} alt="" width={64} height={74} />
+          <Image src="/mvp-assets/robot-pose-1.png" alt="" width={64} height={64} />
           <p>{stepContent.tip}</p>
         </div>
       )}
@@ -403,7 +402,7 @@ export function AnalyzingScreen() {
       <div className="analyzing-layout">
         <div className="analysis-mascot">
           <span className="analysis-pulse" />
-          <Image src="/major-evolution-assets/03_TRANSPARENT_PNG/01_robot_graduate_laptop_alpha.png" alt="분석 중인 전공진화소 로봇" width={76} height={95} priority />
+          <Image src="/mvp-assets/robot-pose-2.png" alt="분석 중인 전공진화소 로봇" width={88} height={88} priority />
         </div>
         <div className="analyzing-title">
           <Tag tone="violet">AI 분석 중</Tag>
