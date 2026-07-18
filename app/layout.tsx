@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { StoreHydrator } from "@/components/app/store-hydrator";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 import "./globals.css";
 
 const pretendard = localFont({
@@ -20,6 +21,11 @@ export const metadata: Metadata = {
   title,
   description,
   applicationName: "전공진화소",
+  appleWebApp: {
+    capable: true,
+    title: "전공진화소",
+    statusBarStyle: "default",
+  },
   keywords: ["전공 탐색", "연구 아이디어", "교수 매칭", "대학생 프로젝트", "AI 연구"],
   openGraph: {
     title,
@@ -53,6 +59,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           본문으로 건너뛰기
         </a>
         {children}
+        <InstallPrompt />
       </body>
     </html>
   );
