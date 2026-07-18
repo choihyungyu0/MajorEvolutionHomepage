@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
+  ArrowRight,
   Check,
   Circle,
   Compass,
@@ -56,6 +57,8 @@ export function SplashScreen() {
     router.push("/evolution-report");
   };
 
+  const goResearch = () => router.push("/research");
+
   return (
     <AppShell showHeader={false} className="splash-screen">
       <div className="splash-layout">
@@ -81,6 +84,11 @@ export function SplashScreen() {
         <div className="splash-actions">
           <PrimaryButton onClick={start}>전공 진화 시작하기</PrimaryButton>
           <SecondaryButton onClick={preview}>샘플 결과 먼저 보기</SecondaryButton>
+          <button type="button" className="splash-mvp-link" onClick={goResearch}>
+            <Sparkles size={16} aria-hidden="true" />
+            <span>과제용 2화면 추천받기</span>
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
         </div>
       </div>
     </AppShell>
