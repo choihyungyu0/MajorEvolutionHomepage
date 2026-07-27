@@ -16,15 +16,23 @@ import {
   RotateCw,
   ShieldCheck,
   Sliders,
+  Sparkles,
   Timer,
 } from "lucide-react";
 import { AppShell, Card, PageHeader, PrimaryButton, SecondaryButton, Tag, cx } from "@/components/app/primitives";
+import { modeById } from "@/data/co-design";
 import {
   PROFESSOR_DATA_NOTE,
   PROFESSOR_DISCLAIMER,
-  findProfessor,
   type CheckStatus,
 } from "@/data/research-mvp";
+import { requestProfessorMatches } from "@/lib/professor-client";
+import type {
+  ProfessorMatch,
+  ProfessorMatchResponse,
+  ProfessorMatchRole,
+  ProfessorMatchStrength,
+} from "@/lib/professor-domain";
 import { CRITERION_LABELS, type CriterionKey, type TopicWithChecks } from "@/lib/recommend";
 import { useResearchStore } from "@/store/research-store";
 
@@ -98,37 +106,277 @@ function CandidateCard({ cand, label, selected, onSelect }: { cand: TopicWithChe
   );
 }
 
-function ProfessorBlock({ topic }: { topic: TopicWithChecks["topic"] }) {
-  const profs = topic.professorIds.map(findProfessor).filter(Boolean);
+function IdeaComparisonTable({
+  candidates,
+  selectedTopicId,
+  onSelect,
+}: {
+  candidates: [TopicWithChecks, TopicWithChecks];
+  selectedTopicId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const labels = ["A", "B"] as const;
+  const cell = (candidate: TopicWithChecks, index: number) => {
+    const topic = candidate.topic;
+    return (
+      <div className="idea-compare-head">
+        <span className="cand-badge">{labels[index]}</span>
+        <div>
+          <Tag tone={topic.variant === "안전 축소형" ? "mint" : "violet"}>{topic.variant}</Tag>
+          <strong>{topic.title}</strong>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <section className="prof-block">
+    <div className="idea-compare-scroll" tabIndex={0} aria-label="연구 아이디어 2개 비교표">
+      <table className="idea-compare-table">
+        <caption>두 연구 아이디어를 같은 항목으로 비교</caption>
+        <thead>
+          <tr>
+            <th scope="col">비교 항목</th>
+            {candidates.map((candidate, index) => (
+              <th scope="col" key={candidate.topic.id}>{cell(candidate, index)}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">문제 정의</th>
+            {candidates.map(({ topic }) => (
+              <td key={topic.id}>{topic.problem ?? "검수된 로컬 후보에는 별도 문제 정의가 없어요."}</td>
+            ))}
+          </tr>
+          <tr>
+            <th scope="row">연구질문</th>
+            {candidates.map(({ topic }) => <td key={topic.id}>{topic.question}</td>)}
+          </tr>
+          <tr>
+            <th scope="row">사용자 확인</th>
+            {candidates.map(({ topic }) => (
+              <td key={topic.id}>
+                {topic.userConfirmed?.length
+                  ? topic.userConfirmed.map((item) => <span className="idea-fact-row" key={item}><CircleCheck size={13} /> {item}</span>)
+                  : "상단의 ‘AI와 확인한 맥락’을 참고하세요."}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <th scope="row">AI 제안</th>
+            {candidates.map(({ topic }) => (
+              <td key={topic.id}>
+                {topic.aiProposed?.length
+                  ? topic.aiProposed.map((item) => <span className="idea-proposal-row" key={item}><Sparkles size={13} /> {item}</span>)
+                  : "검수된 로컬 후보에는 별도 AI 제안이 없어요."}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <th scope="row">내 조건과 연결</th>
+            {candidates.map(({ topic, matchedInterests, matchedMethods }) => (
+              <td key={topic.id}>
+                <p>{topic.reason}</p>
+                <div className="tag-row">
+                  {matchedInterests.map((item) => <Tag key={item} tone="blue">{item}</Tag>)}
+                  {matchedMethods.map((item) => <Tag key={item}>{item}</Tag>)}
+                </div>
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <th scope="row">데이터 후보</th>
+            {candidates.map(({ topic }) => (
+              <td key={topic.id}>
+                {topic.dataOptions.map((item) => (
+                  <span className="cand-data-row" key={item.name}>
+                    {item.name} <StatusPill status={item.status} />
+                  </span>
+                ))}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <th scope="row">방법</th>
+            {candidates.map(({ topic }) => <td key={topic.id}>{topic.methodDetail}</td>)}
+          </tr>
+          <tr>
+            <th scope="row">예상 범위</th>
+            {candidates.map(({ topic }) => <td key={topic.id}>{topic.scope}</td>)}
+          </tr>
+          <tr>
+            <th scope="row">확인할 점</th>
+            {candidates.map(({ topic }) => <td key={topic.id}>{topic.uncertainties.join(" ")}</td>)}
+          </tr>
+          <tr>
+            <th scope="row">첫 30분 행동</th>
+            {candidates.map(({ topic }) => <td key={topic.id}>{topic.firstAction}</td>)}
+          </tr>
+          <tr>
+            <th scope="row">근거 상태</th>
+            {candidates.map(({ topic }) => (
+              <td key={topic.id}>
+                {topic.evidence.map((item) => (
+                  <span className="idea-evidence-row" key={item.id}>
+                    <ShieldCheck size={13} /> {item.type} · {item.verifiedAt}
+                  </span>
+                ))}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <th scope="row">선택</th>
+            {candidates.map(({ topic }) => {
+              const selected = selectedTopicId === topic.id;
+              return (
+                <td key={topic.id}>
+                  <button
+                    type="button"
+                    className={cx("cand-select", selected && "is-selected")}
+                    onClick={() => onSelect(topic.id)}
+                    aria-pressed={selected}
+                  >
+                    {selected ? "선택됨" : "이 주제로 선택"}
+                  </button>
+                </td>
+              );
+            })}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const ROLE_LABEL: Record<ProfessorMatchRole, string> = {
+  TOPIC: "연구주제 연결",
+  METHOD: "방법론 연결",
+  CONTEXT: "응용 맥락 연결",
+};
+
+const STRENGTH_LABEL: Record<ProfessorMatchStrength, string> = {
+  DIRECT: "직접 근거",
+  RELATED: "연관 근거",
+  LIMITED: "추가 확인 필요",
+};
+
+function ProfessorBlock({
+  topic,
+  matches,
+  coverage,
+  status,
+  error,
+  onLoad,
+  onSelectProfessor,
+}: {
+  topic: TopicWithChecks["topic"];
+  matches: ProfessorMatch[];
+  coverage: Pick<
+    ProfessorMatchResponse,
+    "officialRecordCount" | "scopeStatus" | "coverageGaps" | "note"
+  > | null;
+  status: "idle" | "loading" | "success" | "error";
+  error: string | null;
+  onLoad: () => void;
+  onSelectProfessor: (id: string) => void;
+}) {
+  if (status === "idle" || status === "loading" || status === "error") {
+    return (
+      <section id="professor-connection" className="prof-block">
+        <div className="section-heading"><h2>교수 공식 정보 연결</h2></div>
+        <Card className="prof-note prof-note--pending">
+          <span><CircleAlert size={18} /></span>
+          <div>
+            <strong>
+              {status === "loading"
+                ? "공식 프로필 근거를 연결하고 있어요"
+                : status === "error"
+                  ? "공식 교수 연결을 완료하지 못했어요"
+                  : "선택한 주제와 공식 교수 데이터를 연결할 수 있어요"}
+            </strong>
+            <p>
+              {error ?? "교수의 우열을 점수로 매기지 않고, 주제·방법·응용 맥락 역할과 공식 근거 ID를 연결합니다."}
+            </p>
+            {status !== "loading" && (
+              <button type="button" className="prof-load-button" onClick={onLoad}>
+                <ShieldCheck size={16} /> {status === "error" ? "다시 연결하기" : "공식 교수 2명 찾기"}
+              </button>
+            )}
+          </div>
+        </Card>
+        <p className="prof-disclaimer">{PROFESSOR_DISCLAIMER}</p>
+      </section>
+    );
+  }
+  return (
+    <section id="professor-connection" className="prof-block">
       <div className="section-heading"><h2>교수 공식 정보 연결</h2></div>
       <Card className="prof-note">
         <span><ShieldCheck size={18} /></span>
-        <div><strong>공식 근거로만 연결해요</strong><p>{PROFESSOR_DATA_NOTE}</p></div>
+        <div>
+          <strong>공식 근거로만 연결했어요</strong>
+          <p>{PROFESSOR_DATA_NOTE} 현재 {coverage?.officialRecordCount ?? matches.length}명의 단국대 공식 교수 레코드 안에서 비교했습니다.</p>
+        </div>
       </Card>
-      {profs.map((p) => p && (
-        <article key={p.id} className="prof-card">
+      <div className="official-match-grid">
+      {matches.map((match, index) => {
+        const professor = match.professor;
+        return (
+        <article key={professor.id} className="prof-card official-match-card">
           <div className="prof-card__top">
-            <div><h3>{p.name}</h3><small>{p.affiliation}</small></div>
-            <Tag tone="mint">{p.role}</Tag>
+            <div>
+              <span className="official-match-order">{index === 0 ? "연결 후보" : "대안 후보"}</span>
+              <h3>{professor.name} {professor.title}</h3>
+              <small>{professor.university} · {professor.department}</small>
+            </div>
+            <Tag tone={match.strength === "LIMITED" ? "warning" : "mint"}>{ROLE_LABEL[match.role]}</Tag>
           </div>
-          <div className="tag-row">{p.fields.map((f) => <Tag key={f}>{f}</Tag>)}</div>
-          <ul className="prof-reasons">
-            {p.matchReasons.map((r, i) => (
-              <li key={i}><CircleCheck size={14} /> <span>{r.reason} <em>· {r.source}</em></span></li>
-            ))}
-          </ul>
+          <div className="tag-row">
+            <Tag tone={match.strength === "LIMITED" ? "warning" : "blue"}>{STRENGTH_LABEL[match.strength]}</Tag>
+            {professor.researchFields.map((field) => <Tag key={field}>{field}</Tag>)}
+          </div>
+          <p className="official-match-reason"><CircleCheck size={15} /> <span>{match.reason}</span></p>
+          <dl className="official-evidence-list">
+            <div><dt>근거 ID</dt><dd>{match.evidenceIds.join(" · ")}</dd></div>
+            <div>
+              <dt>논문 상태</dt>
+              <dd>
+                {professor.publicationsStatus === "FOUND"
+                  ? `공식 프로필 노출 논문 ${professor.publicationCount}건`
+                  : "공식 프로필 미기재"}
+              </dd>
+            </div>
+            <div><dt>근거가 말하지 않는 것</dt><dd>{match.doesNotEstablish.join(" · ")}</dd></div>
+          </dl>
           <div className="prof-meta">
-            <span><ShieldCheck size={13} /> 최종 확인일 {p.verifiedAt}</span>
+            <span><ShieldCheck size={13} /> 수집 확인 {new Date(professor.collectedAt).toLocaleDateString("ko-KR")}</span>
             <span className="prof-unknown"><CircleAlert size={13} /> 모집·면담 가능 여부 미확인</span>
           </div>
-          <Link className="prof-link" href={p.officialContactUrl} target="_blank" rel="noopener noreferrer">
-            <ExternalLink size={16} /> 학교 공식 문의 페이지 열기 <ArrowUpRight size={14} />
-          </Link>
-          <p className="prof-caution"><Info size={13} /> 서비스 밖의 공식 페이지로 이동해요. (예시 링크)</p>
+          <div className="official-match-actions">
+            <Link className="prof-link" href={`/professors/${professor.id}`} onClick={() => onSelectProfessor(professor.id)}>
+              상세 근거 보기 <ArrowUpRight size={14} />
+            </Link>
+            <Link className="prof-link prof-link--secondary" href={professor.officialProfileUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink size={15} /> 대학 공식 프로필
+            </Link>
+          </div>
         </article>
+      );})}
+      </div>
+      {coverage?.coverageGaps.map((gap) => (
+        <Card
+          className="prof-coverage-gap"
+          key={`${gap.university}-${gap.department ?? "unknown"}-${gap.status}-${gap.sourceUrl}`}
+        >
+          <CircleAlert size={17} />
+          <div>
+            <strong>{gap.university} · {gap.department ?? gap.status}</strong>
+            {gap.department && <small>{gap.status}</small>}
+            <p>{gap.scopeImpact}</p>
+          </div>
+        </Card>
       ))}
+      {coverage && <p className="prof-scope-note">{coverage.note}</p>}
       <p className="prof-disclaimer">{PROFESSOR_DISCLAIMER}</p>
     </section>
   );
@@ -136,10 +384,23 @@ function ProfessorBlock({ topic }: { topic: TopicWithChecks["topic"] }) {
 
 export function ResearchResultScreen() {
   const router = useRouter();
+  const hasHydrated = useResearchStore((s) => s.hasHydrated);
   const result = useResearchStore((s) => s.result);
   const conditions = useResearchStore((s) => s.conditions);
+  const ideaMode = useResearchStore((s) => s.ideaMode);
+  const coDesignAnswers = useResearchStore((s) => s.coDesignAnswers);
+  const resultOrigin = useResearchStore((s) => s.resultOrigin);
+  const groundingNote = useResearchStore((s) => s.groundingNote);
   const selectedTopicId = useResearchStore((s) => s.selectedTopicId);
+  const professorMatches = useResearchStore((s) => s.professorMatches);
+  const professorCoverage = useResearchStore((s) => s.professorCoverage);
+  const professorMatchStatus = useResearchStore((s) => s.professorMatchStatus);
+  const professorMatchError = useResearchStore((s) => s.professorMatchError);
   const selectTopic = useResearchStore((s) => s.selectTopic);
+  const setProfessorMatchLoading = useResearchStore((s) => s.setProfessorMatchLoading);
+  const setProfessorMatches = useResearchStore((s) => s.setProfessorMatches);
+  const setProfessorMatchError = useResearchStore((s) => s.setProfessorMatchError);
+  const selectProfessor = useResearchStore((s) => s.selectProfessor);
   const reRecommend = useResearchStore((s) => s.reRecommend);
   const reRecommendNote = useResearchStore((s) => s.reRecommendNote);
   const loadKey = useResearchStore((s) => s.loadKey);
@@ -148,11 +409,11 @@ export function ResearchResultScreen() {
   const [cooldown, setCooldown] = useState(false);
 
   useEffect(() => {
-    if (result === null) {
+    if (hasHydrated && result === null) {
       router.replace("/research");
       return;
     }
-  }, [result, router]);
+  }, [hasHydrated, result, router]);
 
   useEffect(() => {
     setLoading(true);
@@ -167,9 +428,42 @@ export function ResearchResultScreen() {
     window.setTimeout(() => setCooldown(false), 1200);
   };
 
-  if (result === null) return null;
+  const loadProfessorMatches = async (topic: TopicWithChecks["topic"]) => {
+    setProfessorMatchLoading();
+    try {
+      const response = await requestProfessorMatches(topic, conditions.major ?? "");
+      setProfessorMatches(response);
+    } catch (matchError) {
+      setProfessorMatchError(
+        matchError instanceof Error ? matchError.message : "공식 교수 데이터를 연결하지 못했습니다.",
+      );
+    }
+  };
+
+  const onSelectTopic = (id: string) => {
+    const currentResult = result;
+    if (!currentResult) return;
+    const chosen = currentResult.kind === "ok"
+      ? currentResult.candidates.find((candidate) => candidate.topic.id === id)
+      : currentResult.kind === "insufficient" && currentResult.candidate.topic.id === id
+        ? currentResult.candidate
+        : undefined;
+    if (!chosen) return;
+    selectTopic(id);
+    void loadProfessorMatches(chosen.topic);
+  };
+
+  if (!hasHydrated || result === null) {
+    return (
+      <div className="research-loading">
+        <Image src="/mvp-assets/robot-pose-2.png" alt="" width={92} height={92} priority />
+        <p>저장된 연구 결과를 불러오고 있어요.</p>
+      </div>
+    );
+  }
 
   const summaryChips = [
+    modeById(ideaMode)?.label,
     conditions.major,
     ...conditions.interests,
     conditions.experience,
@@ -182,25 +476,46 @@ export function ResearchResultScreen() {
     <>
       <SecondaryButton onClick={() => router.push("/research")}>조건 바꾸기</SecondaryButton>
       <PrimaryButton onClick={onReRecommend} disabled={cooldown || loading}>
-        <RotateCw size={17} className={cooldown ? "spin" : ""} /> 다시 추천
+        <RotateCw size={17} className={cooldown ? "spin" : ""} /> 후보 다시 만들기
       </PrimaryButton>
     </>
   );
 
   return (
-    <AppShell title="추천 결과" onBack={() => router.push("/research")} className="research-screen" stickyAction={stickyAction}>
+    <AppShell title="공동설계 결과" onBack={() => router.push("/research")} className="research-screen" stickyAction={stickyAction}>
       {loading ? (
         <div className="research-loading">
-          <Image src="/mvp-assets/robot-pose-2.png" alt="" width={92} height={104} priority />
+          <Image src="/mvp-assets/robot-pose-2.png" alt="" width={92} height={92} priority />
           <p>조건에 맞는 연구주제 후보를 찾고 있어요.</p>
         </div>
       ) : (
         <>
           <PageHeader eyebrow="1:1 비교" title="어떤 연구주제가 지금 더 시작 가능한가요?" description="점수 대신 근거·데이터·방법·범위와 확인할 조건으로 비교했어요." />
 
+          <Card className={cx("result-grounding", resultOrigin === "ai" ? "is-ai" : "is-fallback")}>
+            <span>{resultOrigin === "ai" ? <Sparkles size={18} /> : <ShieldCheck size={18} />}</span>
+            <div>
+              <strong>{resultOrigin === "ai" ? "AI 공동설계 후보" : "검수된 로컬 후보"}</strong>
+              <p>{groundingNote ?? "사용자 확인 답변과 확인 필요 항목을 분리해 구성했어요."}</p>
+            </div>
+          </Card>
+
           <div className="cond-summary">
             <span className="cond-summary__label">선택한 조건</span>
             <div className="tag-row">{summaryChips.map((s, i) => <Tag key={`${s}-${i}`}>{s}</Tag>)}</div>
+            {coDesignAnswers.length > 0 && (
+              <details className="co-answer-summary">
+                <summary>AI와 확인한 맥락 {coDesignAnswers.length}개</summary>
+                <dl>
+                  {coDesignAnswers.map((answer) => (
+                    <div key={answer.questionId}>
+                      <dt>{answer.label}</dt>
+                      <dd>{answer.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </details>
+            )}
           </div>
 
           {result.kind === "unsupported-major" && (
@@ -218,18 +533,18 @@ export function ResearchResultScreen() {
                 <div><strong>비교할 두 번째 연구주제가 부족해요</strong><p>확인된 후보 1개만 보여드려요. 조건을 조금 바꾸면 비교 후보를 더 찾을 수 있어요.</p></div>
               </Card>
               <div className="cand-list cand-list--one">
-                <CandidateCard cand={result.candidate} label="A" selected={selectedTopicId === result.candidate.topic.id} onSelect={() => selectTopic(result.candidate.topic.id)} />
+                <CandidateCard cand={result.candidate} label="A" selected={selectedTopicId === result.candidate.topic.id} onSelect={() => onSelectTopic(result.candidate.topic.id)} />
               </div>
             </>
           )}
 
           {result.kind === "ok" && (
             <>
-              <div className="cand-list">
-                {result.candidates.map((cand, i) => (
-                  <CandidateCard key={cand.topic.id} cand={cand} label={i === 0 ? "A" : "B"} selected={selectedTopicId === cand.topic.id} onSelect={() => selectTopic(cand.topic.id)} />
-                ))}
-              </div>
+              <IdeaComparisonTable
+                candidates={result.candidates}
+                selectedTopicId={selectedTopicId}
+                onSelect={onSelectTopic}
+              />
 
               <section className="compare-block">
                 <div className="section-heading"><h2><Sliders size={18} /> 정성 비교</h2><p>숫자 점수 없이 조건별 근거로 비교해요.</p></div>
@@ -248,6 +563,11 @@ export function ResearchResultScreen() {
                   );
                 })}
                 <p className="compare-foot">어느 후보가 절대적으로 더 좋다고 단정하지 않아요. 선택 이유는 직접 정해요.</p>
+                {selectedTopicId && (
+                  <a className="prof-jump-link" href="#professor-connection">
+                    선택한 주제의 교수 연결 상태 보기 <ArrowUpRight size={14} />
+                  </a>
+                )}
               </section>
             </>
           )}
@@ -261,7 +581,17 @@ export function ResearchResultScreen() {
                 : result.kind === "insufficient" && result.candidate.topic.id === selectedTopicId
                   ? result.candidate
                   : undefined;
-            return chosen ? <ProfessorBlock topic={chosen.topic} /> : null;
+            return chosen ? (
+              <ProfessorBlock
+                topic={chosen.topic}
+                matches={professorMatches}
+                coverage={professorCoverage}
+                status={professorMatchStatus}
+                error={professorMatchError}
+                onLoad={() => void loadProfessorMatches(chosen.topic)}
+                onSelectProfessor={selectProfessor}
+              />
+            ) : null;
           })()}
         </>
       )}

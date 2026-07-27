@@ -1,5 +1,5 @@
-import { ProfessorsScreen } from "@/components/screens/professor-screens";
+import { OfficialProfessorsScreen } from "@/components/screens/official-professor-screens";
 
 export default function Page() {
-  return <ProfessorsScreen />;
+  return <OfficialProfessorsScreen />;
 }

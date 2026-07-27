@@ -1,0 +1,6 @@
+.cache/
+.metadata-cache/
+runs/
+
+# generated local data exports (runtime/ and sample/ remain versioned)
+dku/

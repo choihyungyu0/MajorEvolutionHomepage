@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0.0",
+  "university": "충북대학교",
+  "declared_scope": "PARTIAL",
+  "updated_at": "2026-07-26",
+  "discovery_sources": [
+    {
+      "url": "https://www.cbnu.ac.kr/www/contents.do?key=391",
+      "purpose": "충북대학교 전체 대학·학과 공식 디렉터리",
+      "scope_impact": "중앙 호스트가 User-agent: * / Disallow: / 이므로 전체 학과 자동 발견 불가"
+    }
+  ],
+  "departments": [
+    {
+      "college": "전자정보대학",
+      "department": "소프트웨어학부",
+      "homepage_url": "https://software.cbnu.ac.kr/",
+      "profile_url": "https://software.cbnu.ac.kr/sub0105",
+      "source_url": "https://software.cbnu.ac.kr/",
+      "parser": "cbnu_generic",
+      "review_note": "2026-07-26 robots.txt User-agent: * / Allow: / 확인. 구성원 페이지에 이름·직위·연구분야 공개."
+    }
+  ]
+}

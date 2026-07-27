@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/choihyungyu0/MajorEvolutionHomepage/data/professors/schema.json",
+  "title": "Major Evolution official professor data",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "publication_scope",
+    "records"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "publication_scope": {
+      "const": "OFFICIAL_PROFILE_LIST_ONLY"
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/professor"
+      }
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": [
+        "FOUND",
+        "NOT_LISTED_ON_OFFICIAL_PROFILE",
+        "PROFILE_UNAVAILABLE",
+        "PARSE_FAILED",
+        "ROBOTS_BLOCKED"
+      ]
+    },
+    "nullableString": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "publication_type",
+        "published_date",
+        "doi",
+        "kci_id",
+        "official_profile_url",
+        "metadata_source"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publication_type": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "published_date": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "doi": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "kci_id": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "official_profile_url": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "metadata_source": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "professor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "id",
+        "university",
+        "college",
+        "department",
+        "name",
+        "title",
+        "research_fields",
+        "publications",
+        "official_profile_url",
+        "source_url",
+        "collected_at",
+        "status",
+        "research_fields_status",
+        "publications_status",
+        "failure_reason",
+        "content_hash"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{24}$"
+        },
+        "university": {
+          "enum": [
+            "단국대학교",
+            "충북대학교"
+          ]
+        },
+        "college": {
+          "type": "string",
+          "minLength": 1
+        },
+        "department": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "title": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "research_fields": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "publications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/publication"
+          }
+        },
+        "official_profile_url": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "source_url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "collected_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "research_fields_status": {
+          "$ref": "#/$defs/status"
+        },
+        "publications_status": {
+          "$ref": "#/$defs/status"
+        },
+        "failure_reason": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "content_hash": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    }
+  }
+}

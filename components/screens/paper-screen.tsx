@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  ArrowRight,
   BookOpenCheck,
   CheckCircle2,
   Clipboard,
@@ -10,6 +11,7 @@ import {
   Lightbulb,
   ListChecks,
   LoaderCircle,
+  PanelsTopLeft,
   RotateCcw,
   Sparkles,
 } from "lucide-react";
@@ -17,6 +19,7 @@ import { useState } from "react";
 import {
   AppShell,
   Card,
+  LinkButton,
   PageHeader,
   PrimaryButton,
   SecondaryButton,
@@ -123,6 +126,14 @@ export function PaperScreen() {
     <AppShell title="논문 이해" backHref="/goal">
       <PageHeader eyebrow="AI 논문 도우미" title="어려운 논문을 읽는 순서로 풀어드려요" description="초록이나 본문 일부를 붙여 넣으면 질문·방법·결과·한계를 나눠서 설명합니다." />
       <StatusBanner icon={Sparkles} title="원문을 대신하지 않아요" tone="lavender">AI 요약은 읽기 보조 도구예요. 인용과 최종 판단은 반드시 원문에서 확인해 주세요.</StatusBanner>
+      <Card className="paper-reader-entry">
+        <span><PanelsTopLeft size={22} aria-hidden="true" /></span>
+        <div>
+          <strong>PDF 통합 리더 준비 화면</strong>
+          <p>원문·전체 번역·쉬운 요약·질의응답·그림 해설이 들어갈 통합 구조를 확인하세요.</p>
+        </div>
+        <LinkButton href="/paper/reader" secondary>구조 보기 <ArrowRight size={16} /></LinkButton>
+      </Card>
       <Card className="paper-input-card">
         <label className="field-group" htmlFor="paper-title"><span className="field-label">논문 제목 <small>선택</small></span><input id="paper-title" className="input" value={title} onChange={(event) => setTitle(event.target.value.slice(0, 180))} placeholder="제목을 입력하면 결과에 반영돼요" /></label>
         <label className="field-group" htmlFor="paper-content"><span className="field-label">초록 또는 본문</span><textarea id="paper-content" className="textarea paper-input" value={content} onChange={(event) => setContent(event.target.value.slice(0, 12_000))} placeholder="분석할 논문 초록이나 본문 일부를 붙여 넣어 주세요." /></label>

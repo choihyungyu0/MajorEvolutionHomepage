@@ -3,8 +3,9 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { CircleAlert, Compass, Sparkles } from "lucide-react";
+import { Brain, Check, CircleAlert, Compass, GitCompareArrows, ScanSearch, Sparkles } from "lucide-react";
 import { AppLogo, AppShell, Card, PageHeader, PrimaryButton, cx } from "@/components/app/primitives";
+import { IDEA_MODES, type IdeaMode } from "@/data/co-design";
 import {
   AVOID_TAGS,
   DATA_ACCESS,
@@ -22,8 +23,10 @@ const CHIP = (selected: boolean, disabled = false) =>
 export function ConditionSelectScreen() {
   const router = useRouter();
   const c = useResearchStore((s) => s.conditions);
+  const ideaMode = useResearchStore((s) => s.ideaMode);
   const interestsFull = useResearchStore((s) => s.interestsFull);
   const methodsFull = useResearchStore((s) => s.methodsFull);
+  const setIdeaMode = useResearchStore((s) => s.setIdeaMode);
   const setMajor = useResearchStore((s) => s.setMajor);
   const toggleInterest = useResearchStore((s) => s.toggleInterest);
   const setExperience = useResearchStore((s) => s.setExperience);
@@ -35,6 +38,7 @@ export function ConditionSelectScreen() {
 
   const [errors, setErrors] = useState<string[]>([]);
   const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {
+    ideaMode: useRef(null),
     major: useRef(null),
     interests: useRef(null),
     experience: useRef(null),
@@ -51,14 +55,20 @@ export function ConditionSelectScreen() {
       refs[missing[0]]?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    router.push("/result");
+    router.push("/co-design");
+  };
+
+  const modeIcon: Record<IdeaMode, typeof Brain> = {
+    free: Brain,
+    trend: ScanSearch,
+    fusion: GitCompareArrows,
   };
 
   return (
     <AppShell
       showHeader={false}
       className="research-screen"
-      stickyAction={<PrimaryButton onClick={onSubmit}>연구주제 추천받기</PrimaryButton>}
+      stickyAction={<PrimaryButton onClick={onSubmit}>AI와 공동설계 시작하기</PrimaryButton>}
     >
       <div className="research-brand">
         <AppLogo />
@@ -66,18 +76,45 @@ export function ConditionSelectScreen() {
       </div>
 
       <PageHeader
-        eyebrow="연구주제 설계"
-        title="교수님께 가져갈 연구주제 후보 2개를 비교해 보세요"
-        description="전공명만이 아니라 실제 수강·경험·조건을 반영해, 검수된 데이터에서 후보를 찾아드려요."
+        eyebrow="연구주제 공동설계"
+        title="탐색 방식을 고르고, AI와 질문을 좁혀 보세요"
+        description="한 번에 한 질문씩 답하면 현재 조건에 맞는 후보 2개와 비교 근거를 만들어요."
       />
 
       <Card className="research-notice">
         <span><Sparkles size={18} /></span>
         <div>
           <strong>점수가 아니라 근거로 비교해요</strong>
-          <p>연구실 합격·교수 답변·독창성은 보장하지 않아요. 실제 가능 여부는 학교 공식 채널에서 확인해요.</p>
+          <p>사용자 확인 사실, AI 제안, 확인 필요 항목을 분리해 보여드려요. 연구실 합격·교수 답변·독창성은 보장하지 않아요.</p>
         </div>
       </Card>
+
+      <div ref={refs.ideaMode} className={cx("cond-group", "mode-select-group", hasError("ideaMode") && "has-error")}>
+        <div className="field-label">아이디어 탐색 방식 <small>필수 · 1개 선택</small></div>
+        <div className="mode-option-list">
+          {IDEA_MODES.map((mode) => {
+            const Icon = modeIcon[mode.id];
+            const selected = ideaMode === mode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                className={cx("mode-option", selected && "is-selected")}
+                onClick={() => setIdeaMode(mode.id)}
+                aria-pressed={selected}
+              >
+                <span className="mode-option__icon"><Icon size={21} /></span>
+                <span className="mode-option__copy">
+                  <strong>{mode.label}</strong>
+                  <small>{mode.description}</small>
+                </span>
+                <span className="mode-option__check" aria-hidden="true">{selected ? <Check size={16} /> : null}</span>
+              </button>
+            );
+          })}
+        </div>
+        {hasError("ideaMode") && <p className="field-error">아이디어 탐색 방식을 선택해 주세요.</p>}
+      </div>
 
       {/* 학과·전공 */}
       <div ref={refs.major} className={cx("cond-group", hasError("major") && "has-error")}>
@@ -183,7 +220,7 @@ export function ConditionSelectScreen() {
         </div>
       )}
 
-      <p className="research-foot"><Compass size={14} /> 모든 후보는 검수된 로컬 데이터에서 찾아요. 새로고침하면 조건은 초기화돼요.</p>
+      <p className="research-foot"><Compass size={14} /> 공식 근거가 없는 정보는 ‘확인 필요’로 남기며, 현재 입력과 선택은 이 브라우저에 저장해요.</p>
     </AppShell>
   );
 }
