@@ -42,33 +42,28 @@ const goalIcons = [Compass, Lightbulb, GraduationCap, FileSearch];
 
 export function SplashScreen() {
   const router = useRouter();
-  const setSampleMode = usePrototypeStore((state) => state.setSampleMode);
-  const setDnaStep = usePrototypeStore((state) => state.setDnaStep);
 
   const start = () => {
-    setSampleMode(false);
-    setDnaStep(1);
-    router.push("/goal");
+    router.push("/mentoring");
   };
 
-  const preview = () => {
-    setSampleMode(true);
-    router.push("/evolution-report");
+  const beginResearch = () => {
+    router.push("/research");
   };
 
-  const goResearch = () => router.push("/research");
+  const openPaperTool = () => router.push("/paper");
 
   return (
     <AppShell showHeader={false} className="splash-screen">
       <div className="splash-layout">
         <AppLogo />
         <div className="splash-copy">
-          <p className="eyebrow">대학생 AI 연구 여정</p>
+          <p className="eyebrow">교수 연결 AI 서비스</p>
           <h1>
-            내 전공,<br />
-            <span className="gradient-text">AI 먹이면</span> 뭐가 됨?
+            내 전공의 다음 선택,<br />
+            <span className="gradient-text">교수님과</span> 시작해요
           </h1>
-          <p>전공 고민을 연구 아이디어로, 아이디어를 교수님과 실행계획으로.</p>
+          <p>관련 교수를 찾고, 준비해서 만나고, 받은 조언을 다음 행동으로 바꿔보세요.</p>
         </div>
         <div className="splash-art" aria-hidden="true">
           <Image
@@ -81,11 +76,11 @@ export function SplashScreen() {
           />
         </div>
         <div className="splash-actions">
-          <PrimaryButton onClick={start}>전공 진화 시작하기</PrimaryButton>
-          <SecondaryButton onClick={preview}>샘플 결과 먼저 보기</SecondaryButton>
-          <button type="button" className="splash-mvp-link" onClick={goResearch}>
+          <PrimaryButton onClick={start}>교수 연결 여정 보기</PrimaryButton>
+          <SecondaryButton onClick={beginResearch}>연구 주제부터 시작하기</SecondaryButton>
+          <button type="button" className="splash-mvp-link" onClick={openPaperTool}>
             <Sparkles size={16} aria-hidden="true" />
-            <span>과제용 2화면 추천받기</span>
+            <span>논문 읽기 도구 열기</span>
             <ArrowRight size={16} aria-hidden="true" />
           </button>
         </div>

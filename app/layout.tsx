@@ -12,7 +12,7 @@ const pretendard = localFont({
   preload: true,
 });
 
-const title = "전공진화소 - AI 연구·교수 매칭";
+const title = "전공진화소 - AI 연구·교수 연결";
 const description =
   "전공과 관심사를 연구 아이디어로 확장하고, 공개 근거를 바탕으로 교수님과 첫 실행 계획까지 연결하는 대학생 연구 여정 앱";
 
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     title: "전공진화소",
     statusBarStyle: "default",
   },
-  keywords: ["전공 탐색", "연구 아이디어", "교수 매칭", "대학생 프로젝트", "AI 연구"],
+  keywords: ["전공 탐색", "연구 아이디어", "교수 연결", "대학생 프로젝트", "AI 연구"],
   openGraph: {
     title,
     description,
@@ -52,7 +52,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ko" className={pretendard.variable}>
+    <html lang="ko" className={pretendard.variable} data-scroll-behavior="smooth">
       <body>
         <StoreHydrator />
         <a href="#main-content" className="skip-link">

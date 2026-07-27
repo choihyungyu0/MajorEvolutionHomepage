@@ -23,6 +23,10 @@
 # claude code tooling
 .claude/
 
+# local AI/tooling workspaces
+.codex_tmp/
+.serena/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

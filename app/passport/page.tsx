@@ -1,5 +1,5 @@
-import { PassportScreen } from "@/components/screens/idea-screens";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <PassportScreen />;
+  redirect("/research");
 }

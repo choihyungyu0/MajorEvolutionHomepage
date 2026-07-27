@@ -280,10 +280,10 @@ export function HomeScreen() {
 }
 
 const exploreItems = [
-  { href: "/evolution-report", icon: Sparkles, title: "전공 진화 리포트", description: "내 전공의 AI 연구 방향과 준비 기술 보기", tone: "violet" },
-  { href: "/ideas", icon: Lightbulb, title: "아이디어 랩", description: "연구형·프로젝트형·서비스형 아이디어 비교", tone: "mint" },
+  { href: "/mentoring", icon: Sparkles, title: "교수 연결 여정", description: "찾기·준비하기·피드백 반영 3단계 보기", tone: "violet" },
+  { href: "/research", icon: Lightbulb, title: "연구 주제 공동설계", description: "질문을 통해 전략이 다른 후보 2개 비교", tone: "mint" },
   { href: "/paper", icon: FileText, title: "논문 이해", description: "초록과 본문을 질문·방법·결과·한계로 나눠 읽기", tone: "violet" },
-  { href: "/professors", icon: GraduationCap, title: "너의 교수님은?", description: "아이디어와 공개 연구 정보의 연결 근거 보기", tone: "blue" },
+  { href: "/professors", icon: GraduationCap, title: "교수 레이더", description: "선택한 주제와 공식 연구 정보의 연결 근거 보기", tone: "blue" },
 ];
 
 export function ExploreScreen() {
@@ -326,7 +326,7 @@ export function SavedScreen() {
           image="/mvp-assets/robot-pose-3.png"
           title="아직 저장한 항목이 없어요"
           description="아이디어나 교수 카드의 저장 아이콘을 누르면 이곳에 모여요."
-          action={<LinkButton href="/ideas">아이디어 둘러보기</LinkButton>}
+          action={<LinkButton href="/research">연구 주제 만들기</LinkButton>}
         />
       ) : (
         <>

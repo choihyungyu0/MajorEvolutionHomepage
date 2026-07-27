@@ -2,6 +2,10 @@ import type { AiIdeasRequest, AiJourneyRequest, AiJourneyResult } from "@/lib/ai
 import type { Idea } from "@/data/prototype";
 import type { PaperAnalysisRequest, PaperAnalysisResult } from "@/lib/paper-analysis";
 import type { AiCoachRequest, AiCoachResult } from "@/lib/ai-coach";
+import type {
+  CoDesignRequest,
+  CoDesignResponse,
+} from "@/lib/co-design-ai";
 
 type ApiErrorPayload = { error?: { message?: string } };
 
@@ -30,4 +34,8 @@ export function requestPaperAnalysis(body: PaperAnalysisRequest): Promise<PaperA
 
 export function requestAiCoach(body: AiCoachRequest): Promise<AiCoachResult> {
   return postJson<AiCoachResult>("/api/ai/coach", body);
+}
+
+export function requestCoDesignCandidates(body: CoDesignRequest): Promise<CoDesignResponse> {
+  return postJson<CoDesignResponse>("/api/ai/co-design", body);
 }

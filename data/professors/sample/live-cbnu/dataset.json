@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-07-26T08:11:21.003Z",
+  "publication_scope": "OFFICIAL_PROFILE_LIST_ONLY",
+  "records": [
+    {
+      "schema_version": "1.0.0",
+      "id": "417486b513bb9fb9cd949a9d",
+      "university": "충북대학교",
+      "college": "전자정보대학",
+      "department": "소프트웨어학부",
+      "name": "이건명",
+      "title": "교수",
+      "research_fields": [
+        "인공지능"
+      ],
+      "publications": [],
+      "official_profile_url": "https://software.cbnu.ac.kr/sub0105",
+      "source_url": "https://software.cbnu.ac.kr/sub0105",
+      "collected_at": "2026-07-26T08:11:20.815Z",
+      "status": "FOUND",
+      "research_fields_status": "FOUND",
+      "publications_status": "NOT_LISTED_ON_OFFICIAL_PROFILE",
+      "failure_reason": null,
+      "content_hash": "d5eaec9bc87d331ae9a707b8583391c751a840008ae17b24276d74d39219fc4f"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "c266e0e8174c347e089c676e",
+      "university": "충북대학교",
+      "college": "전자정보대학",
+      "department": "소프트웨어학부",
+      "name": "홍장의",
+      "title": "교수",
+      "research_fields": [
+        "소프트웨어공학"
+      ],
+      "publications": [],
+      "official_profile_url": "https://software.cbnu.ac.kr/sub0105",
+      "source_url": "https://software.cbnu.ac.kr/sub0105",
+      "collected_at": "2026-07-26T08:11:20.815Z",
+      "status": "FOUND",
+      "research_fields_status": "FOUND",
+      "publications_status": "NOT_LISTED_ON_OFFICIAL_PROFILE",
+      "failure_reason": null,
+      "content_hash": "d5eaec9bc87d331ae9a707b8583391c751a840008ae17b24276d74d39219fc4f"
+    }
+  ]
+}

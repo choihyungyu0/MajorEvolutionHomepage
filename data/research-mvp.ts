@@ -54,8 +54,11 @@ export type ResearchTopic = {
   minWeeks: 4 | 8 | 16; // 시작에 필요한 최소 기간
   goodDataAccess: DataAccess[]; // 잘 맞는 데이터 접근 조건
   avoidTags: string[]; // 이 주제가 내포하는, 사용자가 피하고 싶을 수 있는 방식
+  problem?: string; // AI 공동설계가 정리한 문제 정의
   question: string; // 핵심 연구질문
   reason: string; // 내 조건과 연결되는 이유
+  userConfirmed?: string[]; // 사용자가 직접 확인한 맥락(원문 값만)
+  aiProposed?: string[]; // AI가 제안한 해석·확장
   dataOptions: { name: string; status: CheckStatus }[]; // 가능한 데이터 후보
   methodDetail: string; // 제안 방법
   scope: string; // 예상 범위와 기간
@@ -83,7 +86,7 @@ export const PROFESSOR_DISCLAIMER =
   "현재 확인된 공식 정보만으로 특정 교수의 지도·모집·면담 가능 여부를 판단할 수 없습니다. 실제 가능 여부는 학교·학과·연구실 공식 안내에서 직접 확인해 주세요.";
 
 export const PROFESSOR_DATA_NOTE =
-  "이름·학교·연구실은 화면 흐름 검증을 위한 프로토타입용 가상 정보이며, 공식 문의 링크는 예시입니다.";
+  "대학 공식 프로필의 이름·소속·연구분야·논문 목록만 앱에 사용합니다. 이메일·전화는 저장하지 않고, 사진은 이용 허가 확인 전 표시하지 않습니다.";
 
 // ─────────────────────────────────────────────────────────
 // 교수 (프로토타입용 가상 데이터, 공식 링크는 예시 URL)
@@ -161,7 +164,7 @@ export const TOPICS: ResearchTopic[] = [
     pairId: "greenwash",
     variant: "안전 축소형",
     title: "온라인 식품 친환경 표시 문구와 가격 프리미엄의 관계 탐색",
-    majors: ["수학", "식품자원경제학"],
+    majors: ["수학", "식품자원경제학", "컴퓨터공학"],
     interests: ["데이터 분석", "ESG·지속가능성", "식품 소비", "가격·시장"],
     methods: ["데이터 분석", "문헌조사"],
     minWeeks: 4,
@@ -344,6 +347,6 @@ export function findProfessor(id: string): Professor | undefined {
   return PROFESSORS.find((p) => p.id === id);
 }
 
-export function periodWeeks(label: PeriodLabel): number {
+export function periodWeeks(label: PeriodLabel): 4 | 8 | 16 {
   return PERIODS.find((p) => p.label === label)?.weeks ?? 4;
 }

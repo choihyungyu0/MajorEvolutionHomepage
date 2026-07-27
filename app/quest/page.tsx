@@ -1,5 +1,5 @@
-import { QuestScreen } from "@/components/screens/quest-home-screens";
+import { QuestRouterScreen } from "@/components/screens/quest-router";
 
 export default function Page() {
-  return <QuestScreen />;
+  return <QuestRouterScreen />;
 }

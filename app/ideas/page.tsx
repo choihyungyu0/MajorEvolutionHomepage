@@ -1,5 +1,5 @@
-import { IdeasScreen } from "@/components/screens/idea-screens";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <IdeasScreen />;
+  redirect("/research");
 }

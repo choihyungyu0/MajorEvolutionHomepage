@@ -9,7 +9,18 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "professors:crawl": "node scripts/professor-crawler/cli.mjs crawl",
+    "professors:recover-dku": "node scripts/professor-crawler/recover-dku.mjs",
+    "professors:recover-dku-gaps": "node scripts/professor-crawler/recover-dku-gaps.mjs",
+    "professors:enrich": "node scripts/professor-crawler/enrich-normalized.mjs",
+    "professors:build-runtime": "node scripts/professor-crawler/build-runtime.mjs",
+    "professors:collect-photo-references": "node scripts/professor-crawler/collect-dku-photo-references.mjs",
+    "professors:export-db": "node scripts/professor-crawler/export-database.mjs",
+    "professors:validate": "node scripts/professor-crawler/cli.mjs validate",
+    "professors:smoke": "node scripts/professor-crawler/smoke.mjs",
+    "professors:test": "node --test scripts/professor-crawler/tests/*.test.mjs",
+    "professors:verify-matches": "node scripts/verify-professor-matches.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

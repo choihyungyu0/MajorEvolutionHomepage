@@ -30,7 +30,7 @@ export function AppLogo({ compact = false }: { compact?: boolean }) {
       </span>
       <span>
         <strong>전공진화소</strong>
-        {!compact && <small>AI 연구·교수 매칭</small>}
+        {!compact && <small>AI 연구·교수 연결</small>}
       </span>
     </span>
   );

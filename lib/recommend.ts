@@ -73,7 +73,7 @@ export function missingRequired(c: Conditions): CriterionKey[] | string[] {
   return missing;
 }
 
-function buildChecks(topic: ResearchTopic, c: Conditions): TopicWithChecks {
+export function buildChecks(topic: ResearchTopic, c: Conditions): TopicWithChecks {
   const matchedInterests = overlap(c.interests, topic.interests);
   const matchedMethods = overlap(c.methods, topic.methods);
   const userWeeks = c.period ? periodWeeks(c.period) : 4;
@@ -134,6 +134,22 @@ function buildChecks(topic: ResearchTopic, c: Conditions): TopicWithChecks {
     matchedInterests,
     matchedMethods,
     checks: { personalLink, dataAccess, method, period, uncertainty },
+  };
+}
+
+export function compareTopicPair(
+  c: Conditions,
+  topics: [ResearchTopic, ResearchTopic],
+): RecommendResult {
+  const ordered = [...topics].sort((a, b) =>
+    (a.variant === "안전 축소형" ? -1 : 1) -
+    (b.variant === "안전 축소형" ? -1 : 1));
+  return {
+    kind: "ok",
+    candidates: [
+      buildChecks(ordered[0], c),
+      buildChecks(ordered[1], c),
+    ],
   };
 }
 

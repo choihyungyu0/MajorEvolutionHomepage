@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "professors-2026-07-26T08-11-20-815Z",
+  "started_at": "2026-07-26T08:11:20.815Z",
+  "finished_at": "2026-07-26T08:11:21.003Z",
+  "scope_requested": {
+    "universities": [
+      "충북대학교"
+    ],
+    "departments": "ALL_DEPARTMENTS",
+    "publications": "OFFICIAL_PROFILE_LIST_ONLY"
+  },
+  "scope_status": "SAMPLE",
+  "limits": {
+    "max_departments": 1,
+    "max_professors_per_department": 2
+  },
+  "privacy": {
+    "persisted_fields_excluded": [
+      "email",
+      "telephone",
+      "fax",
+      "photo/image"
+    ],
+    "cache_policy": "Persistent cache is rebuilt from allowlisted department/professor/research/publication/navigation fragments; raw responses exist only in memory."
+  },
+  "counts": {
+    "records": 2,
+    "professors": 2,
+    "departments_with_records": 1,
+    "departments_attempted": 1,
+    "publications": 0,
+    "by_status": {
+      "FOUND": 2,
+      "NOT_LISTED_ON_OFFICIAL_PROFILE": 0,
+      "PROFILE_UNAVAILABLE": 0,
+      "PARSE_FAILED": 0,
+      "ROBOTS_BLOCKED": 0
+    },
+    "research_fields_by_status": {
+      "FOUND": 2,
+      "NOT_LISTED_ON_OFFICIAL_PROFILE": 0,
+      "PROFILE_UNAVAILABLE": 0,
+      "PARSE_FAILED": 0,
+      "ROBOTS_BLOCKED": 0
+    },
+    "publications_by_status": {
+      "FOUND": 0,
+      "NOT_LISTED_ON_OFFICIAL_PROFILE": 2,
+      "PROFILE_UNAVAILABLE": 0,
+      "PARSE_FAILED": 0,
+      "ROBOTS_BLOCKED": 0
+    }
+  },
+  "department_results": [
+    {
+      "university": "충북대학교",
+      "college": "전자정보대학",
+      "department": "소프트웨어학부",
+      "page": "https://software.cbnu.ac.kr/sub0105",
+      "discovered_professors": 23,
+      "output_records": 2
+    }
+  ],
+  "discovery": [
+    {
+      "university": "충북대학교",
+      "departments": [
+        {
+          "university": "충북대학교",
+          "college": "전자정보대학",
+          "department": "소프트웨어학부",
+          "homepage_url": "https://software.cbnu.ac.kr/",
+          "profile_url": "https://software.cbnu.ac.kr/sub0105",
+          "parser": "cbnu_generic",
+          "discovery_source_url": "https://software.cbnu.ac.kr/"
+        }
+      ],
+      "issues": [
+        {
+          "status": "ROBOTS_BLOCKED",
+          "source_url": "https://www.cbnu.ac.kr/www/contents.do?key=391",
+          "reason": "Full-catalog discovery was not attempted: DISALLOW: /",
+          "scope_impact": "중앙 호스트가 User-agent: * / Disallow: / 이므로 전체 학과 자동 발견 불가"
+        }
+      ],
+      "source": {
+        "url": "C:\\Users\\HAPPY\\Documents\\커널아카데미\\MajorEvolutionHomepage\\data\\professors\\seeds\\cbnu-departments.json",
+        "discovered_count": 1,
+        "declared_scope": "PARTIAL"
+      }
+    }
+  ],
+  "coverage_gaps": [
+    {
+      "status": "ROBOTS_BLOCKED",
+      "source_url": "https://www.cbnu.ac.kr/www/contents.do?key=391",
+      "reason": "Full-catalog discovery was not attempted: DISALLOW: /",
+      "scope_impact": "중앙 호스트가 User-agent: * / Disallow: / 이므로 전체 학과 자동 발견 불가"
+    }
+  ],
+  "metadata_enrichment": {
+    "policy": "Identifier-only enrichment. Metadata APIs may update DOI/KCI IDs for titles already exposed on an official university profile; they never add publications.",
+    "crossref": "DISABLED",
+    "kci": "DISABLED_NO_KCI_API_KEY",
+    "queried": 0,
+    "doi_matched": 0,
+    "kci_matched": 0,
+    "ambiguous_or_unmatched": 0,
+    "errors": []
+  },
+  "robots_audit": [
+    {
+      "url": "https://www.cbnu.ac.kr/www/contents.do?key=391",
+      "robots_url": "https://www.cbnu.ac.kr/robots.txt",
+      "robots_status": 200,
+      "allowed": false,
+      "matched_rule": "DISALLOW: /",
+      "crawl_delay_ms": null,
+      "checked_at": "2026-07-26T08:11:20.938Z"
+    },
+    {
+      "url": "https://software.cbnu.ac.kr/sub0105",
+      "robots_url": "https://software.cbnu.ac.kr/robots.txt",
+      "robots_status": 200,
+      "allowed": true,
+      "matched_rule": "ALLOW: /",
+      "crawl_delay_ms": null,
+      "checked_at": "2026-07-26T08:11:20.997Z"
+    }
+  ],
+  "data_content_hash": "3a2af846ba19bb78e55e657b734a5143442a451a0be7070575d168f88af0900d"
+}
