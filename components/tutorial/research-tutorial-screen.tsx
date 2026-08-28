@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpen,
   BookOpenCheck,
   Check,
   ChevronRight,
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ServiceHelpGuide } from "@/components/app/service-help-guide";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import {
   MAJOR_AREAS,
@@ -728,23 +730,44 @@ export function ResearchTutorialScreen({
         ) : (
           <BrandLogo href="/home" compact />
         )}
-        <div className={styles.headerActions}>
-          {step !== "welcome" ? (
-            <button type="button" onClick={() => goTo("welcome")}>방식 바꾸기</button>
+        <div className="standalone-tutorial-header-actions">
+          <div className={styles.headerActions}>
+            {step !== "welcome" ? (
+              <button
+                type="button"
+                className={styles.modeChangeButton}
+                onClick={() => goTo("welcome")}
+              >
+                방식 바꾸기
+              </button>
+            ) : null}
+            {presentation !== "page" ? (
+              <button
+                type="button"
+                className={styles.exitLink}
+                onClick={closeTutorial}
+                aria-label={isEmbedded ? "홈으로 돌아가기" : "프로젝트 빠른 시작 닫기"}
+              >
+                {isEmbedded ? <ArrowLeft size={19} aria-hidden="true" /> : <X size={19} aria-hidden="true" />}
+                {isEmbedded ? "홈으로" : "닫기"}
+              </button>
+            ) : (
+              <Link href="/home" className={styles.exitLink}>{step === "welcome" ? "나가기" : "저장하고 나가기"}</Link>
+            )}
+          </div>
+          {presentation === "page" ? (
+            <>
+              <Link
+                href="/welcome"
+                className="top-app-bar__intro"
+                aria-label="서비스 소개 보기"
+                title="서비스 소개 보기"
+              >
+                <BookOpen size={18} aria-hidden="true" />
+              </Link>
+              <ServiceHelpGuide placement="header" />
+            </>
           ) : null}
-          {presentation !== "page" ? (
-            <button
-              type="button"
-              className={styles.exitLink}
-              onClick={closeTutorial}
-              aria-label={isEmbedded ? "홈으로 돌아가기" : "프로젝트 빠른 시작 닫기"}
-            >
-              {isEmbedded ? <ArrowLeft size={19} aria-hidden="true" /> : <X size={19} aria-hidden="true" />}
-              {isEmbedded ? "홈으로" : "닫기"}
-            </button>
-          ) : (
-            <Link href="/home" className={styles.exitLink}>{step === "welcome" ? "나가기" : "저장하고 나가기"}</Link>
-          )}
         </div>
       </header>
 

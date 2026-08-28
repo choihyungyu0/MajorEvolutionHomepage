@@ -370,6 +370,250 @@
   line-height: 1.7;
 }
 
+.aiProfessorSection {
+  scroll-margin-top: 76px;
+  padding: 124px 0 128px;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(49, 201, 174, 0.09), transparent 27%),
+    radial-gradient(circle at 88% 78%, rgba(117, 87, 246, 0.1), transparent 31%),
+    #f6f8fc;
+}
+
+.aiProfessorInner {
+  width: min(100% - 48px, 1240px);
+  margin: 0 auto;
+}
+
+.aiProfessorHeading {
+  max-width: 830px;
+}
+
+.aiProfessorEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--landing-mint-dark);
+  font-size: 14px;
+  font-weight: 790;
+}
+
+.aiProfessorHeading h2 {
+  margin-top: 17px;
+  color: var(--landing-navy);
+  font-size: clamp(36px, 3.4vw, 52px);
+  font-weight: 850;
+  letter-spacing: -0.052em;
+  line-height: 1.22;
+}
+
+.aiProfessorHeading > p {
+  max-width: 750px;
+  margin-top: 22px;
+  color: var(--landing-muted);
+  font-size: 17px;
+  line-height: 1.72;
+}
+
+.aiProfessorLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(380px, 0.88fr);
+  gap: 24px;
+  align-items: stretch;
+  margin-top: 52px;
+}
+
+.aiProfessorFlow {
+  display: grid;
+  overflow: hidden;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--landing-border);
+  border-radius: 25px;
+  background: rgba(255, 255, 255, 0.92);
+  list-style: none;
+}
+
+.aiProfessorFlow li {
+  display: grid;
+  min-height: 190px;
+  grid-template-columns: 30px 44px minmax(0, 1fr);
+  gap: 12px;
+  align-content: start;
+  padding: 27px 25px;
+  border-right: 1px solid var(--landing-border);
+  border-bottom: 1px solid var(--landing-border);
+}
+
+.aiProfessorFlow li:nth-child(2n) {
+  border-right: 0;
+}
+
+.aiProfessorFlow li:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.aiProfessorStepNumber {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--landing-navy-soft);
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.aiProfessorStepIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 13px;
+  color: var(--landing-violet);
+  background: #f0edff;
+}
+
+.aiProfessorFlow h3 {
+  color: var(--landing-navy);
+  font-size: 17px;
+  font-weight: 790;
+  letter-spacing: -0.025em;
+  line-height: 1.42;
+}
+
+.aiProfessorFlow p {
+  margin-top: 8px;
+  color: var(--landing-muted);
+  font-size: 13px;
+  line-height: 1.64;
+}
+
+.aiProfessorControl {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  padding: 35px;
+  border-radius: 25px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 92% 10%, rgba(117, 87, 246, 0.43), transparent 34%),
+    linear-gradient(145deg, #071026 0%, #0b173f 100%);
+  box-shadow: 0 22px 48px rgba(7, 16, 38, 0.17);
+}
+
+.aiProfessorControlLabel {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: #b9f3e8;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.aiProfessorControl h3 {
+  margin-top: 22px;
+  font-size: clamp(26px, 2.2vw, 33px);
+  font-weight: 820;
+  letter-spacing: -0.045em;
+  line-height: 1.3;
+}
+
+.aiProfessorControl > p {
+  margin-top: 14px;
+  color: #bdc7df;
+  font-size: 14px;
+  line-height: 1.68;
+}
+
+.aiProfessorControlPath {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 23px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.aiProfessorControlPath span {
+  min-width: 0;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.aiProfessorControlPath svg {
+  flex: 0 0 auto;
+  color: #7de1ce;
+}
+
+.aiProfessorControl ul {
+  display: grid;
+  gap: 9px;
+  margin-top: 22px;
+  padding: 0;
+  list-style: none;
+}
+
+.aiProfessorControl li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: #dce4f6;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.aiProfessorControl li svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #62d7c1;
+}
+
+.aiProfessorCta {
+  display: inline-flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 0 20px;
+  border-radius: 15px;
+  color: var(--landing-navy);
+  background: #fff;
+  font-size: 14px;
+  font-weight: 810;
+  transition: color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.aiProfessorCta:hover {
+  color: var(--landing-purple);
+  background: #f5f2ff;
+  transform: translateY(-1px);
+}
+
+.aiProfessorCta:focus-visible {
+  outline: 3px solid #8be4d4;
+  outline-offset: 3px;
+}
+
+.aiProfessorControl small {
+  display: block;
+  margin-top: 14px;
+  color: #98a5c1;
+  font-size: 11px;
+  line-height: 1.58;
+}
+
 .journeySection {
   padding: 118px 0 124px;
   background:
@@ -1118,6 +1362,22 @@
     gap: 60px;
   }
 
+  .aiProfessorLayout {
+    grid-template-columns: minmax(0, 1fr) minmax(350px, 0.88fr);
+  }
+
+  .aiProfessorFlow li {
+    min-height: 205px;
+    grid-template-columns: 28px 40px minmax(0, 1fr);
+    gap: 10px;
+    padding: 24px 19px;
+  }
+
+  .aiProfessorStepIcon {
+    width: 39px;
+    height: 39px;
+  }
+
   .flowItem {
     gap: 50px;
   }
@@ -1199,6 +1459,22 @@
     grid-template-columns: 1fr;
   }
 
+  .aiProfessorLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .aiProfessorFlow li {
+    min-height: 180px;
+  }
+
+  .aiProfessorControl {
+    min-height: 520px;
+  }
+
+  .aiProfessorCta {
+    margin-top: 28px;
+  }
+
   .sectionHeading {
     align-items: flex-start;
     flex-direction: column;
@@ -1238,6 +1514,7 @@
 @media (max-width: 767px) {
   .headerInner,
   .sectionInner,
+  .aiProfessorInner,
   .trustInner,
   .footerInner {
     width: min(100% - 32px, 560px);
@@ -1368,6 +1645,82 @@
 
   .promiseInner p {
     font-size: 15px;
+  }
+
+  .aiProfessorSection {
+    scroll-margin-top: 68px;
+    padding: 86px 0 92px;
+  }
+
+  .aiProfessorHeading h2 {
+    font-size: 35px;
+    line-height: 1.26;
+  }
+
+  .aiProfessorHeading > p {
+    margin-top: 18px;
+    font-size: 15px;
+  }
+
+  .aiProfessorLayout {
+    gap: 14px;
+    margin-top: 36px;
+  }
+
+  .aiProfessorFlow {
+    grid-template-columns: 1fr;
+    border-radius: 20px;
+  }
+
+  .aiProfessorFlow li,
+  .aiProfessorFlow li:nth-child(2n),
+  .aiProfessorFlow li:nth-last-child(-n + 2) {
+    min-height: 0;
+    grid-template-columns: 28px 40px minmax(0, 1fr);
+    padding: 21px 18px;
+    border-right: 0;
+    border-bottom: 1px solid var(--landing-border);
+  }
+
+  .aiProfessorFlow li:last-child {
+    border-bottom: 0;
+  }
+
+  .aiProfessorFlow h3 {
+    font-size: 16px;
+  }
+
+  .aiProfessorControl {
+    min-height: 0;
+    padding: 27px 20px 22px;
+    border-radius: 20px;
+  }
+
+  .aiProfessorControl h3 {
+    font-size: 27px;
+  }
+
+  .aiProfessorControlPath {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .aiProfessorControlPath svg {
+    display: none;
+  }
+
+  .aiProfessorControlPath span {
+    padding: 9px 7px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.07);
+    text-align: center;
+  }
+
+  .aiProfessorCta {
+    width: 100%;
+    margin-top: 24px;
   }
 
   .journeyHeading {
@@ -1609,6 +1962,7 @@
 
   .problemIntro h2,
   .sectionHeading h2,
+  .aiProfessorHeading h2,
   .outcomeHeading h2,
   .closingCopy h2,
   .promiseInner h2,

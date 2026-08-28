@@ -633,32 +633,88 @@
 }
 
 .savedConversationToolbar {
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+  align-items: stretch;
+  gap: 12px;
   margin-top: 14px;
+  padding: 13px;
+  border: 1px solid #e6e1fa;
+  border-radius: 12px;
+  background: rgba(248, 247, 255, 0.88);
 }
 
-.savedConversationToolbar button {
-  display: inline-flex;
-  min-height: 42px;
+.currentConversationSnapshot {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 3px 4px;
+}
+
+.currentConversationSnapshot > span {
+  color: var(--brand-purple);
+  font-size: 9px;
+  font-weight: 820;
+}
+
+.currentConversationSnapshot > strong {
+  color: var(--brand-navy-950);
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.currentConversationSnapshot > p {
+  color: var(--text-secondary);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.savedConversationToolbar > button {
+  display: grid;
+  min-height: 58px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 14px;
+  gap: 9px;
+  padding: 9px 12px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 12px;
   color: #fff;
-  background: var(--brand-purple);
-  box-shadow: 0 7px 16px rgba(91, 70, 199, 0.16);
-  font-size: 11px;
-  font-weight: 790;
+  text-align: left;
+  background: linear-gradient(135deg, #6548e6, #4932b9);
+  box-shadow: 0 9px 20px rgba(79, 56, 184, 0.2);
   cursor: pointer;
 }
 
-.savedConversationToolbar button:disabled {
+.savedConversationToolbar > button > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.savedConversationToolbar > button strong {
+  font-size: 11px;
+  font-weight: 820;
+}
+
+.savedConversationToolbar > button small {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.savedConversationToolbar > button:disabled {
   opacity: 0.48;
   box-shadow: none;
   cursor: not-allowed;
+}
+
+.draftGuardNote {
+  grid-column: 1 / -1;
+  color: #80611a;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .savedConversationSection ul {
@@ -1460,6 +1516,21 @@
   text-align: left;
 }
 
+.mapTreeItem[data-level="trunk"] > .mapNode {
+  width: 268px;
+  min-height: 124px;
+}
+
+.mapTreeItem[data-level="branch"] > .mapNode {
+  width: 244px;
+  min-height: 116px;
+}
+
+.mapTreeItem[data-level="twig"] > .mapNode {
+  width: 220px;
+  min-height: 106px;
+}
+
 .mapTree .mapNode::after {
   display: none;
 }
@@ -1521,6 +1592,29 @@
   color: var(--brand-purple);
   font-size: 8px;
   font-weight: 750;
+}
+
+/* 선택한 생각까지 이어진 줄기를 보라-민트 경로로 표시합니다. */
+.mapTreeItem[data-on-path="true"]::before,
+.mapTreeItem[data-on-path="true"]::after {
+  border-color: #8a78e8;
+}
+
+.mapTreeItem[data-on-path="true"] > ol::before {
+  width: 2px;
+  background: linear-gradient(#7b64ea, #45bfa8);
+}
+
+.mapTree .mapNode[data-on-path="true"]:not([data-selected="true"]) {
+  border-color: #b9aef1;
+  background: linear-gradient(145deg, #fff 35%, #f7f4ff);
+  box-shadow: 0 7px 20px rgba(101, 77, 223, 0.1);
+}
+
+.mapTree .mapNode[data-selected="true"] {
+  border-width: 2px;
+  border-color: var(--brand-purple);
+  box-shadow: 0 11px 28px rgba(101, 77, 223, 0.18);
 }
 
 .mapOutcomeNode {
@@ -1609,7 +1703,7 @@
   line-height: 1.65;
 }
 
-.nodeResumeButton {
+.nodeBranchButton {
   display: grid;
   width: 100%;
   min-height: 54px;
@@ -1626,11 +1720,11 @@
   cursor: pointer;
 }
 
-.nodeResumeButton:hover {
+.nodeBranchButton:hover {
   background: linear-gradient(135deg, #5b40da, #3f2ba7);
 }
 
-.nodeResumeIcon {
+.nodeBranchIcon {
   display: grid;
   width: 34px;
   height: 34px;
@@ -1639,18 +1733,18 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
-.nodeResumeCopy {
+.nodeBranchCopy {
   display: grid;
   min-width: 0;
   gap: 2px;
 }
 
-.nodeResumeCopy strong {
+.nodeBranchCopy strong {
   font-size: 12px;
   font-weight: 820;
 }
 
-.nodeResumeCopy small {
+.nodeBranchCopy small {
   color: rgba(255, 255, 255, 0.78);
   font-size: 9px;
   line-height: 1.4;
@@ -1683,8 +1777,10 @@
 }
 
 .nodeBranches {
-  padding-top: 16px;
-  border-top: 1px solid #e8ebf1;
+  padding: 13px;
+  border: 1px solid #e5e0fa;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #fbfaff, #f7fbfb);
 }
 
 .nodeBranchesHeading {
@@ -2164,11 +2260,11 @@
   }
 
   .mapTree > .mapTreeItem > .mapNode {
-    width: 252px;
+    width: 268px;
   }
 
   .mapTree ol .mapNode {
-    width: 200px;
+    width: 220px;
   }
 
   .mapTree .mapNode {
@@ -2252,13 +2348,13 @@
     -webkit-line-clamp: 3;
   }
 
-  .nodeResumeButton {
+  .nodeBranchButton {
     min-height: 50px;
     margin-top: 12px;
     padding: 8px 10px;
   }
 
-  .nodeResumeCopy small {
+  .nodeBranchCopy small {
     font-size: 8px;
   }
 
@@ -2293,7 +2389,11 @@
   }
 
   .nodeBranches {
-    padding-top: 12px;
+    padding: 10px;
+  }
+
+  .branchSuggestions {
+    grid-template-columns: 1fr;
   }
 
   .saveToGrowth {
@@ -2517,6 +2617,15 @@
   .savedConversationToolbar button {
     width: 100%;
     min-height: 44px;
+  }
+
+  .savedConversationToolbar {
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
+  .savedConversationToolbar > button {
+    min-height: 58px;
   }
 
   .savedConversationActions {

@@ -1251,6 +1251,11 @@
     gap: 12px;
   }
 
+  /* 이전 버튼으로 시작 화면에 돌아갈 수 있어 작은 화면에서는 중복 헤더 액션을 숨깁니다. */
+  .modeChangeButton {
+    display: none;
+  }
+
   .headerActions button,
   .exitLink {
     font-size: 12px;

@@ -167,6 +167,10 @@ export function AiProfessorScreen() {
 
   const lastMessage = messages.at(-1) ?? null;
   const lastAssistantMessage = lastMessage?.role === "assistant" ? lastMessage : null;
+  const currentCardCount = messages.filter((message) => message.role === "assistant").length;
+  const currentBranchCount = messages.filter(
+    (message) => message.role === "user" && Boolean(message.branchParentMessageId),
+  ).length;
   const branchSourceMessage = branchOrigin
     ? messages.find((message) => message.id === branchOrigin.parentId && message.role === "assistant") ?? null
     : null;
@@ -264,12 +268,18 @@ export function AiProfessorScreen() {
 
   const handleStartNewConversation = () => {
     if (isSending) return;
+    if (draft.trim()) {
+      setConversationStatus("작성 중인 메시지를 먼저 보내거나 비워 주세요.");
+      setViewMode("chat");
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+      return;
+    }
     const result = startNewConversation();
     resetConversationComposer();
     setViewMode("chat");
     setConversationStatus(
       result.status === "empty"
-        ? "새 대화를 시작했어요."
+        ? "저장할 대화가 없어 바로 새 대화를 시작했어요."
         : `‘${result.conversation.title}’ 대화와 지도를 저장하고 새 대화를 시작했어요.`,
     );
     window.requestAnimationFrame(() => inputRef.current?.focus());
@@ -571,9 +581,31 @@ export function AiProfessorScreen() {
                 <span>{savedConversations.length}개</span>
               </header>
               <div className={styles.savedConversationToolbar}>
-                <button type="button" disabled={isSending} onClick={handleStartNewConversation}>
-                  <Plus size={17} aria-hidden="true" /> 현재 대화를 저장하고 새 대화 시작
+                <div className={styles.currentConversationSnapshot}>
+                  <span>현재 대화</span>
+                  <strong>{messages.length ? "지금까지의 대화와 상상나무" : "새로운 주제로 시작할 준비가 됐어요"}</strong>
+                  <p>
+                    {messages.length
+                      ? `메시지 ${messages.length}개 · 생각 카드 ${currentCardCount}개 · 새 가지 ${currentBranchCount}개`
+                      : "저장한 대화는 그대로 두고, 빈 화면에서 다른 고민을 시작할 수 있어요."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSending}
+                  aria-label={messages.length ? "현재 내용 저장 후 새 대화 시작" : "새 대화 시작"}
+                  onClick={handleStartNewConversation}
+                >
+                  <Plus size={18} aria-hidden="true" />
+                  <span>
+                    <strong>{messages.length ? "저장하고 새 대화 시작하기" : "새 대화 시작하기"}</strong>
+                    <small>{messages.length ? "대화·생각 카드·지도 분기를 함께 저장해요" : "첫 질문부터 가볍게 시작해요"}</small>
+                  </span>
+                  <ArrowRight size={17} aria-hidden="true" />
                 </button>
+                {draft.trim() ? (
+                  <p className={styles.draftGuardNote}>작성 중인 메시지가 있어요. 먼저 보내거나 비운 뒤 새 대화를 시작할 수 있어요.</p>
+                ) : null}
               </div>
               {savedConversations.length ? (
                 <ul>

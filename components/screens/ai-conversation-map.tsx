@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import {
   buildConversationMap,
-  countConversationMapTypes,
   getConversationMapRoots,
   getPrunedNodeIds,
   summarizePrunedBranch,
@@ -138,7 +137,6 @@ export function AiConversationMap({
     () => nodes.filter((node) => showExcluded || !prunedIds.has(node.id)),
     [nodes, prunedIds, showExcluded],
   );
-  const counts = useMemo(() => countConversationMapTypes(nodes), [nodes]);
   const roots = useMemo(() => getConversationMapRoots(visibleNodes), [visibleNodes]);
   const prunedCount = prunedIds.size;
   // 부모까지 접혀 사라진 갈래는 자식 자리에 칩이 붙지만, 최상위에서 접힌 갈래는
@@ -153,6 +151,22 @@ export function AiConversationMap({
   );
   const selectedNode = nodes.find((node) => node.id === selectedId) ?? visibleNodes[0] ?? null;
   const branchPrompts = selectedNode ? getBranchPrompts(selectedNode) : [];
+  const branchPointCount = useMemo(
+    () => nodes.filter((node) => node.childIds.length > 1).length,
+    [nodes],
+  );
+  const activePathIds = useMemo(() => {
+    const path = new Set<string>();
+    const nodeById = new Map(nodes.map((node) => [node.id, node]));
+    let cursor: ConversationMapNode | null = selectedNode;
+
+    while (cursor && !path.has(cursor.id)) {
+      path.add(cursor.id);
+      cursor = cursor.parentId ? nodeById.get(cursor.parentId) ?? null : null;
+    }
+
+    return path;
+  }, [nodes, selectedNode]);
 
   const focusMap = useCallback((behavior: ScrollBehavior = "smooth") => {
     const canvas = mapCanvasRef.current;
@@ -241,9 +255,9 @@ export function AiConversationMap({
     return (
       <section className={styles.mapEmpty} aria-labelledby="conversation-map-title">
         <span className={styles.mapEmptyIcon}><GitBranch size={31} aria-hidden="true" /></span>
-        <p className={styles.mapEyebrow}>대화 지도</p>
-        <h2 id="conversation-map-title">대화를 나누면 생각의 흐름이 여기에 연결돼요</h2>
-        <p>내 질문과 AI 교수님의 답변을 바탕으로 질문·발견·결정·다음 행동 카드를 만들어요. 임의의 성향이나 성장 점수는 만들지 않아요.</p>
+        <p className={styles.mapEyebrow}>나의 상상나무</p>
+        <h2 id="conversation-map-title">AI와 대화하면 생각이 한 그루의 나무로 자라요</h2>
+        <p>질문에서 발견한 단서와 선택, 다음 행동을 카드로 연결해 내가 어떻게 고민하고 성장했는지 보여드려요.</p>
         <button type="button" onClick={onBackToChat}>
           <MessageCircleMore size={18} aria-hidden="true" /> 첫 대화 시작하기
         </button>
@@ -255,13 +269,13 @@ export function AiConversationMap({
     <section className={styles.mapSection} aria-labelledby="conversation-map-title">
       <header className={styles.mapHeader}>
         <div>
-          <p className={styles.mapEyebrow}><Sparkles size={14} aria-hidden="true" /> 대화에서 자동 정리</p>
-          <h2 id="conversation-map-title">대화가 자라는 나의 생각 지도</h2>
-          <p>긴 대화는 한 줄 핵심으로 접고, 새 질문이 생기면 실제 가지처럼 갈라져요. 노드를 누르면 원문과 앞뒤 흐름이 열려요.</p>
+          <p className={styles.mapEyebrow}><Sparkles size={14} aria-hidden="true" /> AI 대화에서 자동으로 자라요</p>
+          <h2 id="conversation-map-title">AI 대화로 자라는 나의 상상나무</h2>
+          <p>어떤 대화를 거쳐 생각이 갈라지고, 발견이 선택과 행동으로 이어졌는지 한눈에 확인해요.</p>
         </div>
-        <div className={styles.mapSummary} aria-label="대화 지도 요약">
-          <span><strong>{nodes.length}</strong>개 주제</span>
-          <span><strong>{counts.decision + counts.action}</strong>개 결정·행동</span>
+        <div className={styles.mapSummary} aria-label="상상나무 요약">
+          <span><strong>{nodes.length}</strong>개 생각 카드</span>
+          <span><strong>{branchPointCount}</strong>개 갈림점</span>
           <span><strong>{growthNotes.length}</strong>개 성장 메모</span>
         </div>
       </header>
@@ -271,8 +285,8 @@ export function AiConversationMap({
           <div className={styles.mapCanvasToolbar}>
             <div>
               <MapIcon size={17} aria-hidden="true" />
-              <strong>생각 진화 지도</strong>
-              <span>씨앗부터 다음 발걸음까지</span>
+              <strong>나의 상상나무</strong>
+              <span>질문 씨앗부터 성장의 다음 걸음까지</span>
             </div>
             {prunedCount ? (
               <button
@@ -290,7 +304,7 @@ export function AiConversationMap({
             ref={mapCanvasRef}
             className={styles.mapCanvas}
             data-panning={isPanning ? "true" : "false"}
-            aria-label="나의 생각 진화 갈래 지도. 빈 공간을 드래그하거나 방향키로 이동할 수 있습니다."
+            aria-label="AI 대화로 자라는 나의 상상나무. 빈 공간을 드래그하거나 방향키로 이동할 수 있습니다."
             tabIndex={0}
             onKeyDown={moveMapWithKeyboard}
             onPointerDown={beginMapPan}
@@ -300,7 +314,7 @@ export function AiConversationMap({
           >
             <div className={styles.mapGraph}>
               <p className={styles.mapSignatureNote}>
-                <GitBranch size={14} aria-hidden="true" /> 대화가 깊어지면 새 질문은 옆 가지로 자라요 · 빈 공간을 드래그해 살펴보세요
+                <GitBranch size={14} aria-hidden="true" /> 카드를 고르면 지나온 생각 줄기가 빛나요 · 오른쪽에서 가지치기할 수 있어요
               </p>
               <div className={styles.mapStartNode}>
                 <span><MessageCircleMore size={17} aria-hidden="true" /></span>
@@ -335,6 +349,7 @@ export function AiConversationMap({
                     nodes={visibleNodes}
                     allNodes={nodes}
                     selectedId={selectedNode?.id ?? null}
+                    activePathIds={activePathIds}
                     decisions={mapDecisions}
                     onSelect={selectNode}
                     onRestoreBranch={(id) => {
@@ -385,18 +400,47 @@ export function AiConversationMap({
               <p>{selectedNode.mapSummary}</p>
               <button
                 type="button"
-                className={styles.nodeResumeButton}
-                aria-label={`‘${selectedNode.title}’ 대화에서 새 갈래 이어가기`}
+                className={styles.nodeBranchButton}
+                aria-label={`‘${selectedNode.title}’ 생각에서 가지치기하여 새 대화 시작하기`}
                 onClick={() => onStartBranch(selectedNode.id, "", selectedNode.title)}
               >
-                <span className={styles.nodeResumeIcon}><GitBranch size={17} aria-hidden="true" /></span>
-                <span className={styles.nodeResumeCopy}>
-                  <strong>이 대화에서 이어가기</strong>
-                  <small>선택한 대화까지 이어받아 새 질문을 시작해요</small>
+                <span className={styles.nodeBranchIcon}><GitBranch size={17} aria-hidden="true" /></span>
+                <span className={styles.nodeBranchCopy}>
+                  <strong>이 카드에서 가지치기</strong>
+                  <small>이 생각을 출발점으로 새 질문을 시작해요</small>
                 </span>
                 <ArrowRight size={17} aria-hidden="true" />
               </button>
             </header>
+
+            <section className={styles.nodeBranches} aria-label="선택한 생각에서 만들 수 있는 새 가지">
+              <div className={styles.nodeBranchesHeading}>
+                <div>
+                  <h4><GitBranch size={15} aria-hidden="true" /> 추천 가지</h4>
+                  <p>비교·근거·실행·교수 대화 중 하나를 고르면 이 카드 옆에서 새 흐름이 자라요.</p>
+                </div>
+                <span>{selectedNode.childIds.length ? `현재 ${selectedNode.childIds.length}개` : `${branchPrompts.length}개 제안`}</span>
+              </div>
+              {branchPrompts.length ? (
+                <div className={styles.branchSuggestions}>
+                  {branchPrompts.map((prompt, index) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      aria-label={`‘${selectedNode.title}’에서 ${BRANCH_AXES[index]} 가지 만들기: ${prompt}`}
+                      onClick={() => onStartBranch(selectedNode.id, prompt, selectedNode.title)}
+                    >
+                      <span>{index + 1}</span>
+                      <span className={styles.branchSuggestionCopy}>
+                        <small>{BRANCH_AXES[index]}</small>
+                        <strong>{prompt}</strong>
+                      </span>
+                      <ArrowRight size={15} aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </section>
 
             <div className={styles.nodeDecisionBox}>
               <strong>지도 표시</strong>
@@ -489,34 +533,6 @@ export function AiConversationMap({
               </div>
             </section>
 
-            <section className={styles.nodeBranches}>
-              <div className={styles.nodeBranchesHeading}>
-                <div>
-                  <h4><GitBranch size={15} aria-hidden="true" /> 이 생각에서 새 갈래 만들기</h4>
-                  <p>비교·근거·실행·교수 대화 중 다른 관점을 골라 별도 흐름으로 이어가요.</p>
-                </div>
-                <span>{branchPrompts.length}개 관점</span>
-              </div>
-              {branchPrompts.length ? (
-                <div className={styles.branchSuggestions}>
-                  {branchPrompts.map((prompt, index) => (
-                    <button
-                      key={prompt}
-                      type="button"
-                      onClick={() => onStartBranch(selectedNode.id, prompt, selectedNode.title)}
-                    >
-                      <span>{index + 1}</span>
-                      <span className={styles.branchSuggestionCopy}>
-                        <small>{BRANCH_AXES[index]}</small>
-                        <strong>{prompt}</strong>
-                      </span>
-                      <ArrowRight size={15} aria-hidden="true" />
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-
             <button
               type="button"
               className={styles.saveToGrowth}
@@ -542,6 +558,7 @@ function ConversationTreeNode({
   nodes,
   allNodes,
   selectedId,
+  activePathIds,
   decisions,
   onSelect,
   onRestoreBranch,
@@ -550,6 +567,7 @@ function ConversationTreeNode({
   nodes: ConversationMapNode[];
   allNodes: ConversationMapNode[];
   selectedId: string | null;
+  activePathIds: Set<string>;
   decisions: Record<string, AiConversationMapDecision>;
   onRestoreBranch: (id: string) => void;
   onSelect: (id: string) => void;
@@ -570,16 +588,20 @@ function ConversationTreeNode({
     <li
       className={styles.mapTreeItem}
       data-depth={node.depth}
+      data-level={node.depth === 0 ? "trunk" : node.depth === 1 ? "branch" : "twig"}
       data-child-count={children.length}
+      data-on-path={activePathIds.has(node.id) ? "true" : "false"}
     >
       <button
         type="button"
         className={styles.mapNode}
         data-type={node.type}
         data-selected={selectedId === node.id ? "true" : "false"}
+        data-on-path={activePathIds.has(node.id) ? "true" : "false"}
         data-decision={decision ?? "none"}
         data-branching={children.length > 1 ? "true" : "false"}
         aria-pressed={selectedId === node.id}
+        aria-label={`${journeyLabel}, ${node.title}, ${children.length}개 가지${selectedId === node.id ? ", 선택됨" : ""}`}
         onClick={() => onSelect(node.id)}
       >
         <span className={styles.mapNodeMeta}>
@@ -605,6 +627,7 @@ function ConversationTreeNode({
               nodes={nodes}
               allNodes={allNodes}
               selectedId={selectedId}
+              activePathIds={activePathIds}
               decisions={decisions}
               onRestoreBranch={onRestoreBranch}
               onSelect={onSelect}

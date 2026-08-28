@@ -315,13 +315,30 @@ test("오른쪽 위 도움말 AI는 현재 화면의 목적과 사용 순서를 
   assert.match(navigationSource, /useNavigationGuideStepFocus/);
 });
 
-test("주요 서비스 탭은 모바일과 PC 공통 바에서 로고·도움말·마이페이지를 제공한다", () => {
+test("독립 교수·프로젝트 튜토리얼도 같은 도움말 AI와 명암 규칙을 재사용한다", () => {
+  assert.match(professorTutorialSource, /presentation === "page" \? \([\s\S]*href="\/welcome"[\s\S]*<ServiceHelpGuide placement="header"/);
+  assert.match(researchTutorialSource, /presentation === "page" \? \([\s\S]*href="\/welcome"[\s\S]*<ServiceHelpGuide placement="header"/);
+  assert.equal((professorTutorialSource.match(/<ServiceHelpGuide/g) ?? []).length, 1);
+  assert.equal((researchTutorialSource.match(/<ServiceHelpGuide/g) ?? []).length, 1);
+  assert.match(professorPanelSource, /presentation="embedded"/);
+  assert.match(projectPanelSource, /presentation="embedded"/);
+  assert.doesNotMatch(professorPanelSource, /ServiceHelpGuide/);
+  assert.doesNotMatch(projectPanelSource, /ServiceHelpGuide/);
+  assert.match(globalStyleSource, /\.service-help-tour__spotlight[\s\S]*9999px rgba\(16, 26, 52, 0\.56\)/);
+});
+
+test("주요 서비스 탭은 모바일과 PC 공통 바에서 서비스 소개·도움말·마이페이지를 바로 제공한다", () => {
   assert.match(primitivesSource, /aria-label="서비스 공통 메뉴"/);
   assert.match(primitivesSource, /<BrandLogo href="\/home" compact className="service-tab-header__brand" \/>/);
+  assert.match(primitivesSource, /href="\/welcome"/);
+  assert.match(primitivesSource, /aria-label="서비스 소개 보기"/);
+  assert.match(primitivesSource, /className="service-tab-header__intro"/);
+  assert.match(primitivesSource, /className="top-app-bar__intro"/);
   assert.match(primitivesSource, /<ServiceHelpGuide placement="header" \/>/);
   assert.match(primitivesSource, /className="service-tab-header__profile"/);
   assert.match(primitivesSource, /aria-label="마이페이지"/);
   assert.match(globalStyleSource, /\.service-tab-header \{/);
+  assert.match(globalStyleSource, /\.service-tab-header__intro/);
   assert.match(globalStyleSource, /\.service-tab-header__profile/);
   assert.match(globalStyleSource, /@media \(min-width: 1280px\)[\s\S]*\.service-tab-header \{[\s\S]*min-height: 72px/);
   assert.doesNotMatch(globalStyleSource, /\.service-tab-header > \.service-tab-header__brand,[\s\S]*display: none/);
@@ -413,9 +430,10 @@ test("랜딩은 최신 기본 설정·화면 안내 AI·대화 재분기 흐름�
   assert.match(landingSource, /전공·관심 기본 설정/);
   assert.match(landingSource, /가입 없이 전공과 관심 분야를 설정하면/);
   assert.doesNotMatch(landingSource, /3분 고민 정리|긴 신청서/);
-  assert.match(landingSource, /원문에서 새 갈래를 이어가거나/);
+  assert.match(landingSource, /특정 카드에서 새 갈래를 만들고/);
   assert.match(landingPreviewSource, /처음 여는 탭에서는 화면 안내 AI가 핵심 카드와 버튼을 한 번만 짚어줘요/);
-  assert.match(landingPreviewSource, /그 대화를 기점으로 새 갈래를 이어갈 수 있어요/);
+  assert.match(landingPreviewSource, /저장한 전공·관심·프로젝트·연결 교수 맥락만 참고/);
+  assert.match(landingPreviewSource, /이 카드에서 가지치기/);
   assert.match(homeSource, /두 단계 기본 설정을 마치면 첫 교수 연결을 시작할 수 있어요/);
   assert.doesNotMatch(homeSource, /3분 방향 찾기|나의 방향 3분 정리하기/);
 });
@@ -543,6 +561,8 @@ test("AI 프로젝트 설계도 팝업 없이 홈의 탭 본문에서 기존 튜
   assert.match(researchTutorialStyleSource, /\.embeddedPage[\s\S]*overflow: visible/);
   assert.match(researchTutorialStyleSource, /\.embeddedPage \.actions[\s\S]*--app-bottom-nav-height/);
   assert.match(researchTutorialStyleSource, /@media \(max-width: 759px\)[\s\S]*\.embeddedPage[\s\S]*overflow: visible/);
+  assert.match(researchTutorialSource, /className=\{styles\.modeChangeButton\}/);
+  assert.match(researchTutorialStyleSource, /@media \(max-width: 420px\)[\s\S]*\.modeChangeButton[\s\S]*display: none/);
   assert.match(homeSource, /router\.replace\("\/home", \{ scroll: false \}\)/);
   assert.match(researchTutorialSource, /현재 공식 데이터를 지원하는 학교를 먼저 확인해요/);
   assert.match(researchTutorialSource, /!isDankookUniversity\(c\.school\)/);
@@ -636,7 +656,7 @@ test("서비스 허브는 모바일과 PC에서 같은 기능을 다른 정보 �
   assert.match(serviceHubSource, /eyebrow = "지금 먼저 할 일"/);
   assert.match(serviceHubSource, /className=\{styles\.primaryEyebrow\}/);
   assert.match(serviceHubStyleSource, /\.primaryTask::before/);
-  assert.match(questHubSource, /eyebrow=\{primary\.heading\}/);
+  assert.match(questHubSource, /eyebrow="지금 먼저 할 일"/);
   assert.match(serviceHubSource, /adaptivePrimary/);
   assert.match(serviceHubSource, /adaptiveRail/);
   assert.match(serviceHubSource, /adaptiveBody/);
@@ -658,6 +678,20 @@ test("서비스 허브는 모바일과 PC에서 같은 기능을 다른 정보 �
   assert.match(questHubSource, /contextLabel="현재 교수 연결과 저장한 준비 현황"/);
   assert.match(questHubSource, /저장한 준비물/);
   assert.doesNotMatch(globalStyleSource, /\.app-viewport \.side-nav/);
+});
+
+test("서비스 허브는 설명보다 첫 행동을 우선하고 빈 상태의 중복 CTA를 만들지 않는다", () => {
+  assert.match(serviceHubSource, /variant\?: "default" \| "compact"/);
+  assert.match(serviceHubSource, /href\?: string/);
+  assert.match(serviceHubSource, /if \(!href\)[\s\S]*<article/);
+  assert.match(serviceHubStyleSource, /\.introCompact/);
+  assert.match(serviceHubStyleSource, /\.rowStatic/);
+  assert.match(professorHubSource, /variant="compact"/);
+  assert.match(professorHubSource, /href=\{selected \?[^\n]+: undefined\}/);
+  assert.match(questHubSource, /variant="compact"/);
+  assert.doesNotMatch(questHubSource, /contextProgressCopy/);
+  assert.match(projectProfessorHubSource, /variant="compact"/);
+  assert.match(projectProfessorHubSource, /recommendationReady/);
 });
 
 test("나의 성장과정은 프로젝트와 교수 연결을 현재 결과와 분리해 보존한다", () => {

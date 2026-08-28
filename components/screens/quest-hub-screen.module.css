@@ -8,7 +8,7 @@
   background:
     radial-gradient(circle at 90% 0%, rgb(107 78 237 / 12%), transparent 36%),
     linear-gradient(145deg, #f8faff 0%, #ffffff 58%, #f5fffc 100%);
-  box-shadow: 0 14px 36px rgb(26 39 79 / 7%);
+  box-shadow: 0 4px 16px rgb(26 39 79 / 4%);
 }
 
 .contextRail {
@@ -29,7 +29,7 @@
   background:
     radial-gradient(circle at 100% 0%, rgb(107 78 237 / 10%), transparent 38%),
     #fff;
-  box-shadow: 0 12px 30px rgb(27 39 76 / 7%);
+  box-shadow: 0 3px 12px rgb(27 39 76 / 4%);
 }
 
 .contextEyebrow {

@@ -50,6 +50,23 @@
   word-break: keep-all;
 }
 
+.introCompact {
+  padding: 24px 0 18px;
+}
+
+.introCompact h1 {
+  max-width: 720px;
+  font-size: clamp(26px, 2.7vw, 32px);
+  line-height: 1.28;
+}
+
+.introCompact p {
+  max-width: 640px;
+  margin-top: 7px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .primaryTask {
   position: relative;
   display: grid;
@@ -215,7 +232,7 @@
   border: 1px solid var(--divider);
   border-radius: 18px;
   background: #fff;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 3px 12px rgba(41, 50, 92, 0.035);
 }
 
 .listHeading {
@@ -261,6 +278,16 @@
 }
 
 .row:hover { background: #f7f6ff; transform: translateX(2px); }
+
+.rowStatic {
+  cursor: default;
+  background: #fbfcfe;
+}
+
+.rowStatic:hover {
+  background: #fbfcfe;
+  transform: none;
+}
 
 .rowIcon {
   display: grid;
@@ -317,7 +344,7 @@
   border: 1px solid var(--divider);
   border-radius: 18px;
   background: #fff;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 3px 12px rgba(41, 50, 92, 0.035);
 }
 
 .utilityLinks a {
@@ -353,6 +380,8 @@
   .shell :global(.screen-content) { padding: 0 44px 58px; }
   .hub { padding-top: 22px; }
   .intro { padding: 36px 0 24px; }
+  .introCompact { padding: 26px 0 18px; }
+  .introCompact p { font-size: 14px; }
   .intro p { font-size: 16px; line-height: 1.5; }
   .primaryTask {
     grid-template-columns: auto minmax(0, 1fr);
@@ -433,6 +462,7 @@
 
 @media (max-width: 420px) {
   .intro { padding-top: 28px; }
+  .introCompact { padding: 22px 0 16px; }
   .primaryTask { padding: 20px; }
   .listSection { padding: 18px 16px 6px; }
   .utilityLinks { padding-inline: 16px; }

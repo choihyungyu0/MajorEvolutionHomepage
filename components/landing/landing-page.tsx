@@ -30,8 +30,35 @@ import styles from "./landing-page.module.css";
 const NAV_ITEMS = [
   { href: "#about", label: "서비스 소개" },
   { href: "#preview", label: "서비스 화면" },
-  { href: "#flow", label: "교수 연결 흐름" },
+  { href: "#ai-professor", label: "AI 교수님" },
   { href: "#trust", label: "신뢰 원칙" },
+] as const;
+
+const AI_PROFESSOR_FLOW = [
+  {
+    icon: Compass,
+    title: "내가 남긴 맥락에서 시작해요",
+    description:
+      "저장한 전공·관심·프로젝트·연결 교수만 불러옵니다. 입력하지 않은 성향이나 목표는 추측하지 않아요.",
+  },
+  {
+    icon: MessageCircleQuestion,
+    title: "핵심과 다음 질문이 짧게 보여요",
+    description:
+      "긴 설명보다 지금 고민의 핵심, 비교할 선택지, 다음에 생각할 한 가지를 친근한 말로 함께 정리해요.",
+  },
+  {
+    icon: Route,
+    title: "대화가 생각의 가지로 자라요",
+    description:
+      "실제 대화를 질문·발견·선택·행동 카드로 묶고, 어떤 생각에서 다음 생각이 나왔는지 부모·자식 가지로 보여줘요.",
+  },
+  {
+    icon: FileCheck2,
+    title: "남기고, 갈라 보고, 다시 시작해요",
+    description:
+      "대화와 지도를 저장하고 새 대화를 시작할 수 있어요. 선택한 카드에서 새 가지를 만들어도 원문 대화는 그대로 남습니다.",
+  },
 ] as const;
 
 const PROBLEMS = [
@@ -123,8 +150,8 @@ const OUTCOMES = [
   },
   {
     icon: MessageCircleQuestion,
-    title: "나의 AI 교수님과 대화 지도",
-    description: "진로·프로젝트 대화에서 나온 질문·발견·결정·다음 행동을 카드로 보고, 원문에서 새 갈래를 이어가거나 핵심만 성장 메모로 남깁니다.",
+    title: "나의 AI 교수님과 상상나무",
+    description: "대화·생각 카드·지도 분기를 한 묶음으로 저장하고 이전 기록은 남긴 채 새 대화를 시작합니다. 특정 카드에서 새 갈래를 만들고, 남길 핵심만 성장 메모로 선택할 수 있어요.",
   },
 ] as const;
 
@@ -209,7 +236,7 @@ export function LandingPage() {
               </h1>
               <p>
                 공식 정보로 교수 연결을 준비하고,
-                <br className={styles.desktopBreak} /> AI와 프로젝트를 구체화해
+                <br className={styles.desktopBreak} /> AI 교수님과 생각·프로젝트를 구체화해
                 <br className={styles.desktopBreak} /> 첫 만남과 성장 기록까지 이어갑니다.
               </p>
               <div className={styles.heroActions}>
@@ -288,6 +315,78 @@ export function LandingPage() {
         </section>
 
         <LandingProductPreview />
+
+        <section id="ai-professor" className={styles.aiProfessorSection} aria-labelledby="ai-professor-title">
+          <div className={styles.aiProfessorInner}>
+            <div className={styles.aiProfessorHeading}>
+              <span className={styles.aiProfessorEyebrow}>
+                <Sparkles size={17} aria-hidden="true" /> 나의 AI 교수님
+              </span>
+              <h2 id="ai-professor-title">
+                막막한 생각을 대화로 풀고,
+                <br />
+                <em>다시 볼 수 있는 성장 흐름</em>으로 남겨요.
+              </h2>
+              <p>
+                답을 정해 주는 AI가 아니라, 내가 남긴 맥락 안에서 생각을 짧게 정리하고
+                진로 고민과 프로젝트 브레인스토밍의 다음 질문을 찾도록 돕는 성장 파트너입니다.
+              </p>
+            </div>
+
+            <div className={styles.aiProfessorLayout}>
+              <ol className={styles.aiProfessorFlow} aria-label="AI 교수님 이용 흐름">
+                {AI_PROFESSOR_FLOW.map((step, index) => {
+                  const Icon = step.icon;
+
+                  return (
+                    <li key={step.title}>
+                      <span className={styles.aiProfessorStepNumber}>{index + 1}</span>
+                      <span className={styles.aiProfessorStepIcon} aria-hidden="true">
+                        <Icon size={21} />
+                      </span>
+                      <div>
+                        <h3>{step.title}</h3>
+                        <p>{step.description}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+
+              <aside className={styles.aiProfessorControl} aria-label="AI 교수님 사용자 제어 원칙">
+                <span className={styles.aiProfessorControlLabel}>
+                  <ShieldCheck size={17} aria-hidden="true" /> 내가 결정권을 갖는 AI
+                </span>
+                <h3>AI가 기억하고 이어가는 범위는 내가 정해요.</h3>
+                <p>
+                  맥락은 저장한 내용에서만 가져오고, 생각 카드는 내가 남기거나 제외합니다.
+                  새 갈래를 시작해도 이전 대화는 사라지지 않아요.
+                </p>
+                <div className={styles.aiProfessorControlPath} aria-label="대화가 기록으로 이어지는 과정">
+                  <span>대화</span>
+                  <ArrowRight size={15} aria-hidden="true" />
+                  <span>핵심 카드</span>
+                  <ArrowRight size={15} aria-hidden="true" />
+                  <span>생각 가지</span>
+                  <ArrowRight size={15} aria-hidden="true" />
+                  <span>새 대화</span>
+                </div>
+                <ul>
+                  <li><CheckCircle2 size={17} aria-hidden="true" /> 저장한 맥락만 불러오기</li>
+                  <li><CheckCircle2 size={17} aria-hidden="true" /> 내가 고른 핵심만 성장 메모로 남기기</li>
+                  <li><CheckCircle2 size={17} aria-hidden="true" /> 원문을 보존한 채 카드 강조·제외</li>
+                  <li><CheckCircle2 size={17} aria-hidden="true" /> 원하는 카드에서 새 질문으로 가지치기</li>
+                </ul>
+                <Link href="/portfolio/ai-professor" className={styles.aiProfessorCta}>
+                  AI 교수님과 이야기해보기 <ArrowRight size={18} aria-hidden="true" />
+                </Link>
+                <small>
+                  실제 교수님의 지도나 학교의 공식 답변을 대신하지 않으며, 중요한 결정은 직접 확인해요.
+                </small>
+              </aside>
+            </div>
+          </div>
+        </section>
 
         <section id="journeys" className={styles.journeySection} aria-labelledby="journey-title">
           <div className={styles.sectionInner}>

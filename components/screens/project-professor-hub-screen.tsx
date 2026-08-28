@@ -149,12 +149,26 @@ export function ProjectProfessorHubScreen() {
         <ServiceHubIntro
           title="내 프로젝트에 맞는 교수님을 찾아볼까요?"
           description="학생 고민을 위한 첫 교수 매칭과 분리해, 선택한 프로젝트의 성공적인 실행에 필요한 전문성을 기준으로 연결해요."
+          variant="compact"
         />
 
         <div className={styles.responsiveLayout}>
           <div className={styles.mainColumn}>
             <div className={styles.primaryTaskWrap} data-service-help="project-primary">
-              <HubPrimaryTask {...primary} />
+              {leadMatch ? (
+                <section className={styles.recommendationReady} aria-label="프로젝트 교수 추천 완료">
+                  <span className={styles.recommendationReadyIcon} aria-hidden="true">
+                    <GraduationCap size={23} />
+                  </span>
+                  <div>
+                    <span>추천 준비 완료</span>
+                    <strong>먼저 확인할 교수님과 연결 근거를 골랐어요</strong>
+                    <p>아래 대표 교수 카드에서 연구 역할과 공식 근거를 확인해 보세요.</p>
+                  </div>
+                </section>
+              ) : (
+                <HubPrimaryTask {...primary} />
+              )}
             </div>
 
             {/*

@@ -285,6 +285,7 @@ export function QuestHubScreen() {
             ? `${selectedProfessor.name} 교수님과 첫 만남을 준비해요`
             : "교수님과 첫 만남을 준비해요"}
           description="교수 선택부터 연락, 대화 중 질문, 면담 후 행동까지 현재 단계와 다음 할 일을 한 화면에서 이어가요."
+          variant="compact"
         />
         <HubAdaptiveLayout
           layout="stacked"
@@ -292,7 +293,7 @@ export function QuestHubScreen() {
           primary={(
             <HubPrimaryTask
               icon={primary.icon}
-              eyebrow={primary.heading}
+              eyebrow="지금 먼저 할 일"
               title={primary.taskTitle}
               description={primary.description}
               cta={primary.cta}
@@ -343,13 +344,6 @@ export function QuestHubScreen() {
                   <div><dt>대화 중</dt><dd>{silenceCount}</dd></div>
                   <div><dt>만난 후</dt><dd>{afterCount}</dd></div>
                 </dl>
-                <div className={questStyles.contextProgressCopy}>
-                  <span>첫 만남 여정</span>
-                  <strong>{progressPercent}%</strong>
-                </div>
-                <div className={questStyles.contextProgressTrack} aria-hidden="true">
-                  <span style={{ width: `${progressPercent}%` }} />
-                </div>
               </section>
             </div>
           )}

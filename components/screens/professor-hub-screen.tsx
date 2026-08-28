@@ -79,6 +79,7 @@ export function ProfessorHubScreen() {
         <ServiceHubIntro
           title="누구와 이야기할지 찾아볼까요?"
           description="지금 고민을 정리하면 학교 공식 정보에서 대화할 교수를 찾아드려요."
+          variant="compact"
         />
 
         <div className={routeStyles.workspace}>
@@ -97,7 +98,7 @@ export function ProfessorHubScreen() {
                 title={selected ? `${selected.professor.name} ${selected.professor.title}` : "아직 선택한 교수가 없어요"}
                 description={selected ? `${selected.professor.department} · 첫 대화 준비 중` : "공식 근거를 비교한 뒤 첫 교수를 선택해요."}
                 status={selected ? "연결됨" : "시작 전"}
-                href={selected ? `/professors/${selected.professor.id}` : matches.length ? "/professors/pitch" : "/tutorial"}
+                href={selected ? `/professors/${selected.professor.id}` : undefined}
                 tone={selected ? "mint" : "neutral"}
               />
               <HubRow
@@ -105,7 +106,7 @@ export function ProfessorHubScreen() {
                 title="저장한 교수"
                 description={saved.length ? saved.map((item) => item.professor.name).join(" · ") : "관심 있는 교수를 저장하면 여기에 모여요."}
                 status={saved.length ? `${saved.length}명` : "비어 있음"}
-                href={matches.length ? "/professors/pitch" : "/tutorial"}
+                href={saved.length ? "/professors/pitch" : undefined}
                 tone={saved.length ? "violet" : "neutral"}
               />
             </HubList>

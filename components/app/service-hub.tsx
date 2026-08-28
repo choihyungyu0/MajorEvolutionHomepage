@@ -15,9 +15,17 @@ export function ServiceMobileHeader({ action }: { action?: ReactNode }) {
   );
 }
 
-export function ServiceHubIntro({ title, description }: { title: string; description: string }) {
+export function ServiceHubIntro({
+  title,
+  description,
+  variant = "default",
+}: {
+  title: string;
+  description: string;
+  variant?: "default" | "compact";
+}) {
   return (
-    <header className={styles.intro}>
+    <header className={`${styles.intro}${variant === "compact" ? ` ${styles.introCompact}` : ""}`}>
       <h1>{title}</h1>
       <p>{description}</p>
     </header>
@@ -140,11 +148,11 @@ export function HubRow({
   title: string;
   description?: string;
   status?: string;
-  href: string;
+  href?: string;
   tone?: "neutral" | "violet" | "mint";
 }) {
-  return (
-    <Link href={href} className={styles.row}>
+  const content = (
+    <>
       <span className={`${styles.rowIcon} ${styles[`rowIcon_${tone}`]}`}>
         <Icon size={21} aria-hidden="true" />
       </span>
@@ -153,9 +161,15 @@ export function HubRow({
         {description ? <small>{description}</small> : null}
       </span>
       {status ? <span className={styles.rowStatus}>{status}</span> : null}
-      <ChevronRight size={20} aria-hidden="true" />
-    </Link>
+      {href ? <ChevronRight size={20} aria-hidden="true" /> : null}
+    </>
   );
+
+  if (!href) {
+    return <article className={`${styles.row} ${styles.rowStatic}`}>{content}</article>;
+  }
+
+  return <Link href={href} className={styles.row}>{content}</Link>;
 }
 
 export function HubUtilityLinks({ children }: { children: ReactNode }) {

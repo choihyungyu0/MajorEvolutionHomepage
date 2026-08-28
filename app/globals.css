@@ -516,6 +516,49 @@ html[data-service-nav-guide-open="true"] .side-nav.is-guiding {
   gap: 7px;
 }
 
+.service-tab-header__intro,
+.top-app-bar__intro {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(196, 206, 226, 0.88);
+  border-radius: 12px;
+  color: #48546d;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 5px 16px rgba(34, 48, 85, 0.065);
+  font-size: 12px;
+  font-weight: 790;
+  line-height: 1;
+  text-decoration: none;
+  transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+}
+
+.service-tab-header__intro {
+  padding: 0 12px;
+}
+
+.top-app-bar__intro {
+  width: 40px;
+  height: 40px;
+}
+
+.service-tab-header__intro:hover,
+.top-app-bar__intro:hover {
+  border-color: #c9c1f1;
+  color: #6043d9;
+  background: #faf9ff;
+}
+
+.service-tab-header__intro:focus-visible,
+.top-app-bar__intro:focus-visible {
+  outline: 3px solid rgba(50, 207, 180, 0.42);
+  outline-offset: 2px;
+}
+
 .service-tab-header__profile {
   display: grid;
   width: 44px;
@@ -556,6 +599,27 @@ html[data-service-nav-guide-open="true"] .side-nav.is-guiding {
   }
 
   .service-tab-header .service-help-trigger > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .service-tab-header__intro,
+  .service-tab-header .service-help-trigger,
+  .top-app-bar .service-help-trigger {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+
+  .service-tab-header__intro > span,
+  .service-tab-header .service-help-trigger > span,
+  .top-app-bar .service-help-trigger > span {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -608,6 +672,37 @@ html[data-service-nav-guide-open="true"] .side-nav.is-guiding {
   font-size: 13px;
   font-weight: 750;
   text-align: center;
+}
+
+/* AppShell 바깥에서 단독으로 쓰이는 두 튜토리얼도 동일한 도움말 진입점을 유지합니다. */
+.standalone-tutorial-header-actions {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .standalone-tutorial-header-actions {
+    gap: 8px;
+  }
+
+  .standalone-tutorial-header-actions .service-help-trigger {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+
+  .standalone-tutorial-header-actions .service-help-trigger > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
 }
 
 /*

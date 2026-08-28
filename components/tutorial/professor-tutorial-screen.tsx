@@ -1,10 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpen,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -15,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ServiceHelpGuide } from "@/components/app/service-help-guide";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { brandLogoV2, tutorialScene } from "@/lib/brand-assets";
 import {
@@ -468,20 +471,35 @@ export function ProfessorTutorialScreen({
         ) : (
           <BrandLogo href="/home" tagline="전공·진로 첫 대화" className={styles.brand} />
         )}
-        <div className={styles.headerMeta}>
-          <span><ShieldCheck size={15} /> 학교 공식 정보와 비교해요</span>
-          <button type="button" onClick={resetTutorial}><RotateCcw size={15} /> 처음부터</button>
-          {presentation !== "page" && (
-            <button
-              type="button"
-              className={styles.closeButton}
-              onClick={closeTutorial}
-              aria-label={isEmbedded ? "홈으로 돌아가기" : "교수 매칭 기본 설정 닫기"}
-            >
-              {isEmbedded ? <ArrowLeft size={18} aria-hidden="true" /> : <X size={18} aria-hidden="true" />}
-              {isEmbedded ? "홈으로" : "닫기"}
-            </button>
-          )}
+        <div className="standalone-tutorial-header-actions">
+          <div className={styles.headerMeta}>
+            <span><ShieldCheck size={15} /> 학교 공식 정보와 비교해요</span>
+            <button type="button" onClick={resetTutorial}><RotateCcw size={15} /> 처음부터</button>
+            {presentation !== "page" && (
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={closeTutorial}
+                aria-label={isEmbedded ? "홈으로 돌아가기" : "교수 매칭 기본 설정 닫기"}
+              >
+                {isEmbedded ? <ArrowLeft size={18} aria-hidden="true" /> : <X size={18} aria-hidden="true" />}
+                {isEmbedded ? "홈으로" : "닫기"}
+              </button>
+            )}
+          </div>
+          {presentation === "page" ? (
+            <>
+              <Link
+                href="/welcome"
+                className="top-app-bar__intro"
+                aria-label="서비스 소개 보기"
+                title="서비스 소개 보기"
+              >
+                <BookOpen size={18} aria-hidden="true" />
+              </Link>
+              <ServiceHelpGuide placement="header" />
+            </>
+          ) : null}
         </div>
       </header>
 

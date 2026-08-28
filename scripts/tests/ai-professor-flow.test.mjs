@@ -145,7 +145,7 @@ test("긴 대화와 실제 원문에 근거한 대화 지도를 오갈 수 있�
   assert.match(screen, /내 맥락/);
   assert.match(screen, /viewMode === "context"/);
   assert.match(screen, /AiConversationMap/);
-  assert.match(conversationMap, /생각 진화 지도/);
+  assert.match(conversationMap, /나의 상상나무/);
   assert.match(conversationMap, /<details key=\{`source-\$\{selectedNode\.id\}`\} className=\{styles\.nodeSources\}>/);
   assert.match(conversationMap, /내 질문과 AI 답변 전체 보기/);
   assert.match(conversationMap, /내 질문/);
@@ -165,7 +165,7 @@ test("긴 대화와 실제 원문에 근거한 대화 지도를 오갈 수 있�
   assert.match(conversationMap, /발견한 단서/);
   assert.match(conversationMap, /선택한 갈림길/);
   assert.match(conversationMap, /다음 발걸음/);
-  assert.match(conversationMap, /대화가 깊어지면 새 질문은 옆 가지로 자라요/);
+  assert.match(conversationMap, /카드를 고르면 지나온 생각 줄기가 빛나요/);
   assert.match(conversationMap, /data-branching=\{children\.length > 1/);
   assert.match(screenStyles, /\.mapNode\[data-branching="true"\]/);
 });
@@ -271,7 +271,9 @@ test("갈래를 접으면 그 아래 자란 생각까지 함께 접히고 자리
 
 test("대화·생각 카드·지도 상태를 저장하고 내 맥락에서 다시 선택한다", () => {
   assert.match(screen, /현재 대화 저장/);
-  assert.match(screen, /현재 대화를 저장하고 새 대화 시작/);
+  assert.match(screen, /저장하고 새 대화 시작하기/);
+  assert.match(screen, /aria-label=\{messages\.length \? "현재 내용 저장 후 새 대화 시작" : "새 대화 시작"\}/);
+  assert.match(screen, /대화·생각 카드·지도 분기를 함께 저장해요/);
   assert.match(screen, /저장한 대화/);
   assert.match(screen, /handleOpenConversation/);
   assert.match(screen, /viewMode === "context"/);
@@ -282,6 +284,17 @@ test("대화·생각 카드·지도 상태를 저장하고 내 맥락에서 다�
   assert.match(store, /openConversation/);
   assert.match(dataControls, /savedConversations: aiSavedConversations/);
   assert.match(dataControls, /activeConversationId: aiActiveConversationId/);
+
+  const handlerStart = screen.indexOf("const handleStartNewConversation");
+  const handlerEnd = screen.indexOf("const handleOpenConversation", handlerStart);
+  const handler = screen.slice(handlerStart, handlerEnd);
+  assert.ok(handlerStart >= 0 && handlerEnd > handlerStart);
+  assert.ok(handler.indexOf("draft.trim()") < handler.indexOf("startNewConversation()"));
+  assert.match(handler, /작성 중인 메시지를 먼저 보내거나 비워 주세요/);
+  assert.match(handler, /startNewConversation\(\)/);
+  assert.match(handler, /resetConversationComposer\(\)/);
+  assert.match(handler, /setViewMode\("chat"\)/);
+  assert.doesNotMatch(handler, /clearConversation\(\)/);
 });
 
 test("저장본 전환은 분기·카드·지도 선택과 성장 메모를 잃지 않는다", () => {
@@ -447,7 +460,8 @@ test("저장본이 가득 차도 열려는 오래된 대화를 목록에서 밀�
 });
 
 test("과거 노드에서 새 갈래를 시작하고 트리에서 여러 자식 흐름을 확인한다", () => {
-  assert.match(conversationMap, /이 생각에서 새 갈래 만들기/);
+  assert.match(conversationMap, /AI 대화로 자라는 나의 상상나무/);
+  assert.match(conversationMap, /추천 가지/);
   assert.match(conversationMap, /ConversationTreeNode/);
   assert.match(conversationMap, /childIds/);
   assert.match(conversationMap, /onStartBranch/);
@@ -475,10 +489,15 @@ test("과거 노드에서 새 갈래를 시작하고 트리에서 여러 자식 
   assert.match(conversationMap, /prompts\.length >= 4 \? prompts\.slice\(0, 4\) : FALLBACK_BRANCH_PROMPTS\[node\.topic\]/);
   assert.match(conversationMap, /BRANCH_AXES = \["비교·결정", "근거·역량", "프로젝트·실행", "교수 대화"\]/);
   assert.match(conversationMap, /branchPrompts\.map/);
-  assert.match(conversationMap, /이 대화에서 이어가기/);
-  assert.match(conversationMap, /className=\{styles\.nodeResumeButton\}/);
-  assert.match(screenStyles, /\.nodeResumeButton/);
+  assert.match(conversationMap, /이 카드에서 가지치기/);
+  assert.match(conversationMap, /className=\{styles\.nodeBranchButton\}/);
+  assert.match(screenStyles, /\.nodeBranchButton/);
   assert.match(conversationMap, /onClick=\{\(\) => onStartBranch\(selectedNode\.id, "", selectedNode\.title\)\}/);
+  assert.match(conversationMap, /onClick=\{\(\) => onStartBranch\(selectedNode\.id, prompt, selectedNode\.title\)\}/);
+  assert.match(conversationMap, /activePathIds/);
+  assert.match(conversationMap, /data-on-path=\{activePathIds\.has\(node\.id\)/);
+  assert.match(screenStyles, /\.mapTreeItem\[data-on-path="true"\]/);
+  assert.doesNotMatch(conversationMap, /removeConversationBranch/);
   assert.match(conversationMap, /nodeDetailRef\.current\?\.scrollIntoView\(\{ block: "start", behavior: "smooth" \}\)/);
   assert.doesNotMatch(conversationMap, /manualBranchButton/);
   assert.match(screen, /setBranchOrigin\(\{ parentId, title \}\)/);
@@ -555,13 +574,14 @@ test("태블릿과 모바일에서도 가지 구조를 유지하고 드래그와
   assert.match(conversationMap, /aria-label="생각 지도의 시작점으로 초점 맞추기"/);
   assert.match(conversationMap, /data-depth=\{node\.depth\}/);
   assert.match(mobileBlock, /\.mapGraph \{[\s\S]*?min-width: 680px/);
-  assert.match(mobileBlock, /\.mapTree > \.mapTreeItem > \.mapNode \{[\s\S]*?width: 252px/);
-  assert.match(mobileBlock, /\.mapTree ol \.mapNode \{[\s\S]*?width: 200px/);
+  assert.match(mobileBlock, /\.mapTree > \.mapTreeItem > \.mapNode \{[\s\S]*?width: 268px/);
+  assert.match(mobileBlock, /\.mapTree ol \.mapNode \{[\s\S]*?width: 220px/);
   assert.match(mobileBlock, /\.mapCanvas \{[\s\S]*?overflow: auto/);
   assert.doesNotMatch(mobileBlock, /overflow-x: hidden/);
   assert.match(screenStyles, /\.mapFocusButton \{/);
   assert.match(mobileBlock, /\.nodeDecisionBox \{[\s\S]*?grid-template-columns: 1fr/);
   assert.match(mobileBlock, /\.nodeDecisionBox > div button \{[\s\S]*?min-height: 40px/);
   assert.match(mobileBlock, /\.nodeConnections > div \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(mobileBlock, /\.branchSuggestions \{[\s\S]*?grid-template-columns: 1fr/);
   assert.match(conversationMap, /mapOutcomeArrow/);
 });

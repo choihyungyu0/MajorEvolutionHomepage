@@ -12,6 +12,7 @@ import {
   Lightbulb,
   ListChecks,
   MessageCircleMore,
+  Save,
   SearchCheck,
   Sparkles,
   Target,
@@ -46,14 +47,14 @@ const PREVIEWS = [
   },
   {
     id: "ai-professor" as const,
-    tab: "AI 교수님",
-    eyebrow: "대화가 생각 지도로",
-    title: "말로 풀어낸 고민이, 다시 볼 수 있는 생각의 길이 됩니다.",
+    tab: "AI 상상나무",
+    eyebrow: "저장하고 다시 이어가는 AI 성장 파트너",
+    title: "AI와 나눈 대화를, 다시 이어갈 수 있는 생각의 기록으로 바꿉니다.",
     description:
-      "AI 교수님과 나눈 긴 대화는 한 줄 핵심으로 정리되고, 질문이 달라지는 순간 실제 가지처럼 갈라집니다. 카드를 누르면 원문을 확인하고 그 대화를 기점으로 새 갈래를 이어갈 수 있어요.",
-    features: ["한 줄 핵심 카드", "새 질문은 별도 갈래로", "원문에서 새 갈래 이어가기"],
+      "저장한 전공·관심·프로젝트·연결 교수 맥락만 참고해 짧게 대화하고, 실제 대화를 생각 카드와 갈래 지도로 정리합니다. 이전 기록을 다시 열거나 새 대화를 시작해도 원문과 생각의 흐름은 남아요.",
+    features: ["저장한 내 맥락만 참고", "질문·발견·선택·행동 카드화", "선택한 카드에서 새 갈래 시작", "대화·지도·성장 메모를 따로 보존"],
     href: "/portfolio/ai-professor",
-    cta: "AI 교수님과 이야기하기",
+    cta: "AI 교수님과 첫 대화하기",
   },
 ] as const;
 
@@ -198,20 +199,11 @@ export function LandingProductPreview() {
 function AiProfessorPreview() {
   return (
     <div className={styles.aiPreview}>
-      <section className={styles.chatPane} aria-label="AI 교수님 대화 예시">
-        <header><Bot size={18} aria-hidden="true" /><div><strong>나의 AI 교수님</strong><small>고민을 함께 정리해요</small></div></header>
-        <div className={styles.chatMessages}>
-          <p className={styles.userBubble}>수학 전공을 살려 AI 분야로 가고 싶은데, 어떤 경험부터 해보면 좋을까요?</p>
-          <p className={styles.aiBubble}>지금은 진로를 하나로 정하기보다, 데이터 분석과 머신러닝 경험을 작은 프로젝트로 비교해보면 좋아요.</p>
-        </div>
-        <div className={styles.chatPrompt}><span>데이터 분석부터 비교해볼래요</span><ArrowRight size={14} /></div>
-      </section>
-
-      <section className={styles.mapPane} aria-label="대화에서 만들어진 생각 진화 지도 예시">
+      <section className={styles.mapPane} aria-label="AI 대화에서 만들어진 상상나무 예시">
         <header>
           <GitBranch size={16} aria-hidden="true" />
-          <strong>생각 진화 지도</strong>
-          <span>대화 4개 · 생각 7개 · 갈래 3개</span>
+          <strong>나의 상상나무</strong>
+          <span>대화 4개 · 생각 7개 · 갈림점 3개</span>
         </header>
         <div className={styles.thoughtMap}>
           <span className={styles.mapStart}><MessageCircleMore size={13} /> 대화 시작</span>
@@ -227,9 +219,15 @@ function AiProfessorPreview() {
               const ClueIcon = branch.clue.icon;
               const NextIcon = branch.next.icon;
               return (
-                <div key={branch.id} className={styles.mapBranch} data-tone={branch.tone} role="listitem">
+                <div
+                  key={branch.id}
+                  className={styles.mapBranch}
+                  data-tone={branch.tone}
+                  data-selected={branch.id === "data" ? "true" : "false"}
+                  role="listitem"
+                >
                   <span className={styles.mapBranchStem} aria-hidden="true" />
-                  <article className={styles.mapNode}>
+                  <article className={styles.mapNode} data-selected={branch.id === "data" ? "true" : "false"}>
                     <span><ClueIcon size={11} aria-hidden="true" /> {branch.clue.label}</span>
                     <strong>{branch.clue.title}</strong>
                     <small>{branch.clue.copy}</small>
@@ -244,13 +242,32 @@ function AiProfessorPreview() {
               );
             })}
           </div>
-          <span className={styles.mapMerge} aria-hidden="true" />
-          <article className={styles.mapDirection}>
-            <span><Target size={12} aria-hidden="true" /> 지금의 방향</span>
-            <strong>작게 실험하고, 교수님과 다음 선택 확인하기</strong>
-          </article>
         </div>
       </section>
+
+      <aside className={styles.aiPreviewDetail} aria-label="선택한 생각 카드 상세 예시">
+        <header>
+          <div><span>발견</span><span>진로 방향</span></div>
+          <small>선택한 생각 1 / 7</small>
+        </header>
+        <h4>데이터 분석 경험</h4>
+        <p>공공데이터로 작은 분석을 해보며 내가 흥미를 느끼는 지점을 확인해요.</p>
+        <div className={styles.previewBranchAction}>
+          <span><GitBranch size={15} aria-hidden="true" /></span>
+          <div><strong>이 카드에서 가지치기</strong><small>이 생각을 출발점으로 새 질문을 시작해요</small></div>
+          <ArrowRight size={15} aria-hidden="true" />
+        </div>
+        <section className={styles.previewSource}>
+          <header><Bot size={14} aria-hidden="true" /><strong>이 카드가 나온 대화</strong></header>
+          <article><span>내 질문</span><p>데이터 분석부터 경험해 보고 싶어요.</p></article>
+          <article><span>AI 교수님</span><p>작은 분석 경험으로 관심과 필요한 역량을 먼저 확인해 볼 수 있어요.</p></article>
+        </section>
+        <div className={styles.previewRecordStatus} aria-label="AI 교수님 대화 저장 기능 예시">
+          <span><Save size={12} aria-hidden="true" /> 대화·생각 지도 함께 저장</span>
+          <span><MessageCircleMore size={12} aria-hidden="true" /> 저장본을 다시 열거나 새 대화 시작</span>
+        </div>
+        <p className={styles.previewBranchNote}><CheckCircle2 size={13} aria-hidden="true" /> 기존 대화는 그대로 남고 새 가지가 옆에 자라요.</p>
+      </aside>
     </div>
   );
 }
