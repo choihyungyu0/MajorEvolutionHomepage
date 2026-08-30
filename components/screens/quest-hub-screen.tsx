@@ -21,9 +21,7 @@ import {
 } from "lucide-react";
 import {
   AppShell,
-  Card,
   ChoiceChip,
-  SectionHeading,
   Tag,
 } from "@/components/app/primitives";
 import { ServiceBottomNav } from "@/components/app/side-nav";
@@ -41,6 +39,7 @@ import { SceneBanner } from "@/components/app/scene-banner";
 import { brandScene, questIcon } from "@/lib/brand-assets";
 import { getJourneyProgress } from "@/lib/journey-progress";
 import { useQuestContext } from "@/lib/quest-context";
+import { getQuestToolCompletionCounts, getRecommendedQuestToolId } from "@/lib/quest-tools-hierarchy";
 import { cardsForTool, useQuestStore, type QuestToolId } from "@/store/quest-store";
 import { useResearchStore } from "@/store/research-store";
 import questStyles from "./quest-hub-screen.module.css";
@@ -129,6 +128,67 @@ const TOOLS: Tool[] = [
 ];
 
 const TOOL_NAME = new Map(TOOLS.map((tool) => [tool.id, tool.name]));
+
+const TIMING_DESCRIPTION: Record<Timing, string> = {
+  before: "논문과 첫 질문, 연락 문장을 준비해 첫 만남의 부담을 줄여요.",
+  during: "대화가 잠시 멈춰도 바로 확인할 질문을 미리 챙겨요.",
+  after: "들은 조언을 기록하고 다음 행동과 후속 연락으로 이어가요.",
+};
+
+function QuestToolCard({
+  tool,
+  saved,
+  favoriteProfessorIds,
+  featured = false,
+  onStart,
+}: {
+  tool: Tool;
+  saved: number;
+  favoriteProfessorIds: string[];
+  featured?: boolean;
+  onStart: (href: string) => void;
+}) {
+  const ready = Boolean(tool.href);
+  return (
+    <article
+      className={[
+        "quest-tool",
+        questStyles.catalogTool,
+        featured ? questStyles.catalogToolFeatured : "",
+        ready ? "" : "is-pending",
+      ].filter(Boolean).join(" ")}
+      aria-labelledby={`catalog-tool-${tool.id}`}
+    >
+      <header>
+        <Image src={tool.icon} alt="" aria-hidden="true" width={48} height={48} loading="eager" unoptimized />
+        <div>
+          <span className="quest-tool__code">{tool.code}</span>
+          <h2 id={`catalog-tool-${tool.id}`}>{tool.name}</h2>
+        </div>
+      </header>
+      <div className="tag-row">
+        {tool.timings.map((item) => <Tag key={item} tone="violet">{TIMING_LABEL[item]}</Tag>)}
+        {saved > 0 ? <Tag tone="mint">저장 {saved}장</Tag> : null}
+        {tool.id === "paper-bite" ? (
+          <Tag tone={favoriteProfessorIds.length > 0 ? "mint" : "warning"}>
+            즐겨찾는 교수 {favoriteProfessorIds.length}명
+          </Tag>
+        ) : null}
+      </div>
+      <p className="quest-tool__summary">{tool.summary}</p>
+      <p className="quest-tool__output"><span>결과</span> {tool.output}</p>
+      {tool.note ? <p className="quest-tool__note">{tool.note}</p> : null}
+      {ready && tool.href ? (
+        <button type="button" onClick={() => onStart(tool.href!)}>
+          {tool.id === "paper-bite" ? "교수님 논문 고르기" : saved > 0 ? "다시 열기" : "시작하기"}
+          <ArrowRight size={16} aria-hidden="true" />
+        </button>
+      ) : (
+        <p className="quest-tool__pending">아직 열지 않은 도구입니다.</p>
+      )}
+    </article>
+  );
+}
 
 export function QuestHubScreen() {
   const hasHydrated = useQuestStore((state) => state.hasHydrated);
@@ -456,8 +516,11 @@ export function QuestAllToolsScreen() {
   const hasHydrated = useQuestStore((state) => state.hasHydrated);
   const hasResearchHydrated = useResearchStore((state) => state.hasHydrated);
   const favoriteProfessorIds = useResearchStore((state) => state.favoriteProfessorIds);
+  const knockKitDrafts = useResearchStore((state) => state.knockKitDrafts);
+  const mentorLoopEntries = useResearchStore((state) => state.mentorLoopEntries);
   const cards = useQuestStore((state) => state.cards);
   const deleteCard = useQuestStore((state) => state.deleteCard);
+  const { topic, match } = useQuestContext();
   const [timing, setTiming] = useState<Timing | "all">("all");
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
@@ -473,130 +536,194 @@ export function QuestAllToolsScreen() {
   const visible = timing === "all"
     ? TOOLS
     : TOOLS.filter((tool) => tool.timings.includes(timing));
+  const progress = getJourneyProgress({
+    topicId: topic?.id ?? null,
+    professorId: match?.professor.id ?? null,
+    cards,
+    emailDrafts: knockKitDrafts,
+    mentorEntries: mentorLoopEntries,
+  });
+  const completionCounts = getQuestToolCompletionCounts(progress);
+  const savedCounts = Object.fromEntries(
+    visible.map((tool) => [tool.id, completionCounts[tool.id]]),
+  );
+  const recommendedToolId = getRecommendedQuestToolId({
+    visibleToolIds: visible.map((tool) => tool.id),
+    savedCounts,
+  });
+  const recommendedTool = visible.find((tool) => tool.id === recommendedToolId) ?? null;
+  const phaseTimings: Timing[] = timing === "all" ? ["before", "during", "after"] : [timing];
+  const phaseGroups = phaseTimings
+    .map((groupTiming) => ({
+      timing: groupTiming,
+      tools: visible.filter((tool) => (
+        tool.id !== recommendedToolId
+        && (timing === "all" ? tool.timings[0] === groupTiming : true)
+      )),
+    }))
+    .filter((group) => group.tools.length > 0);
 
   return (
-    <AppShell title="전체 준비 도구" backHref="/quest" className="quest-hub-screen">
-      {/* 브랜드 위계: 퀘스트 내부에서는 CTA를 서비스·기능명보다 먼저 보여줍니다. */}
-      <SceneBanner
-        scene={brandScene.connect}
-        alt="연구실 문 앞에서 교수님께 첫 대화를 준비하는 장면"
-        eyebrow="교수님, 말 걸어도 돼요?"
-        title="교수님 퀘스트 — 잇다"
-        description="만나기 전·대화 중·만난 후의 작은 도구를 한 허브에서 제공합니다."
-        priority
-      />
+    <AppShell title="전체 준비 도구" backHref="/quest" className={`quest-hub-screen ${questStyles.allToolsShell}`}>
+      <div className={questStyles.allToolsPage}>
+        <SceneBanner
+          scene={brandScene.connect}
+          alt="연구실 문 앞에서 교수님께 첫 대화를 준비하는 장면"
+          eyebrow="교수님, 말 걸어도 돼요?"
+          title="교수님 퀘스트 — 잇다"
+          description="지금 필요한 도구부터 시작하고, 만남 전·중·후의 준비를 차례로 이어가세요."
+          className="scene-banner--compact"
+          priority
+        />
 
-      <div className="filter-scroll quest-hub-filter">
-        {(["all", "before", "during", "after"] as const).map((item) => (
-          <ChoiceChip key={item} selected={timing === item} onClick={() => setTiming(item)}>
-            {item === "all" ? "전체" : TIMING_LABEL[item]}
-          </ChoiceChip>
-        ))}
-      </div>
-
-      <div className="quest-tool-grid">
-        {visible.map((tool) => {
-          const saved = cardsForTool(cards, tool.id).length;
-          const ready = Boolean(tool.href);
-          return (
-            <article
-              key={tool.id}
-              className={ready ? "quest-tool" : "quest-tool is-pending"}
-              aria-labelledby={`tool-${tool.id}`}
-            >
-              <header>
-                <Image src={tool.icon} alt="" aria-hidden="true" width={48} height={48} loading="eager" unoptimized />
-                <div>
-                  <span className="quest-tool__code">{tool.code}</span>
-                  <h2 id={`tool-${tool.id}`}>{tool.name}</h2>
-                </div>
-              </header>
-              <div className="tag-row">
-                {tool.timings.map((item) => <Tag key={item} tone="violet">{TIMING_LABEL[item]}</Tag>)}
-                {saved > 0 && <Tag tone="mint">저장 {saved}장</Tag>}
-                {tool.id === "paper-bite" && (
-                  <Tag tone={favoriteProfessorIds.length > 0 ? "mint" : "warning"}>
-                    즐겨찾는 교수 {favoriteProfessorIds.length}명
-                  </Tag>
-                )}
+        {recommendedTool ? (
+          <section
+            className={questStyles.recommendedTool}
+            aria-labelledby="recommended-tool-title"
+            data-quest-recommended="true"
+          >
+            <header className={questStyles.recommendedHeading}>
+              <div>
+                <small>지금 추천하는 도구</small>
+                <h2 id="recommended-tool-title">{recommendedTool.name}부터 시작해 볼까요?</h2>
+                <p>
+                  {(savedCounts[recommendedTool.id] ?? 0) > 0
+                    ? "저장한 내용을 다시 확인하거나 다음 단계로 이어갈 수 있어요."
+                    : "현재 선택한 단계에서 아직 저장한 결과가 없는 첫 도구예요."}
+                </p>
               </div>
-              <p className="quest-tool__summary">{tool.summary}</p>
-              <p className="quest-tool__output"><span>결과</span> {tool.output}</p>
-              {tool.note && <p className="quest-tool__note">{tool.note}</p>}
-              {ready ? (
-                <button type="button" onClick={() => router.push(tool.href!)}>
-                  {tool.id === "paper-bite" ? "교수님 논문 고르기" : "시작하기"}
-                  <ArrowRight size={16} />
-                </button>
-              ) : (
-                <p className="quest-tool__pending">아직 열지 않은 도구입니다.</p>
-              )}
-            </article>
-          );
-        })}
-      </div>
+              <span>{recommendedTool.code}</span>
+            </header>
+            <QuestToolCard
+              tool={recommendedTool}
+              saved={savedCounts[recommendedTool.id] ?? 0}
+              favoriteProfessorIds={favoriteProfessorIds}
+              featured
+              onStart={(href) => router.push(href)}
+            />
+          </section>
+        ) : null}
 
-      <button type="button" className="official-courses-link quest-hub-mini" onClick={() => router.push("/quest/mini-tools")}>
-        <Sparkles size={18} aria-hidden="true" />
-        <div>
-          <strong>교수님과 친해지기 미니도구</strong>
-          <p>논문 한 줄 리액션 · 용어 번역 카드 · 키워드 빙고 · 첫 질문 셔플</p>
+        <div
+          className={`filter-scroll quest-hub-filter ${questStyles.phaseFilter}`}
+          role="group"
+          aria-label="만남 단계별 도구 필터"
+        >
+          {(["all", "before", "during", "after"] as const).map((item) => (
+            <ChoiceChip key={item} selected={timing === item} onClick={() => setTiming(item)}>
+              {item === "all" ? "전체" : TIMING_LABEL[item]}
+            </ChoiceChip>
+          ))}
         </div>
-        <ArrowRight size={16} aria-hidden="true" />
-      </button>
 
-      {cards.length > 0 && (
-        <div id="saved-cards">
-          <SectionHeading
-            title="저장한 카드"
-            description="여기에 저장한 결과물만 준비 증거로 사용합니다."
-          />
-          <div className="quest-saved-list">
-            {cards.map((card) => (
-              <article key={card.id} className="quest-saved">
-                <div>
-                  <Tag>{TOOL_NAME.get(card.tool) ?? card.tool}</Tag>
-                  <h3>{card.title}</h3>
-                  <p>{card.body}</p>
-                  {card.evidence && (
-                    <small>
-                      근거 {card.evidence.label}
-                      {card.evidence.page !== null && ` p.${card.evidence.page}`}
-                    </small>
-                  )}
+        <div className={questStyles.allToolsWorkspace}>
+          <div className={questStyles.toolsColumn}>
+            {phaseGroups.map((group) => (
+              <section key={group.timing} className={questStyles.phaseGroup} aria-labelledby={`phase-${group.timing}`}>
+                <header className={questStyles.phaseHeading}>
+                  <div>
+                    <small>{TIMING_LABEL[group.timing]}</small>
+                    <h2 id={`phase-${group.timing}`}>{TIMING_LABEL[group.timing]} 준비 도구</h2>
+                    <p>{TIMING_DESCRIPTION[group.timing]}</p>
+                  </div>
+                  <span>{group.tools.length}개</span>
+                </header>
+                <div className={`quest-tool-grid ${questStyles.phaseToolGrid}`}>
+                  {group.tools.map((tool) => (
+                    <QuestToolCard
+                      key={tool.id}
+                      tool={tool}
+                      saved={savedCounts[tool.id] ?? 0}
+                      favoriteProfessorIds={favoriteProfessorIds}
+                      onStart={(href) => router.push(href)}
+                    />
+                  ))}
                 </div>
-                {pendingDelete === card.id ? (
-                  <div className="quest-saved__confirm">
-                    <p>이 카드 1장을 삭제합니다. 되돌릴 수 없습니다.</p>
+              </section>
+            ))}
+
+            <button type="button" className={`official-courses-link quest-hub-mini ${questStyles.miniToolsLink}`} onClick={() => router.push("/quest/mini-tools")}>
+              <Sparkles size={18} aria-hidden="true" />
+              <div>
+                <strong>교수님과 친해지기 미니도구</strong>
+                <p>논문 한 줄 리액션 · 용어 번역 카드 · 키워드 빙고 · 첫 질문 셔플</p>
+              </div>
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+
+          <aside id="saved-cards" tabIndex={-1} className={questStyles.savedRail} aria-labelledby="saved-cards-title">
+            <div className={questStyles.savedHeading}>
+              <div>
+                <small>내 준비 기록</small>
+                <h2 id="saved-cards-title">저장한 카드</h2>
+                <p>직접 저장한 결과물만 만남 준비 증거로 사용합니다.</p>
+              </div>
+              <strong>{cards.length}장</strong>
+            </div>
+            {cards.length > 0 ? (
+              <div className="quest-saved-list">
+                {cards.map((card) => (
+                  <article key={card.id} className="quest-saved">
                     <div>
-                      <button type="button" onClick={() => setPendingDelete(null)}>취소</button>
+                      <Tag>{TOOL_NAME.get(card.tool) ?? card.tool}</Tag>
+                      <h3>{card.title}</h3>
+                      <p>{card.body}</p>
+                      {card.evidence ? (
+                        <small>
+                          근거 {card.evidence.label}
+                          {card.evidence.page !== null ? ` p.${card.evidence.page}` : ""}
+                        </small>
+                      ) : null}
+                    </div>
+                    {pendingDelete === card.id ? (
+                      <div className="quest-saved__confirm">
+                        <p>이 카드 1장을 삭제합니다. 되돌릴 수 없습니다.</p>
+                        <div>
+                          <button type="button" onClick={() => setPendingDelete(null)}>취소</button>
+                          <button
+                            type="button"
+                            className="is-danger"
+                            onClick={() => {
+                              deleteCard(card.id);
+                              setPendingDelete(null);
+                            }}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
                       <button
                         type="button"
-                        className="is-danger"
-                        onClick={() => {
-                          deleteCard(card.id);
-                          setPendingDelete(null);
-                        }}
+                        className="quest-saved__delete"
+                        aria-label={`${card.title} 삭제`}
+                        onClick={() => setPendingDelete(card.id)}
                       >
-                        삭제
+                        <Trash2 size={16} />
                       </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="quest-saved__delete"
-                    aria-label={`${card.title} 삭제`}
-                    onClick={() => setPendingDelete(card.id)}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </article>
-            ))}
-          </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="quest-saved-empty">
+                <FileText size={24} aria-hidden="true" />
+                <div>
+                  <strong>저장한 준비물이 아직 없어요</strong>
+                  <p>준비 도구에서 논문 카드나 첫 질문을 저장하면 이곳에서 다시 볼 수 있어요.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => document.querySelector('[data-quest-recommended="true"]')?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                >
+                  준비 도구 살펴보기 <ArrowRight size={15} aria-hidden="true" />
+                </button>
+              </div>
+            )}
+          </aside>
         </div>
-      )}
+      </div>
     </AppShell>
   );
 }

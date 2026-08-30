@@ -36,49 +36,12 @@ import { useResearchStore } from "@/store/research-store";
 
 export const NAV_ITEMS = [
   { href: "/home", section: "/home", label: "홈", shortLabel: "홈", icon: Home },
-  { href: "/home?professor=quick", section: "/professors", label: "교수 매칭", shortLabel: "매칭", icon: CompassIcon },
+  { href: "/professors", section: "/professors", label: "교수 매칭", shortLabel: "매칭", icon: CompassIcon },
   { href: "/quest", section: "/quest", label: "교수 만남 준비", shortLabel: "만남", icon: MessagesSquare },
   { href: "/research", section: "/research", label: "AI 프로젝트 설계", shortLabel: "프로젝트", icon: FlaskConical },
   { href: "/project-professors", section: "/project-professors", label: "프로젝트 실행", shortLabel: "실행", icon: GraduationCap },
   { href: "/portfolio", section: "/portfolio", label: "나의 성장과정", shortLabel: "성장", icon: TrendingUp },
 ] as const;
-
-function useProfessorTabHref() {
-  const hasProfileHydrated = useProfileStore((state) => state.hasHydrated);
-  const hasCompletedProfessorTutorial = useProfileStore((state) => state.hasCompletedProfessorTutorial);
-  const completeProfessorTutorial = useProfileStore((state) => state.completeProfessorTutorial);
-  const profileHasProfessorSetup = useProfileStore((state) => (
-    Boolean(state.profile.major) && state.profile.interests.length > 0
-  ));
-  const hasResearchHydrated = useResearchStore((state) => state.hasHydrated);
-  const hasProfessorJourney = useResearchStore((state) => (
-    state.professorMatches.length > 0
-    || state.professorDiscoveryTopic !== null
-    || state.selectedProfessorId !== null
-  ));
-  const canOpenProfessorHome = hasCompletedProfessorTutorial
-    || profileHasProfessorSetup
-    || hasProfessorJourney;
-
-  useEffect(() => {
-    if (
-      hasProfileHydrated
-      && hasResearchHydrated
-      && canOpenProfessorHome
-      && !hasCompletedProfessorTutorial
-    ) {
-      completeProfessorTutorial();
-    }
-  }, [
-    canOpenProfessorHome,
-    completeProfessorTutorial,
-    hasCompletedProfessorTutorial,
-    hasProfileHydrated,
-    hasResearchHydrated,
-  ]);
-
-  return canOpenProfessorHome ? "/professors" : "/home?professor=quick";
-}
 
 function useProjectExecutionTabHref(): "/project-professors" | "/project-execution" {
   const hasHydrated = useResearchStore((state) => state.hasHydrated);
@@ -97,10 +60,8 @@ function useProjectExecutionTabHref(): "/project-professors" | "/project-executi
 
 function navigationHref(
   item: (typeof NAV_ITEMS)[number],
-  professorTabHref: "/professors" | "/home?professor=quick",
   projectExecutionHref: "/project-professors" | "/project-execution",
 ) {
-  if (item.section === "/professors") return professorTabHref;
   if (item.section === "/project-professors") return projectExecutionHref;
   return item.href;
 }
@@ -146,7 +107,6 @@ function ServiceBottomNavContent() {
   const [guideStep, setGuideStep] = useState(0);
   const forcedGuideRef = useRef(false);
   const guide = SERVICE_GUIDE_STEPS[guideStep];
-  const professorTabHref = useProfessorTabHref();
   const projectExecutionHref = useProjectExecutionTabHref();
 
   const finishGuide = useCallback(() => {
@@ -251,7 +211,7 @@ function ServiceBottomNavContent() {
     >
       {NAV_ITEMS.map((item, index) => {
         const Icon = item.icon;
-        const href = navigationHref(item, professorTabHref, projectExecutionHref);
+        const href = navigationHref(item, projectExecutionHref);
         const isActive = active === item.section;
         const journey = navigationJourney(item.section);
         const isGuideTarget = guideOpen && guideStep === index;
@@ -364,7 +324,6 @@ function SideNavContent() {
   const [guideStep, setGuideStep] = useState(0);
   const forcedGuideRef = useRef(false);
   const guide = SERVICE_GUIDE_STEPS[guideStep];
-  const professorTabHref = useProfessorTabHref();
   const projectExecutionHref = useProjectExecutionTabHref();
   const hasProfileHydrated = useProfileStore((state) => state.hasHydrated);
   const hasEnteredService = useProfileStore((state) => state.hasEnteredService);
@@ -483,7 +442,7 @@ function SideNavContent() {
       <ul>
         {NAV_ITEMS.map((item, index) => {
           const Icon = item.icon;
-          const href = navigationHref(item, professorTabHref, projectExecutionHref);
+          const href = navigationHref(item, projectExecutionHref);
           const isActive = active === item.section;
           const journey = navigationJourney(item.section);
           const isGuideTarget = guideOpen && guideStep === index;

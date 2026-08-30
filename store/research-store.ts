@@ -879,6 +879,9 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
     return {
       selectedProfessorId: selection.selectedStudentProfessorId,
       selectedProjectProfessorId: selection.selectedProjectProfessorId,
+      selectedProfessorPaper: state.selectedProfessorPaper?.professorId === selectedProfessorId
+        ? state.selectedProfessorPaper
+        : null,
       growthProfessorHistory: markGrowthProfessorSelected(
         state.growthProfessorHistory,
         selectedProfessorId,

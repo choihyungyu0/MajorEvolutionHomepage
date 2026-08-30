@@ -12,11 +12,11 @@ export type JourneyStageTheme = {
 const JOURNEY_STAGE_THEMES: Record<JourneyStage, JourneyStageTheme> = {
   match: {
     label: "교수 매칭",
-    backgroundImage: "/brand/nyp-v03/scenes/journey/nyp-professor-match-canvas-1600x1000-v01.webp",
-    accent: "#2f6edb",
-    accentSoft: "#eaf2ff",
-    foreground: "#102449",
-    fallbackBackground: "#f2f7ff",
+    backgroundImage: "/brand/nyp-v04/scenes/home/nyp-scene-home-student-thinking-16x9-v01.png",
+    accent: "#7c65ff",
+    accentSoft: "#ece9ff",
+    foreground: "#f8fbff",
+    fallbackBackground: "#07132f",
   },
   project: {
     label: "프로젝트 설계",

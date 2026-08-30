@@ -79,6 +79,17 @@ test("현재 교수와 주제의 고유 준비물만 홈과 퀘스트 진행률�
   assert.equal(progress.preparedItemCount, 6);
 });
 
+test("만나기 전 진행률은 저장물 개수가 아니라 논문·질문·이메일 세 범주의 완료 수를 센다", () => {
+  assert.equal(
+    progressModule.getBeforePreparationDoneCount({ paper: 4, question: 3, email: 1, total: 8 }),
+    3,
+  );
+  assert.equal(
+    progressModule.getBeforePreparationDoneCount({ paper: 2, question: 0, email: 0, total: 2 }),
+    1,
+  );
+});
+
 test("교수나 주제가 없으면 저장된 준비물이 있어도 교수별 진행 완료가 아니다", () => {
   assert.ok(progressModule, "현재 여정 진행률 계산 모듈이 필요합니다.");
   const progress = progressModule.getJourneyProgress({

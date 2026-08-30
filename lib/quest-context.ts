@@ -22,8 +22,10 @@ export type QuestContext = {
  */
 export function useQuestContext({
   includeFavoriteFallback = true,
+  includePaperSelection = true,
 }: {
   includeFavoriteFallback?: boolean;
+  includePaperSelection?: boolean;
 } = {}): QuestContext {
   const result = useResearchStore((state) => state.result);
   const selectedTopicId = useResearchStore((state) => state.selectedTopicId);
@@ -36,17 +38,18 @@ export function useQuestContext({
   const professorDiscoveryTopic = useResearchStore((state) => state.professorDiscoveryTopic);
 
   return useMemo(() => {
+    const activePaperSelection = includePaperSelection ? selectedProfessorPaper : null;
     const resolved = resolveQuestProfessorContextMatch({
       studentMatches: matches,
       selectedStudentProfessorId: selectedProfessorId,
       favoriteStudentProfessorIds: includeFavoriteFallback ? favoriteProfessorIds : [],
       projectMatches,
       selectedProjectProfessorId,
-      selectedProfessorPaper,
+      selectedProfessorPaper: includePaperSelection ? selectedProfessorPaper : null,
     });
     const match = resolved?.match ?? null;
-    const topic: ResearchTopic | null = resolved?.source === "paper" && selectedProfessorPaper
-      ? createProfessorPaperQuestTopic(selectedProfessorPaper)
+    const topic: ResearchTopic | null = resolved?.source === "paper" && activePaperSelection
+      ? createProfessorPaperQuestTopic(activePaperSelection)
       : resolveJourneyTopic({
           result,
           selectedTopicId,
@@ -71,6 +74,7 @@ export function useQuestContext({
     selectedProjectProfessorId,
     selectedProfessorPaper,
     includeFavoriteFallback,
+    includePaperSelection,
   ]);
 }
 

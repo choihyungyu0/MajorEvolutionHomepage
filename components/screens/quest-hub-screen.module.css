@@ -179,19 +179,6 @@
   background: linear-gradient(90deg, var(--brand-purple), var(--brand-mint-dark));
 }
 
-.contextTrust {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 2px 4px;
-  color: var(--brand-mint-dark);
-  font-size: 12px;
-  font-weight: 720;
-  line-height: 1.5;
-}
-
-.contextTrust svg { flex: 0 0 auto; margin-top: 1px; }
-
 .journeyHeader {
   display: flex;
   flex-wrap: wrap;
@@ -358,9 +345,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .contextTrust {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (max-width: 1023px) {
@@ -392,8 +376,7 @@
 
   .professorContextCard blockquote,
   .savedContextCard,
-  .expandedToolLists,
-  .mobileTrust {
+  .expandedToolLists {
     display: none;
   }
 
@@ -500,10 +483,6 @@
 
 @media (min-width: 1280px) {
   .contextRail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .contextTrust { grid-column: 1 / -1; }
-
-  /* PC의 우측 맥락 패널에서만 노출하고, 모바일 본문에는 기존 신뢰 문구를 둡니다. */
-  .mobileTrust { display: none; }
 }
 
 @media (max-width: 540px) {
@@ -527,4 +506,241 @@
   .journeyStep {
     min-height: 72px;
   }
+}
+
+/* 전체 준비 도구: 추천 행동 → 단계별 도구 → 저장 기록의 위계 */
+.allToolsShell {
+  background:
+    radial-gradient(circle at 92% 4%, rgb(232 108 77 / 10%), transparent 26%),
+    linear-gradient(180deg, #fff9f5 0%, #f5f7ff 46%, #f7f9fc 100%);
+}
+
+.allToolsShell :global(.screen-content) { background: transparent; }
+
+.allToolsPage {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding-bottom: 30px;
+}
+
+.allToolsPage :global(.scene-banner--compact) {
+  min-height: 238px;
+  border-radius: 22px;
+  box-shadow: 0 18px 42px rgb(33 42 75 / 13%);
+}
+
+.allToolsPage :global(.scene-banner--compact .scene-banner__image) {
+  height: 248px;
+  aspect-ratio: auto;
+  object-position: center 55%;
+}
+
+.recommendedTool {
+  margin-top: 20px;
+  padding: 22px;
+  border: 1px solid rgb(232 108 77 / 25%);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(107 78 237 / 11%), transparent 38%),
+    linear-gradient(145deg, #fff 0%, #fff8f3 58%, #f7f4ff 100%);
+  box-shadow: 0 16px 40px rgb(63 47 91 / 9%);
+}
+
+.recommendedHeading,
+.phaseHeading,
+.savedHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.recommendedHeading > div,
+.phaseHeading > div,
+.savedHeading > div { min-width: 0; }
+
+.recommendedHeading small,
+.phaseHeading small,
+.savedHeading small {
+  color: #d75f43;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.03em;
+}
+
+.recommendedHeading h2,
+.phaseHeading h2,
+.savedHeading h2 {
+  margin-top: 4px;
+  color: #101b3a;
+  font-weight: 860;
+  letter-spacing: -0.03em;
+  line-height: 1.28;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.recommendedHeading h2 { font-size: clamp(21px, 2.4vw, 27px); }
+.phaseHeading h2,
+.savedHeading h2 { font-size: 19px; }
+
+.recommendedHeading p,
+.phaseHeading p,
+.savedHeading p {
+  max-width: 620px;
+  margin-top: 6px;
+  color: #69748a;
+  font-size: 12px;
+  line-height: 1.55;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.recommendedHeading > span,
+.phaseHeading > span,
+.savedHeading > strong {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 999px;
+  color: #6b4eed;
+  background: #eee9ff;
+  font-size: 11px;
+  font-weight: 840;
+}
+
+.recommendedTool > article { margin-top: 17px; }
+
+.catalogTool {
+  align-content: start;
+  min-width: 0;
+  box-shadow: 0 8px 24px rgb(34 47 81 / 7%);
+}
+
+.catalogToolFeatured {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.55fr);
+  grid-template-areas:
+    "header output"
+    "tags output"
+    "summary action"
+    "note action";
+  align-items: center;
+  column-gap: 22px;
+  border-color: rgb(107 78 237 / 24%);
+  background: rgb(255 255 255 / 92%);
+}
+
+.catalogToolFeatured > header { grid-area: header; }
+.catalogToolFeatured > :global(.tag-row) { grid-area: tags; }
+.catalogToolFeatured > :global(.quest-tool__summary) { grid-area: summary; }
+.catalogToolFeatured > :global(.quest-tool__output) { grid-area: output; }
+.catalogToolFeatured > :global(.quest-tool__note) { grid-area: note; }
+.catalogToolFeatured > button,
+.catalogToolFeatured > :global(.quest-tool__pending) { grid-area: action; }
+
+.phaseFilter {
+  margin-top: 20px;
+  padding: 6px;
+  border: 1px solid #e1e5ef;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 78%);
+  box-shadow: 0 8px 22px rgb(35 48 83 / 5%);
+}
+
+.allToolsWorkspace {
+  display: grid;
+  grid-template-areas: "tools saved";
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  align-items: start;
+  gap: 24px;
+  margin-top: 18px;
+}
+
+.toolsColumn {
+  display: grid;
+  grid-area: tools;
+  gap: 18px;
+  min-width: 0;
+}
+
+.phaseGroup {
+  padding: 21px;
+  border: 1px solid #e0e4ef;
+  border-radius: 20px;
+  background: rgb(255 255 255 / 88%);
+  box-shadow: 0 12px 30px rgb(35 48 84 / 6%);
+}
+
+.phaseHeading > span,
+.savedHeading > strong { color: #68728a; background: #f0f3f8; }
+
+.phaseToolGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.phaseToolGrid .catalogTool { min-height: 100%; }
+
+.savedRail {
+  position: sticky;
+  top: 18px;
+  grid-area: saved;
+  min-width: 0;
+  padding: 21px;
+  scroll-margin-top: 88px;
+  border: 1px solid #dfe4ef;
+  border-radius: 20px;
+  outline: none;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 14px 34px rgb(36 49 83 / 8%);
+}
+
+.savedRail :global(.quest-saved-list),
+.savedRail :global(.quest-saved-empty) { margin-top: 16px; }
+
+.savedRail :global(.quest-saved) { padding: 13px; }
+.miniToolsLink { margin-top: 0; }
+
+@media (max-width: 900px) {
+  .allToolsWorkspace {
+    grid-template-areas:
+      "tools"
+      "saved";
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .savedRail { position: static; top: auto; }
+}
+
+@media (max-width: 700px) {
+  .allToolsPage :global(.scene-banner--compact) { min-height: 216px; }
+  .allToolsPage :global(.scene-banner--compact .scene-banner__image) {
+    height: 216px;
+    aspect-ratio: auto;
+  }
+
+  .catalogToolFeatured {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "header"
+      "tags"
+      "summary"
+      "output"
+      "note"
+      "action";
+  }
+}
+
+@media (max-width: 640px) {
+  .recommendedTool,
+  .phaseGroup,
+  .savedRail { padding: 17px; border-radius: 17px; }
+
+  .recommendedHeading,
+  .phaseHeading,
+  .savedHeading { gap: 10px; }
+
+  .phaseToolGrid { grid-template-columns: minmax(0, 1fr); }
+  .phaseFilter { margin-top: 14px; }
+  .allToolsWorkspace { gap: 16px; margin-top: 14px; }
 }
