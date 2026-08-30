@@ -34,12 +34,12 @@
 }
 
 .wordmark em {
-  color: #168b78;
+  color: #127363;
   font-style: normal;
 }
 
 .copy small {
-  color: #7a849b;
+  color: #56647d;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -67,7 +67,7 @@
 }
 
 .inverse .copy small {
-  color: #9fb1d3;
+  color: #d7e0f2;
 }
 
 @media (max-width: 520px) {

@@ -1,15 +1,10 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
-import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
-const NodeModule = require("node:module");
-const testDirectory = path.dirname(fileURLToPath(import.meta.url));
-const repositoryRoot = path.resolve(testDirectory, "../..");
 
 function source(path) {
   return readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
@@ -26,42 +21,6 @@ const portfolio = source("components/screens/portfolio-hub-screen.tsx");
 const home = source("components/screens/unified-home-screen.tsx");
 const homeMapPreview = source("components/screens/home-ai-map-preview.tsx");
 const homeStyles = source("components/screens/home-dashboard.module.css");
-const dataControls = source("components/screens/data-controls.tsx");
-
-function loadAiProfessorStoreModule() {
-  const filename = path.join(repositoryRoot, "store", "ai-professor-store.ts");
-  const compiled = ts.transpileModule(readFileSync(filename, "utf8"), {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-      esModuleInterop: true,
-    },
-    fileName: filename,
-    reportDiagnostics: true,
-  });
-  const errors = (compiled.diagnostics ?? []).filter(
-    (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
-  );
-  assert.equal(errors.length, 0, "AI 교수님 저장소 테스트용 변환 실패");
-
-  const memory = new Map();
-  globalThis.localStorage = {
-    getItem: (key) => memory.get(key) ?? null,
-    setItem: (key, value) => memory.set(key, value),
-    removeItem: (key) => memory.delete(key),
-    clear: () => memory.clear(),
-    key: (index) => Array.from(memory.keys())[index] ?? null,
-    get length() {
-      return memory.size;
-    },
-  };
-
-  const runtimeModule = new NodeModule(filename);
-  runtimeModule.filename = filename;
-  runtimeModule.paths = NodeModule._nodeModulePaths(path.dirname(filename));
-  runtimeModule._compile(compiled.outputText, filename);
-  return { ...runtimeModule.exports, memory };
-}
 
 function loadConversationMapModule() {
   const compiled = ts.transpileModule(conversationMapModel, {
@@ -132,11 +91,13 @@ test("성장 메모와 이어갈 말도 짧고 학생이 직접 말하는 형식
   assert.match(server, /title은 24자 이내의 명사형/);
   assert.match(server, /학생이 직접 말하는 10~24자의 자연스러운 존댓말/);
   assert.match(server, /body: \{ type: "string", minLength: 1, maxLength: 180 \}/);
-  assert.match(server, /items: \{ type: "string", minLength: 1, maxLength: 40 \}/);
+  assert.match(server, /minItems: 3/);
+  assert.match(server, /maxItems: 3/);
+  assert.match(server, /kind: \{ type: "string", enum: \["continue", "branch"\] \}/);
   assert.match(store, /function trimMultilineText/);
   assert.match(store, /content: trimMultilineText\(response\.reply, 220\)/);
   assert.match(store, /body: trimMultilineText\(response\.reflection\.body, 180\)/);
-  assert.match(store, /response\.suggestedPrompts\.map\(\(item\) => trimText\(item, 40\)\)/);
+  assert.match(store, /normalizeGrowthProfessorSuggestions\(response\.suggestedPrompts\)/);
 });
 
 test("긴 대화와 실제 원문에 근거한 대화 지도를 오갈 수 있다", () => {
@@ -145,7 +106,7 @@ test("긴 대화와 실제 원문에 근거한 대화 지도를 오갈 수 있�
   assert.match(screen, /내 맥락/);
   assert.match(screen, /viewMode === "context"/);
   assert.match(screen, /AiConversationMap/);
-  assert.match(conversationMap, /나의 상상나무/);
+  assert.match(conversationMap, /생각 진화 지도/);
   assert.match(conversationMap, /<details key=\{`source-\$\{selectedNode\.id\}`\} className=\{styles\.nodeSources\}>/);
   assert.match(conversationMap, /내 질문과 AI 답변 전체 보기/);
   assert.match(conversationMap, /내 질문/);
@@ -165,8 +126,8 @@ test("긴 대화와 실제 원문에 근거한 대화 지도를 오갈 수 있�
   assert.match(conversationMap, /발견한 단서/);
   assert.match(conversationMap, /선택한 갈림길/);
   assert.match(conversationMap, /다음 발걸음/);
-  assert.match(conversationMap, /카드를 고르면 지나온 생각 줄기가 빛나요/);
-  assert.match(conversationMap, /data-branching=\{children\.length > 1/);
+  assert.match(conversationMap, /대화가 깊어지면 새 질문은 옆 가지로 자라요/);
+  assert.match(conversationMap, /data-branching=\{originalChildCount > 1/);
   assert.match(screenStyles, /\.mapNode\[data-branching="true"\]/);
 });
 
@@ -209,259 +170,56 @@ test("홈에서 실제 AI 대화 지도 요약을 확인하고 전체 지도 탭
   assert.match(homeStyles, /\.aiMapNode \{[\s\S]*?margin-inline: auto/);
 });
 
-test("사용자가 핵심 흐름을 남기거나 제외해도 원문 대화는 보존한다", () => {
+test("사용자가 선택한 카드에서 하위 가지를 접거나 숨기고 다시 복원한다", () => {
   assert.match(conversationMap, /핵심으로 남기기/);
-  assert.match(conversationMap, /이 갈래 접기/);
+  assert.match(conversationMap, /하위 가지 접기/);
+  assert.match(conversationMap, /하위 가지 펼치기/);
+  assert.match(conversationMap, /이 가지 숨기기/);
+  assert.match(conversationMap, /숨긴 가지 \{archivedRoots\.length\}개/);
+  assert.match(conversationMap, /지도에 복원/);
+  assert.match(conversationMap, /getRenderableConversationMapNodes/);
+  assert.match(conversationMap, /getConversationSubtreeIds/);
+  assert.match(conversationMap, /visibleNodes\.some\(\(node\) => node\.id === selectedId\)/);
   assert.match(conversationMap, /원문 대화는 삭제되지 않아요/);
   assert.match(conversationMap, /나의 성장과정에 반영하기/);
   assert.match(store, /mapDecisions/);
+  assert.match(store, /collapsedMapNodeIds/);
   assert.match(store, /setMapDecision/);
   assert.match(store, /clearMapDecision/);
-  assert.match(store, /version: 4/);
+  assert.match(store, /toggleCollapsedMapNode/);
+  assert.match(store, /clearCollapsedMapNode/);
+  assert.match(store, /version: 7/);
   assert.match(store, /migrate:/);
+  assert.match(screenStyles, /\.mapArchiveDrawer/);
+  assert.match(screenStyles, /\.mapArchiveButton/);
 });
 
-test("갈래를 접으면 그 아래 자란 생각까지 함께 접히고 자리에서 되돌릴 수 있다", () => {
-  const { buildConversationMap, getPrunedNodeIds, summarizePrunedBranch, getConversationMapRoots } =
-    loadConversationMapModule();
-  const createdAt = "2026-08-27T00:00:00.000Z";
-  const user = (id, content, branchParentMessageId = null) => ({
-    id, role: "user", content, createdAt, branchParentMessageId,
-  });
-  const assistant = (id, content, title) => ({
-    id, role: "assistant", content, createdAt, branchParentMessageId: null,
-    reflection: { title, body: content }, suggestedPrompts: [],
-  });
-
-  // a → b → c 로 이어지고, a에서 갈라진 d가 하나 더 있다.
-  const messages = [
-    user("u1", "진로가 고민이에요"), assistant("a", "먼저 범위를 좁혀요", "생각 씨앗"),
-    user("u2", "더 좁혀볼래요"), assistant("b", "데이터 원천을 정해요", "데이터 원천"),
-    user("u3", "그럼 지표는요"), assistant("c", "핵심 변수부터", "핵심 변수"),
-    user("u4", "다른 관점도 볼래요", "a"), assistant("d", "설문과 비교해요", "설문 비교"),
-  ];
-  const nodes = buildConversationMap(messages, []);
-  assert.equal(nodes.length, 4);
-
-  // b를 접으면 b와 그 후손 c가 함께 접힌다. 형제 갈래 d는 남는다.
-  const pruned = getPrunedNodeIds(nodes, { b: "exclude" });
-  assert.ok(pruned.has("b"), "접은 노드가 포함되어야 한다");
-  assert.ok(pruned.has("c"), "접은 노드의 후손도 함께 접혀야 한다");
-  assert.ok(!pruned.has("a"), "부모는 접히지 않아야 한다");
-  assert.ok(!pruned.has("d"), "형제 갈래는 남아야 한다");
-
-  // 접힌 자식이 최상위 루트로 승격되지 않는다.
-  const visible = nodes.filter((node) => !pruned.has(node.id));
-  const roots = getConversationMapRoots(visible);
-  assert.deepEqual(roots.map((node) => node.id), ["a"], "접기 후 루트는 a 하나여야 한다");
-
-  // 접힌 자리에 몇 개가 감춰졌는지 알려준다.
-  const summary = summarizePrunedBranch(nodes, "b", { b: "exclude", c: "keep" });
-  assert.equal(summary.total, 2, "자기 자신과 후손을 합해 센다");
-  assert.equal(summary.keptInside, 1, "안에 든 핵심 개수를 함께 알려준다");
-
-  // 되돌릴 수 있는 자리와 안내가 화면에 있다.
-  assert.match(conversationMap, /prunedBranch/);
-  assert.match(conversationMap, /생각 \{branch\.total\}개 접힘/);
-  assert.match(conversationMap, /onRestoreBranch/);
-  assert.match(conversationMap, /접은 생각 \{prunedCount\}개/);
-  assert.match(conversationMapModel, /getPrunedNodeIds/);
-  assert.match(conversationMapModel, /collectDescendantIds/);
+test("선택한 카드의 가지를 독립 루트로 분리하고 원래 위치로 되돌린다", () => {
+  assert.match(conversationMap, /applyConversationMapDetachments\(originalNodes, detachedMapNodeIds\)/);
+  assert.match(conversationMap, /이 가지 분리/);
+  assert.match(conversationMap, /원래 위치로 되돌리기/);
+  assert.match(conversationMap, /분리된 가지/);
+  assert.match(conversationMap, /onDetachMapNode/);
+  assert.match(conversationMap, /onAttachMapNode/);
+  assert.match(conversationMap, /data-multiple-roots/);
+  assert.match(screen, /detachedMapNodeIds=\{detachedMapNodeIds\}/);
+  assert.match(screen, /onDetachMapNode=\{detachMapNode\}/);
+  assert.match(screen, /onAttachMapNode=\{attachMapNode\}/);
+  assert.match(screenStyles, /\.detachedNodeBadge/);
+  assert.match(screenStyles, /\.mapTree\[data-multiple-roots="true"\]/);
 });
 
-test("대화·생각 카드·지도 상태를 저장하고 내 맥락에서 다시 선택한다", () => {
-  assert.match(screen, /현재 대화 저장/);
-  assert.match(screen, /저장하고 새 대화 시작하기/);
-  assert.match(screen, /aria-label=\{messages\.length \? "현재 내용 저장 후 새 대화 시작" : "새 대화 시작"\}/);
-  assert.match(screen, /대화·생각 카드·지도 분기를 함께 저장해요/);
-  assert.match(screen, /저장한 대화/);
-  assert.match(screen, /handleOpenConversation/);
-  assert.match(screen, /viewMode === "context"/);
-  assert.match(store, /savedConversations/);
-  assert.match(store, /activeConversationId/);
-  assert.match(store, /saveCurrentConversation/);
-  assert.match(store, /startNewConversation/);
-  assert.match(store, /openConversation/);
-  assert.match(dataControls, /savedConversations: aiSavedConversations/);
-  assert.match(dataControls, /activeConversationId: aiActiveConversationId/);
-
-  const handlerStart = screen.indexOf("const handleStartNewConversation");
-  const handlerEnd = screen.indexOf("const handleOpenConversation", handlerStart);
-  const handler = screen.slice(handlerStart, handlerEnd);
-  assert.ok(handlerStart >= 0 && handlerEnd > handlerStart);
-  assert.ok(handler.indexOf("draft.trim()") < handler.indexOf("startNewConversation()"));
-  assert.match(handler, /작성 중인 메시지를 먼저 보내거나 비워 주세요/);
-  assert.match(handler, /startNewConversation\(\)/);
-  assert.match(handler, /resetConversationComposer\(\)/);
-  assert.match(handler, /setViewMode\("chat"\)/);
-  assert.doesNotMatch(handler, /clearConversation\(\)/);
-});
-
-test("저장본 전환은 분기·카드·지도 선택과 성장 메모를 잃지 않는다", () => {
-  const { useAiProfessorStore, migrateAiProfessorState, memory } = loadAiProfessorStoreModule();
-  const createdAt = "2026-08-25T00:00:00.000Z";
-  const user = (id, content, branchParentMessageId = null) => ({
-    id,
-    role: "user",
-    content,
-    createdAt,
-    branchParentMessageId,
-    reflection: null,
-    suggestedPrompts: [],
-  });
-  const assistant = (id, title) => ({
-    id,
-    role: "assistant",
-    content: `${title}에 대한 쉬운 답변`,
-    createdAt,
-    branchParentMessageId: null,
-    reflection: { title: `${title} 카드`, body: `현재 고민: ${title}\n다음 행동: 작게 비교하기` },
-    suggestedPrompts: ["비교해 줘", "준비를 알려줘", "직접 해볼래", "교수님께 물어볼래"],
-  });
-  const conversationA = [
-    user("user-a1", "데이터 진로를 비교하고 싶어요"),
-    assistant("assistant-a1", "데이터 진로 비교"),
-    user("user-a2", "직무 하루를 비교해 줘", "assistant-a1"),
-    assistant("assistant-a2", "직무 하루 비교"),
-  ];
-  const growthNote = {
-    id: "note-a1",
-    title: "진로 비교 메모",
-    body: "두 직무를 작은 경험으로 비교하기",
-    sourceMessageId: "assistant-a1",
-    createdAt,
-  };
-  const reset = (extra = {}) => {
-    useAiProfessorStore.setState({
-      hasHydrated: true,
-      messages: [],
-      growthNotes: [],
-      mapDecisions: {},
-      savedConversations: [],
-      activeConversationId: null,
-      ...extra,
-    });
-    memory.clear();
-  };
-
-  reset({
-    messages: conversationA,
-    growthNotes: [growthNote],
-    mapDecisions: { "assistant-a1": "keep", "assistant-a2": "exclude" },
-  });
-
-  const firstSave = useAiProfessorStore.getState().saveCurrentConversation();
-  assert.equal(firstSave.status, "saved");
-  const firstId = firstSave.conversation.id;
-  assert.equal(firstSave.conversation.messages[2].branchParentMessageId, "assistant-a1");
-  assert.equal(firstSave.conversation.messages[1].reflection.title, "데이터 진로 비교 카드");
-  assert.deepEqual(firstSave.conversation.messages[1].suggestedPrompts, [
-    "비교해 줘", "준비를 알려줘", "직접 해볼래", "교수님께 물어볼래",
-  ]);
-  assert.deepEqual(firstSave.conversation.mapDecisions, {
-    "assistant-a1": "keep",
-    "assistant-a2": "exclude",
-  });
-
-  const secondSave = useAiProfessorStore.getState().saveCurrentConversation();
-  assert.equal(secondSave.status, "updated");
-  assert.equal(secondSave.conversation.id, firstId);
-  assert.equal(useAiProfessorStore.getState().savedConversations.length, 1);
-
-  const newConversation = useAiProfessorStore.getState().startNewConversation();
-  assert.equal(newConversation.status, "updated");
-  assert.deepEqual(useAiProfessorStore.getState().messages, []);
-  assert.deepEqual(useAiProfessorStore.getState().mapDecisions, {});
-  assert.deepEqual(useAiProfessorStore.getState().growthNotes, [growthNote]);
-
-  useAiProfessorStore.setState({
-    messages: [user("user-b1", "프로젝트를 새로 시작할래요"), assistant("assistant-b1", "새 프로젝트")],
-    mapDecisions: { "assistant-b1": "keep" },
-  });
-  const beforeInvalid = useAiProfessorStore.getState().messages.map((message) => message.id);
-  assert.equal(useAiProfessorStore.getState().openConversation("missing"), false);
-  assert.deepEqual(
-    useAiProfessorStore.getState().messages.map((message) => message.id),
-    beforeInvalid,
-  );
-
-  assert.equal(useAiProfessorStore.getState().openConversation(firstId), true);
-  assert.deepEqual(
-    useAiProfessorStore.getState().messages.map((message) => message.id),
-    conversationA.map((message) => message.id),
-  );
-  assert.deepEqual(useAiProfessorStore.getState().mapDecisions, {
-    "assistant-a1": "keep",
-    "assistant-a2": "exclude",
-  });
-  assert.equal(useAiProfessorStore.getState().savedConversations.length, 2);
-
-  useAiProfessorStore.getState().removeSavedConversation(firstId);
-  assert.equal(useAiProfessorStore.getState().activeConversationId, null);
-  assert.deepEqual(
-    useAiProfessorStore.getState().messages.map((message) => message.id),
-    conversationA.map((message) => message.id),
-  );
-  assert.deepEqual(useAiProfessorStore.getState().growthNotes, [growthNote]);
-
-  const migrated = migrateAiProfessorState({
-    messages: conversationA,
-    growthNotes: [growthNote],
-    mapDecisions: { "assistant-a1": "keep" },
-  });
-  assert.deepEqual(migrated.savedConversations, []);
-  assert.equal(migrated.activeConversationId, null);
-  assert.equal(migrated.messages[2].branchParentMessageId, "assistant-a1");
-});
-
-test("저장본이 가득 차도 열려는 오래된 대화를 목록에서 밀어내지 않는다", () => {
-  const { useAiProfessorStore } = loadAiProfessorStoreModule();
-  const createdAt = "2026-08-25T00:00:00.000Z";
-  const makeMessage = (id, role, content) => ({
-    id,
-    role,
-    content,
-    createdAt,
-    branchParentMessageId: null,
-    reflection: role === "assistant" ? { title: `${content} 카드`, body: content } : null,
-    suggestedPrompts: role === "assistant" ? ["다음 질문"] : [],
-  });
-  const savedConversations = Array.from({ length: 12 }, (_, index) => ({
-    schemaVersion: 1,
-    id: `saved-${index}`,
-    title: `저장 대화 ${index}`,
-    preview: `저장 대화 ${index} 요약`,
-    createdAt,
-    updatedAt: createdAt,
-    messages: [
-      makeMessage(`user-${index}`, "user", `고민 ${index}`),
-      makeMessage(`assistant-${index}`, "assistant", `답변 ${index}`),
-    ],
-    mapDecisions: { [`assistant-${index}`]: "keep" },
-  }));
-  useAiProfessorStore.setState({
-    hasHydrated: true,
-    savedConversations,
-    activeConversationId: null,
-    messages: [
-      makeMessage("current-user", "user", "미저장 고민"),
-      makeMessage("current-assistant", "assistant", "미저장 답변"),
-    ],
-    mapDecisions: { "current-assistant": "keep" },
-    growthNotes: [],
-  });
-
-  assert.equal(useAiProfessorStore.getState().openConversation("saved-0"), true);
-  const state = useAiProfessorStore.getState();
-  assert.equal(state.savedConversations.length, 12);
-  assert.equal(state.savedConversations.some((conversation) => conversation.id === "saved-0"), true);
-  assert.equal(state.activeConversationId, "saved-0");
-  assert.deepEqual(state.messages.map((message) => message.id), ["user-0", "assistant-0"]);
+test("생각 지도는 70에서 130퍼센트까지 확대·축소하고 100퍼센트로 돌아간다", () => {
+  assert.match(conversationMap, /Math\.min\(130, Math\.max\(70, nextZoom\)\)/);
+  assert.match(conversationMap, /aria-label="생각 지도 축소"/);
+  assert.match(conversationMap, /aria-label="생각 지도 확대"/);
+  assert.match(conversationMap, /100퍼센트로 되돌리기/);
+  assert.match(conversationMap, /style=\{\{ zoom: mapZoom \/ 100/);
+  assert.match(screenStyles, /\.mapZoomControls/);
 });
 
 test("과거 노드에서 새 갈래를 시작하고 트리에서 여러 자식 흐름을 확인한다", () => {
-  assert.match(conversationMap, /AI 대화로 자라는 나의 상상나무/);
-  assert.match(conversationMap, /추천 가지/);
+  assert.match(conversationMap, /이 생각에서 새 갈래 만들기/);
   assert.match(conversationMap, /ConversationTreeNode/);
   assert.match(conversationMap, /childIds/);
   assert.match(conversationMap, /onStartBranch/);
@@ -470,38 +228,40 @@ test("과거 노드에서 새 갈래를 시작하고 트리에서 여러 자식 
   assert.match(conversationMapModel, /getConversationMapRoots/);
   assert.match(screen, /선택한 대화에서 이어가는 중/);
   assert.match(screen, /branchOrigin/);
-  assert.match(screen, /hasBranchChoices/);
-  assert.match(screen, /새 대화 갈래 후보/);
+  assert.match(screen, /suggestion\.kind === "branch"/);
+  assert.match(screen, /새 대화 갈래 시작/);
   assert.match(screen, /lastMessage\?\.role === "assistant"/);
-  assert.match(screen, /Array\.from\(new Set/);
   assert.match(screen, /messages\.length === 0[\s\S]*?QUICK_PROMPTS/);
-  assert.match(screen, /parentId: suggestionSourceMessage\.id/);
+  assert.match(screen, /진로 고민을 어디서부터 정리하면 좋을까요\?/);
+  assert.match(screen, /지금 프로젝트에서 제가 먼저 결정해야 할 것은 무엇인가요\?/);
+  assert.match(screen, /교수님께 처음에는 어떤 질문을 드리면 좋을까요\?/);
+  assert.match(screen, /resolveGrowthProfessorSuggestionParentId/);
   assert.match(screen, /suggestionSourceMessage\.reflection\?\.title \?\? "현재 대화"/);
   assert.match(screenStyles, /\.branchPromptMark/);
+  assert.match(screen, /getParallelBranchUserMessageIds/);
+  assert.match(screen, /parallelBranchUserMessageIds\.has\(message\.id\)/);
   assert.match(screen, /conversationLineageToAssistant\(messages, parentAssistantId\)/);
   assert.match(screen, /conversationLineageToAssistant\(messages, retryParentId\)/);
   assert.match(conversationMapModel, /export function conversationLineageToAssistant/);
   assert.match(screen, /clearConversation\(\);[\s\S]*setBranchOrigin\(null\);[\s\S]*setDraft\(""\);/);
   assert.match(store, /branchParentMessageId/);
-  assert.match(server, /1\. 비교하기:[\s\S]*2\. 필요한 준비:[\s\S]*3\. 직접 해보기:[\s\S]*4\. 교수님께 묻기:/);
-  assert.match(server, /minItems: 4/);
-  assert.match(server, /maxItems: 4/);
-  assert.match(conversationMap, /prompts\.length >= 4 \? prompts\.slice\(0, 4\) : FALLBACK_BRANCH_PROMPTS\[node\.topic\]/);
+  assert.match(server, /앞의 두 개는 현재 답변을 자연스럽게 이어가는 질문/);
+  assert.match(server, /세 번째도 기본값은 'continue'/);
+  assert.match(server, /필요한 자료, 설명 구체화, 예시, 바로 할 행동처럼 현재 답변을 깊게 잇는 질문은 'branch'가 아닙니다/);
+  assert.match(conversationMap, /suggestion\.text/);
+  assert.match(conversationMap, /isStudentQuestionText\(suggestion\.text\)/);
+  assert.match(conversationMap, /\.\.\.FALLBACK_BRANCH_PROMPTS\[node\.topic\]/);
+  assert.doesNotMatch(conversationMap, /해볼래요|할게요|정리할래요|만들래요|볼래요/);
   assert.match(conversationMap, /BRANCH_AXES = \["비교·결정", "근거·역량", "프로젝트·실행", "교수 대화"\]/);
   assert.match(conversationMap, /branchPrompts\.map/);
-  assert.match(conversationMap, /이 카드에서 가지치기/);
-  assert.match(conversationMap, /className=\{styles\.nodeBranchButton\}/);
-  assert.match(screenStyles, /\.nodeBranchButton/);
+  assert.match(conversationMap, /이 대화에서 이어가기/);
+  assert.match(conversationMap, /className=\{styles\.nodeResumeButton\}/);
+  assert.match(screenStyles, /\.nodeResumeButton/);
   assert.match(conversationMap, /onClick=\{\(\) => onStartBranch\(selectedNode\.id, "", selectedNode\.title\)\}/);
-  assert.match(conversationMap, /onClick=\{\(\) => onStartBranch\(selectedNode\.id, prompt, selectedNode\.title\)\}/);
-  assert.match(conversationMap, /activePathIds/);
-  assert.match(conversationMap, /data-on-path=\{activePathIds\.has\(node\.id\)/);
-  assert.match(screenStyles, /\.mapTreeItem\[data-on-path="true"\]/);
-  assert.doesNotMatch(conversationMap, /removeConversationBranch/);
   assert.match(conversationMap, /nodeDetailRef\.current\?\.scrollIntoView\(\{ block: "start", behavior: "smooth" \}\)/);
   assert.doesNotMatch(conversationMap, /manualBranchButton/);
   assert.match(screen, /setBranchOrigin\(\{ parentId, title \}\)/);
-  assert.match(screen, /setViewMode\("chat"\)/);
+  assert.match(screen, /changeViewMode\("chat"\)/);
   assert.match(screen, /inputRef\.current\?\.focus\(\)/);
 });
 
@@ -574,14 +334,13 @@ test("태블릿과 모바일에서도 가지 구조를 유지하고 드래그와
   assert.match(conversationMap, /aria-label="생각 지도의 시작점으로 초점 맞추기"/);
   assert.match(conversationMap, /data-depth=\{node\.depth\}/);
   assert.match(mobileBlock, /\.mapGraph \{[\s\S]*?min-width: 680px/);
-  assert.match(mobileBlock, /\.mapTree > \.mapTreeItem > \.mapNode \{[\s\S]*?width: 268px/);
-  assert.match(mobileBlock, /\.mapTree ol \.mapNode \{[\s\S]*?width: 220px/);
+  assert.match(mobileBlock, /\.mapTree > \.mapTreeItem > \.mapNode \{[\s\S]*?width: 252px/);
+  assert.match(mobileBlock, /\.mapTree ol \.mapNode \{[\s\S]*?width: 200px/);
   assert.match(mobileBlock, /\.mapCanvas \{[\s\S]*?overflow: auto/);
   assert.doesNotMatch(mobileBlock, /overflow-x: hidden/);
   assert.match(screenStyles, /\.mapFocusButton \{/);
   assert.match(mobileBlock, /\.nodeDecisionBox \{[\s\S]*?grid-template-columns: 1fr/);
   assert.match(mobileBlock, /\.nodeDecisionBox > div button \{[\s\S]*?min-height: 40px/);
   assert.match(mobileBlock, /\.nodeConnections > div \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(mobileBlock, /\.branchSuggestions \{[\s\S]*?grid-template-columns: 1fr/);
   assert.match(conversationMap, /mapOutcomeArrow/);
 });

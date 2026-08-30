@@ -4,11 +4,13 @@ import {
   matchOfficialProfessors,
 } from "@/lib/professor-data.server";
 import { AiServiceError, rerankProfessorMentors } from "@/lib/openai-server";
+import { checkProfessorMatchAiRequestLimit } from "@/lib/professor-match-rate-limit";
 import {
   PROFESSOR_MATCH_POLICY,
   SUPPORTED_PROFESSOR_UNIVERSITY,
   type ProfessorMatchTopic,
 } from "@/lib/professor-domain";
+import { getRateLimitStore } from "@/lib/rate-limit-store";
 
 const MAX_BODY_BYTES = 12_000;
 
@@ -161,6 +163,22 @@ export async function POST(request: Request) {
   });
   let response = baseline;
   if (isProjectMentorRequest) {
+    const rateLimit = await checkProfessorMatchAiRequestLimit(request, {
+      store: getRateLimitStore(),
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "AI 교수 멘토 연결 요청이 잠시 몰렸습니다. 잠시 후 다시 시도해 주세요." },
+        {
+          status: 429,
+          headers: {
+            "Cache-Control": "private, no-store",
+            "Retry-After": String(rateLimit.retryAfterSec),
+          },
+        },
+      );
+    }
+
     try {
       const roleCandidates = getOfficialProfessorRoleCandidates(topic, {
         excludeIds,

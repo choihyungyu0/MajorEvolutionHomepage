@@ -6,13 +6,13 @@ import {
   BookOpen,
   CheckCircle2,
   Clipboard,
+  CloudDownload,
   Copy,
   ExternalLink,
   FileSearch,
   Lightbulb,
   ListChecks,
   LoaderCircle,
-  Mail,
   RotateCcw,
   Save,
   ShieldCheck,
@@ -34,22 +34,35 @@ import {
 } from "@/components/app/primitives";
 import { FavoriteProfessorPaperPicker } from "@/components/paper-reader/favorite-professor-paper-picker";
 import { PaperReadingSteps } from "@/components/paper-reader/paper-reading-steps";
-import { requestContactEmail, requestPaperAnalysis } from "@/lib/ai-client";
-import type { ContactEmailResult } from "@/lib/contact-email";
+import { requestPaperAnalysis } from "@/lib/ai-client";
+import { FIRST_QUESTION_FROM_PAPER_HREF } from "@/lib/email-draft-purpose";
 import type { PaperAnalysisResult } from "@/lib/paper-analysis";
 import type { ProfessorPaperSelection } from "@/lib/professor-domain";
+import {
+  requestProfessorPaperContent,
+  type ProfessorPaperContentResponse,
+} from "@/lib/professor-paper-content-client";
 import { requestFavoriteProfessorPaperCatalog } from "@/lib/professor-paper-client";
 import { createProfessorPaperSelection } from "@/lib/professor-paper-selection";
 import { useQuestStore } from "@/store/quest-store";
-import { useProfileStore } from "@/store/profile-store";
 import { useResearchStore } from "@/store/research-store";
 
 const MIN_CONTENT_LENGTH = 80;
 const MAX_CONTENT_LENGTH = 12_000;
+const PAPER_BITE_WORKING_DRAFT_STORAGE_KEY = "major-evolution-paper-bite-working-draft-v1";
 
 type BiteCardKey = "problem" | "method" | "result" | "limitations" | "questions";
 type BiteDraft = Record<BiteCardKey, string>;
 type PaperBiteWorkflowStep = "select" | "card";
+
+type StoredPaperBiteWorkingDraft = {
+  version: 1;
+  title: string;
+  content: string;
+  analysis: PaperAnalysisResult;
+  draft: BiteDraft;
+  sourceConfirmed: boolean;
+};
 
 const BITE_CARD_META: ReadonlyArray<{
   key: BiteCardKey;
@@ -95,8 +108,76 @@ const BITE_CARD_META: ReadonlyArray<{
   },
 ] as const;
 
-const THREE_LINE_LABELS = ["무엇을 왜 했나", "무엇을 발견했나", "어디까지 믿을 수 있나"] as const;
-const THREE_LINE_ROLES = ["what", "found", "limit"] as const;
+function isStringList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isPaperAnalysisResult(value: unknown): value is PaperAnalysisResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const raw = value as Record<string, unknown>;
+  return ["title", "oneLine", "background", "question", "generatedAt", "model"]
+    .every((key) => typeof raw[key] === "string")
+    && isStringList(raw.methods)
+    && isStringList(raw.findings)
+    && isStringList(raw.limitations)
+    && isStringList(raw.nextQuestions)
+    && Array.isArray(raw.glossary)
+    && raw.glossary.every((item) => (
+      Boolean(item)
+      && typeof item === "object"
+      && !Array.isArray(item)
+      && typeof (item as Record<string, unknown>).term === "string"
+      && typeof (item as Record<string, unknown>).meaning === "string"
+    ));
+}
+
+function isBiteDraft(value: unknown): value is BiteDraft {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const raw = value as Record<string, unknown>;
+  return BITE_CARD_META.every((card) => typeof raw[card.key] === "string");
+}
+
+function readPaperBiteWorkingDraft(): StoredPaperBiteWorkingDraft | null {
+  try {
+    const stored = window.sessionStorage.getItem(PAPER_BITE_WORKING_DRAFT_STORAGE_KEY);
+    if (!stored || stored.length > 100_000) return null;
+    const parsed = JSON.parse(stored) as Partial<StoredPaperBiteWorkingDraft>;
+    if (
+      parsed.version !== 1
+      || typeof parsed.title !== "string"
+      || typeof parsed.content !== "string"
+      || typeof parsed.sourceConfirmed !== "boolean"
+      || !isPaperAnalysisResult(parsed.analysis)
+      || !isBiteDraft(parsed.draft)
+    ) return null;
+    return {
+      version: 1,
+      title: parsed.title.slice(0, 180),
+      content: parsed.content.slice(0, MAX_CONTENT_LENGTH),
+      analysis: parsed.analysis,
+      draft: parsed.draft,
+      sourceConfirmed: parsed.sourceConfirmed,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePaperBiteWorkingDraft(value: StoredPaperBiteWorkingDraft): void {
+  try {
+    window.sessionStorage.setItem(PAPER_BITE_WORKING_DRAFT_STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // The explicit exit guard remains active when browser storage is unavailable.
+  }
+}
+
+function clearPaperBiteWorkingDraft(): void {
+  try {
+    window.sessionStorage.removeItem(PAPER_BITE_WORKING_DRAFT_STORAGE_KEY);
+  } catch {
+    // A stale session-only draft is safer than deleting unrelated user data.
+  }
+}
 
 const TEXT_SCOPE_EVIDENCE = {
   label: "사용자가 붙여 넣은 텍스트 범위 · 페이지 정보 없음",
@@ -140,7 +221,7 @@ function SelectedPaperBanner({
           {selection.publishedDate ?? "발행일 미기재"}
         </p>
         <small>
-          제목과 출처만 자동 입력했습니다. 초록·본문은 같은 논문인지 확인한 뒤 직접 붙여 넣어 주세요.
+          공식 교수 데이터의 논문입니다. 공개 초록 또는 허용된 오픈 라이선스 PDF가 있으면 자동으로 가져옵니다.
         </small>
         <div className="selected-professor-paper__actions">
           <a
@@ -155,6 +236,88 @@ function SelectedPaperBanner({
         </div>
       </div>
     </Card>
+  );
+}
+
+function PaperContentLookupBanner({
+  status,
+  result,
+  error,
+  onRetry,
+  onAcceptCandidate,
+}: {
+  status: "idle" | "loading" | "found" | "candidate" | "unavailable" | "error";
+  result: ProfessorPaperContentResponse | null;
+  error: string;
+  onRetry: () => void;
+  onAcceptCandidate: () => void;
+}) {
+  if (status === "idle") return null;
+  const foundFromPdf = result?.status === "found" && result.contentSourceType === "pdf_text";
+  const title = status === "loading"
+    ? "등록된 논문의 공개 초록·PDF를 찾고 있어요"
+    : status === "candidate"
+      ? "관련 공개 논문 후보를 찾았어요"
+    : status === "found"
+      ? foundFromPdf
+        ? "오픈 라이선스 PDF에서 텍스트를 가져왔어요"
+        : "공개 초록을 자동으로 불러왔어요"
+      : "자동으로 가져올 공개 원문을 찾지 못했어요";
+  const description = status === "loading"
+    ? "DOI를 먼저 확인하고, 없으면 제목과 발행일이 같은 논문만 검색합니다."
+    : result?.message || error || "직접 입력하거나 잠시 후 다시 시도해 주세요.";
+  const Icon = status === "loading"
+    ? LoaderCircle
+    : status === "found" ? CloudDownload : status === "candidate" ? FileSearch : AlertTriangle;
+
+  return (
+    <div
+      className={`paper-content-lookup is-${status}`}
+      role={status === "error" ? "alert" : "status"}
+      aria-live="polite"
+    >
+      <span className="paper-content-lookup__icon">
+        <Icon size={19} className={status === "loading" ? "spin" : undefined} aria-hidden="true" />
+      </span>
+      <div>
+        <strong>{title}</strong>
+        <p>{description}</p>
+        {status === "candidate" && result?.matchedTitle ? (
+          <div className="paper-content-candidate">
+            <strong>{result.matchedTitle}</strong>
+            <small>
+              {result.matchedPublishedDate ?? "발행일 미기재"}
+              {result.matchedDoi ? ` · DOI ${result.matchedDoi}` : ""}
+            </small>
+            <em>현재 선택한 항목과 제목 또는 연도가 달라 아직 자동 입력하지 않았어요.</em>
+          </div>
+        ) : null}
+        {status === "found" && result ? (
+          <small>
+            {result.provider === "openalex" ? "OpenAlex" : "Crossref"}
+            {result.license ? ` · ${result.license.toUpperCase()}` : ""}
+            {result.pageCount ? ` · ${result.pageCount}쪽 확인` : ""}
+          </small>
+        ) : null}
+      </div>
+      <div className="paper-content-lookup__actions">
+        {result?.sourceUrl ? (
+          <a href={result.sourceUrl} target="_blank" rel="noopener noreferrer">
+            출처 확인 <ExternalLink size={13} aria-hidden="true" />
+          </a>
+        ) : null}
+        {(status === "unavailable" || status === "error") ? (
+          <button type="button" onClick={onRetry}>
+            <RotateCcw size={14} aria-hidden="true" /> 다시 찾기
+          </button>
+        ) : null}
+        {status === "candidate" ? (
+          <button type="button" className="is-primary" onClick={onAcceptCandidate}>
+            <CheckCircle2 size={14} aria-hidden="true" /> 확인하고 불러오기
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -182,15 +345,73 @@ export function PaperReaderShell({
   >("idle");
   const [paperValidationError, setPaperValidationError] = useState("");
   const [paperValidationRetryKey, setPaperValidationRetryKey] = useState(0);
+  const [paperContentStatus, setPaperContentStatus] = useState<
+    "idle" | "loading" | "found" | "candidate" | "unavailable" | "error"
+  >("idle");
+  const [paperContentResult, setPaperContentResult] = useState<ProfessorPaperContentResponse | null>(null);
+  const [paperContentError, setPaperContentError] = useState("");
+  const [paperContentRetryKey, setPaperContentRetryKey] = useState(0);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const verifiedPaperKeyRef = useRef<string | null>(null);
   const analysisAbortControllerRef = useRef<AbortController | null>(null);
-  const [contactEmail, setContactEmail] = useState<ContactEmailResult | null>(null);
-  const [contactEmailBody, setContactEmailBody] = useState("");
-  const [contactEmailLoading, setContactEmailLoading] = useState(false);
-  const [contactEmailError, setContactEmailError] = useState("");
-  const [contactEmailNotice, setContactEmailNotice] = useState("");
+  const paperContentAbortControllerRef = useRef<AbortController | null>(null);
+  const restoredWorkingDraftRef = useRef(false);
+  const restoredWorkingDraftValueRef = useRef(false);
+  const hasUnsavedDraft = Boolean(analysis && draft && !isSaved);
+
+  const confirmDiscardUnsavedDraft = () => (
+    !hasUnsavedDraft
+    || window.confirm("저장하지 않은 논문 카드 수정 내용이 있어요. 저장하지 않고 이동할까요?")
+  );
+
+  const openPaperPicker = () => {
+    if (!confirmDiscardUnsavedDraft()) return;
+    setIsPickerOpen(true);
+  };
+
+  const discardAndNavigate = (href: string) => {
+    if (!confirmDiscardUnsavedDraft()) return;
+    clearPaperBiteWorkingDraft();
+    router.replace(href);
+  };
+
+  useEffect(() => {
+    if (restoredWorkingDraftRef.current) return;
+    restoredWorkingDraftRef.current = true;
+    const restored = readPaperBiteWorkingDraft();
+    if (!restored) return;
+    restoredWorkingDraftValueRef.current = true;
+    setTitle(restored.title);
+    setContent(restored.content);
+    setAnalysis(restored.analysis);
+    setDraft(restored.draft);
+    setSourceConfirmed(restored.sourceConfirmed);
+    setWorkflowStep("card");
+    setFeedback("저장하지 않은 논문 카드 수정 내용을 복원했어요.");
+  }, []);
+
+  useEffect(() => {
+    if (!hasUnsavedDraft || !analysis || !draft) return;
+    writePaperBiteWorkingDraft({
+      version: 1,
+      title,
+      content,
+      analysis,
+      draft,
+      sourceConfirmed,
+    });
+  }, [analysis, content, draft, hasUnsavedDraft, sourceConfirmed, title]);
+
+  useEffect(() => {
+    if (!hasUnsavedDraft) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [hasUnsavedDraft]);
 
   const moveWorkflowStep = (nextStep: PaperBiteWorkflowStep) => {
     setWorkflowStep(nextStep);
@@ -198,7 +419,6 @@ export function PaperReaderShell({
     router.replace(`/paper/reader?mode=bite${sourceQuery}&step=${nextStep}`, { scroll: false });
   };
 
-  const studentProfile = useProfileStore((state) => state.profile);
   const hasQuestHydrated = useQuestStore((state) => state.hasHydrated);
   const savePaperBundle = useQuestStore((state) => state.savePaperBundle);
   const hasResearchHydrated = useResearchStore((state) => state.hasHydrated);
@@ -255,6 +475,7 @@ export function PaperReaderShell({
         selectProfessorPaper({
           ...verifiedSelection,
           selectedAt: storedSelection.selectedAt,
+          confirmedPublicPaper: storedSelection.confirmedPublicPaper ?? null,
         });
       })
       .catch((validationError) => {
@@ -299,28 +520,114 @@ export function PaperReaderShell({
     title,
   ]);
 
-  useEffect(() => () => analysisAbortControllerRef.current?.abort(), []);
+  useEffect(() => () => {
+    analysisAbortControllerRef.current?.abort();
+    paperContentAbortControllerRef.current?.abort();
+  }, []);
 
   useEffect(() => {
-    setWorkflowStep(initialStep);
+    if (!restoredWorkingDraftValueRef.current) setWorkflowStep(initialStep);
   }, [initialStep]);
 
   const verifiedProfessorPaper = paperValidationStatus === "verified"
     ? selectedProfessorPaper
     : null;
+
+  useEffect(() => {
+    if (analysis && draft) {
+      paperContentAbortControllerRef.current?.abort();
+      paperContentAbortControllerRef.current = null;
+      setPaperContentStatus("idle");
+      setPaperContentResult(null);
+      setPaperContentError("");
+      return;
+    }
+    if (!verifiedProfessorPaper || workflowStep !== "card") {
+      paperContentAbortControllerRef.current?.abort();
+      paperContentAbortControllerRef.current = null;
+      setPaperContentStatus("idle");
+      setPaperContentResult(null);
+      setPaperContentError("");
+      return;
+    }
+
+    paperContentAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    paperContentAbortControllerRef.current = controller;
+    setPaperContentStatus("loading");
+    setPaperContentResult(null);
+    setPaperContentError("");
+
+    void requestProfessorPaperContent({
+      professorId: verifiedProfessorPaper.professorId,
+      paperId: verifiedProfessorPaper.paperId,
+    }, { signal: controller.signal })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setPaperContentResult(result);
+        setPaperContentStatus(result.status);
+        if (result.status === "found" && result.content) {
+          setContent(result.content.slice(0, MAX_CONTENT_LENGTH));
+          setSourceConfirmed(true);
+          setError("");
+        } else {
+          setSourceConfirmed(false);
+        }
+      })
+      .catch((lookupError) => {
+        if (lookupError instanceof DOMException && lookupError.name === "AbortError") return;
+        setPaperContentStatus("error");
+        setPaperContentResult(null);
+        setPaperContentError(
+          lookupError instanceof Error
+            ? lookupError.message
+            : "공개 초록과 PDF를 자동으로 찾지 못했습니다.",
+        );
+        setSourceConfirmed(false);
+      })
+      .finally(() => {
+        if (paperContentAbortControllerRef.current === controller) {
+          paperContentAbortControllerRef.current = null;
+        }
+      });
+
+    return () => controller.abort();
+  }, [
+    analysis,
+    draft,
+    paperContentRetryKey,
+    verifiedProfessorPaper?.paperId,
+    verifiedProfessorPaper?.professorId,
+    workflowStep,
+  ]);
   const isPaperSelectionBlocked = Boolean(
     selectedProfessorPaper && !verifiedProfessorPaper,
   );
   const normalizedLength = content.trim().length;
   const isReady = normalizedLength >= MIN_CONTENT_LENGTH;
-  const displayTitle = verifiedProfessorPaper?.title || analysis?.title || title.trim() || "제목 미입력 논문";
-  const evidence = useMemo(() => verifiedProfessorPaper
-    ? {
-        label: "분석 근거: 사용자가 붙여 넣은 텍스트 범위(페이지 없음) · 서지 확인: 대학 공식 프로필",
+  const displayTitle = paperContentResult?.status === "found" && paperContentResult.matchedTitle
+    ? paperContentResult.matchedTitle
+    : verifiedProfessorPaper?.title || analysis?.title || title.trim() || "제목 미입력 논문";
+  const evidence = useMemo(() => {
+    if (!verifiedProfessorPaper) return TEXT_SCOPE_EVIDENCE;
+    if (paperContentResult?.status === "found") {
+      const sourceLabel = paperContentResult.contentSourceType === "pdf_text"
+        ? `${paperContentResult.license?.toUpperCase() ?? "오픈"} 공개 PDF에서 자동 추출한 텍스트`
+        : "공개 학술 메타데이터에서 자동 불러온 초록";
+      return {
+        label: paperContentResult.matchedBy === "related-title"
+          ? `분석 근거: 사용자가 확인한 관련 공개 논문의 ${sourceLabel} · 출발 서지: 대학 공식 프로필`
+          : `분석 근거: ${sourceLabel} · 서지 확인: 대학 공식 프로필`,
         page: null,
-        href: verifiedProfessorPaper.officialProfileUrl,
-      }
-    : TEXT_SCOPE_EVIDENCE, [verifiedProfessorPaper]);
+        href: paperContentResult.sourceUrl ?? verifiedProfessorPaper.officialProfileUrl,
+      };
+    }
+    return {
+      label: "분석 근거: 사용자가 확인하고 입력한 초록·본문 범위(페이지 없음) · 서지 확인: 대학 공식 프로필",
+      page: null,
+      href: verifiedProfessorPaper.officialProfileUrl,
+    };
+  }, [paperContentResult, verifiedProfessorPaper]);
   const fullCopy = useMemo(() => {
     if (!analysis || !draft) return "";
     return [
@@ -409,6 +716,7 @@ export function PaperReaderShell({
           body: draft[card.key].trim() || "아직 작성된 내용이 없어요.",
         })),
       });
+      clearPaperBiteWorkingDraft();
       setIsSaved(true);
       setFeedback("교수님 퀘스트에 3분 준비 카드 5장을 저장했어요. 같은 논문은 최신 내용으로 갱신됩니다.");
     } catch {
@@ -419,62 +727,11 @@ export function PaperReaderShell({
     }
   };
 
-  const generateContactEmail = async () => {
-    if (!analysis || !verifiedProfessorPaper) return;
-    setContactEmailLoading(true);
-    setContactEmailError("");
-    setContactEmailNotice("");
-    try {
-      const result = await requestContactEmail({
-        professorName: verifiedProfessorPaper.professorName,
-        professorDepartment: verifiedProfessorPaper.professorDepartment,
-        paperTitle: verifiedProfessorPaper.title,
-        paperPublishedDate: verifiedProfessorPaper.publishedDate ?? undefined,
-        paperType: verifiedProfessorPaper.publicationType,
-        summary: {
-          oneLine: analysis.oneLine,
-          background: analysis.background,
-          question: analysis.question,
-          methods: analysis.methods,
-          findings: analysis.findings,
-          limitations: analysis.limitations,
-          nextQuestions: analysis.nextQuestions,
-        },
-        student: {
-          name: studentProfile.name || undefined,
-          school: studentProfile.school || undefined,
-          major: studentProfile.major || undefined,
-          grade: studentProfile.grade || undefined,
-          interests: studentProfile.interests.length ? studentProfile.interests : undefined,
-        },
-      });
-      setContactEmail(result);
-      setContactEmailBody(result.body);
-    } catch (error) {
-      setContactEmailError(
-        error instanceof Error ? error.message : "컨택 메일 초안을 만들지 못했어요.",
-      );
-    } finally {
-      setContactEmailLoading(false);
-    }
-  };
-
-  const copyContactEmail = async () => {
-    if (!contactEmail) return;
-    const text = `제목: ${contactEmail.subject}
-
-${contactEmailBody}`;
-    try {
-      await navigator.clipboard.writeText(text);
-      setContactEmailNotice("메일 초안을 복사했어요. 보내기 전에 직접 검토해 주세요.");
-    } catch {
-      setContactEmailNotice("자동 복사가 어려워요. 본문을 직접 선택해 복사해 주세요.");
-    }
-  };
-
   const clearWorkingState = () => {
     analysisAbortControllerRef.current?.abort();
     analysisAbortControllerRef.current = null;
+    paperContentAbortControllerRef.current?.abort();
+    paperContentAbortControllerRef.current = null;
     setIsLoading(false);
     setContent("");
     setAnalysis(null);
@@ -483,10 +740,44 @@ ${contactEmailBody}`;
     setFeedback("");
     setIsSaved(false);
     setSourceConfirmed(false);
-    setContactEmail(null);
-    setContactEmailBody("");
-    setContactEmailError("");
-    setContactEmailNotice("");
+    setPaperContentStatus("idle");
+    setPaperContentResult(null);
+    setPaperContentError("");
+    clearPaperBiteWorkingDraft();
+  };
+
+  const acceptRelatedCandidate = () => {
+    if (
+      paperContentResult?.status !== "candidate"
+      || !paperContentResult.content
+      || !paperContentResult.matchedTitle
+    ) return;
+    setPaperContentResult({
+      ...paperContentResult,
+      status: "found",
+      message: "관련 공개 논문의 제목·연도·DOI를 확인해 초록을 불러왔습니다.",
+    });
+    setPaperContentStatus("found");
+    if (verifiedProfessorPaper && paperContentResult.relatedOfficialPaper) {
+      selectProfessorPaper({
+        ...verifiedProfessorPaper,
+        confirmedPublicPaper: {
+          officialPaperId: paperContentResult.relatedOfficialPaper.id,
+          title: paperContentResult.matchedTitle,
+          publishedDate: paperContentResult.matchedPublishedDate,
+          doi: paperContentResult.matchedDoi,
+          sourceUrl: paperContentResult.sourceUrl,
+          license: paperContentResult.license,
+          confirmedAt: new Date().toISOString(),
+        },
+      });
+    }
+    setTitle(paperContentResult.matchedTitle.slice(0, 180));
+    setContent(paperContentResult.content.slice(0, MAX_CONTENT_LENGTH));
+    setSourceConfirmed(true);
+    setError("");
+    setFeedback("관련 공개 논문을 확인해 초록을 입력했습니다.");
+    window.requestAnimationFrame(() => contentRef.current?.focus());
   };
 
   const choosePaper = (selection: ProfessorPaperSelection) => {
@@ -514,6 +805,7 @@ ${contactEmailBody}`;
   };
 
   const clearPaperSelection = () => {
+    if (!confirmDiscardUnsavedDraft()) return;
     verifiedPaperKeyRef.current = null;
     setPaperValidationStatus("idle");
     setPaperValidationError("");
@@ -546,42 +838,21 @@ ${contactEmailBody}`;
 
   if (analysis && draft) {
     return (
-      <AppShell title="Q01 논문 한입" backHref="/quest" className="paper-bite-screen">
+      <AppShell title="Q01 논문 한입" onBack={() => discardAndNavigate("/quest")} className="paper-bite-screen">
         <PageHeader
           eyebrow="교수님 퀘스트 · 만나기 전"
           title={displayTitle}
           description={analysis.oneLine}
         />
-        <PaperReadingSteps current={contactEmail ? 4 : 2} />
+        <PaperReadingSteps current={2} navigationLocked={hasUnsavedDraft} />
 
         {verifiedProfessorPaper && (
           <SelectedPaperBanner
             selection={verifiedProfessorPaper}
-            onChange={() => setIsPickerOpen(true)}
+            onChange={openPaperPicker}
             onClear={clearPaperSelection}
           />
         )}
-
-        {/*
-          3줄 요약. 한 줄은 논문 성격만 알려주고 카드 5장은 다 읽어야 하므로 그 사이를 메운다.
-          세 번째 줄은 확인 범위를 밝히는 자리라 다른 두 줄과 구분해 표시한다.
-        */}
-        <section className="paper-bite-threeline" aria-labelledby="paper-threeline-title">
-          <h2 id="paper-threeline-title">
-            <FileSearch size={17} aria-hidden="true" /> 3줄 요약
-          </h2>
-          <ol>
-            {analysis.threeLine.map((line, index) => (
-              <li key={line} data-role={THREE_LINE_ROLES[index]}>
-                <span aria-hidden="true">{index + 1}</span>
-                <div>
-                  <small>{THREE_LINE_LABELS[index]}</small>
-                  <p>{line}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
 
         <StatusBanner icon={CheckCircle2} title="붙여 넣은 텍스트 분석 완료" tone="success">
           PDF 전체가 아니라 입력한 범위만 분석했습니다. 페이지 번호와 원문 위치는 확인할 수 없어요.
@@ -595,7 +866,7 @@ ${contactEmailBody}`;
 
         <SectionHeading
           title="교수님께 가져갈 논문 한입"
-          description="AI 초안을 그대로 믿지 말고 원문과 대조한 뒤, 내 말로 고쳐 저장하세요."
+          description="원문과 함께 보며 핵심을 내 말로 다듬어 저장하세요."
         />
 
         <div className="paper-bite-grid">
@@ -638,13 +909,13 @@ ${contactEmailBody}`;
             <h2>근거 범위</h2>
             <p>{evidence.label}</p>
             <small>
-              인용·제출·교수님 면담 전에는 반드시 실제 원문의 문장과 페이지를 직접 확인하세요.
+              원문 문장과 페이지를 함께 적어두면 인용·제출·면담 준비에 활용할 수 있어요.
             </small>
           </div>
         </Card>
 
         <div className="paper-bite-actions">
-          <SecondaryButton type="button" onClick={() => setIsPickerOpen(true)}>
+          <SecondaryButton type="button" onClick={openPaperPicker}>
             <RotateCcw size={17} aria-hidden="true" /> 다른 논문
           </SecondaryButton>
           <SecondaryButton type="button" onClick={() => void copyText(fullCopy, "카드 5장을 모두 복사했어요.")}>
@@ -676,18 +947,6 @@ ${contactEmailBody}`;
         )}
 
         <PaperPdfNextStep ready={isSaved} />
-        <ContactEmailStep
-          available={Boolean(verifiedProfessorPaper)}
-          professorName={verifiedProfessorPaper?.professorName ?? ""}
-          loading={contactEmailLoading}
-          error={contactEmailError}
-          notice={contactEmailNotice}
-          result={contactEmail}
-          body={contactEmailBody}
-          onBodyChange={setContactEmailBody}
-          onGenerate={generateContactEmail}
-          onCopy={copyContactEmail}
-        />
         {paperPicker}
       </AppShell>
     );
@@ -803,7 +1062,11 @@ ${contactEmailBody}`;
           <Card className="paper-input-card paper-bite-input">
             <label className="field-group" htmlFor="paper-title">
               <span className="field-label">
-                논문 제목 <small>{verifiedProfessorPaper ? "공식 정보로 고정" : "직접 입력"}</small>
+                논문 제목 <small>
+                  {paperContentResult?.status === "found" && paperContentResult.matchedBy === "related-title"
+                    ? "확인한 관련 공개 논문"
+                    : verifiedProfessorPaper ? "공식 정보로 고정" : "직접 입력"}
+                </small>
               </span>
               <input
                 ref={titleRef}
@@ -816,8 +1079,28 @@ ${contactEmailBody}`;
                 placeholder="예: 대학생의 진로 불안과 멘토링 효과"
               />
             </label>
+            {verifiedProfessorPaper ? (
+              <PaperContentLookupBanner
+                status={paperContentStatus}
+                result={paperContentResult}
+                error={paperContentError}
+                onRetry={() => setPaperContentRetryKey((current) => current + 1)}
+                onAcceptCandidate={acceptRelatedCandidate}
+              />
+            ) : null}
             <label className="field-group" htmlFor="paper-content">
-              <span className="field-label">초록 또는 본문</span>
+              <span className="field-label">
+                초록 또는 본문
+                <small>
+                  {paperContentResult?.status === "found"
+                    ? paperContentResult.contentSourceType === "pdf_text"
+                      ? "공개 PDF 자동 입력"
+                      : "공개 초록 자동 입력"
+                    : verifiedProfessorPaper
+                      ? "자동 조회 후 직접 입력 가능"
+                      : "직접 입력"}
+                </small>
+              </span>
               <textarea
                 ref={contentRef}
                 id="paper-content"
@@ -825,22 +1108,24 @@ ${contactEmailBody}`;
                 value={content}
                 onChange={(event) => {
                   setContent(event.target.value.slice(0, MAX_CONTENT_LENGTH));
-                  setSourceConfirmed(false);
+                  if (paperContentResult?.status !== "found") {
+                    setSourceConfirmed(false);
+                  }
                 }}
-                disabled={isPaperSelectionBlocked || isLoading}
+                disabled={isPaperSelectionBlocked || isLoading || paperContentStatus === "loading"}
                 placeholder={verifiedProfessorPaper
-                  ? "선택한 논문의 초록이나 본문 일부를 직접 붙여 넣어 주세요."
+                  ? "공개 초록이나 허용된 PDF가 없으면 논문 내용을 직접 붙여 넣어 주세요."
                   : "분석할 논문 초록이나 본문 일부를 붙여 넣어 주세요."}
               />
             </label>
-            {verifiedProfessorPaper && (
+            {verifiedProfessorPaper && !sourceConfirmed && (
               <label className="paper-source-confirm">
                 <input
                   type="checkbox"
                   checked={sourceConfirmed}
                   onChange={(event) => setSourceConfirmed(event.target.checked)}
                 />
-                <span>붙여 넣은 텍스트가 선택한 논문의 초록 또는 본문임을 확인했습니다.</span>
+                <span>현재 텍스트가 선택한 논문의 초록 또는 본문임을 확인했습니다.</span>
               </label>
             )}
             <div className="paper-input-meta">
@@ -855,6 +1140,7 @@ ${contactEmailBody}`;
               onClick={analyze}
               disabled={
                 isLoading
+                || paperContentStatus === "loading"
                 || isPaperSelectionBlocked
                 || !isReady
                 || Boolean(verifiedProfessorPaper && !sourceConfirmed)
@@ -869,8 +1155,8 @@ ${contactEmailBody}`;
           <div className="paper-privacy">
             <ShieldCheck size={17} aria-hidden="true" />
             <p>
-              입력 내용은 분석 요청을 위해 OpenAI API로 전송됩니다. 미공개 논문, 개인정보,
-              연구실 내부 자료는 붙여 넣지 마세요.
+              자동으로 가져온 공개 초록·PDF 텍스트와 직접 입력한 내용은 분석 요청을 위해
+              OpenAI API로 전송됩니다. PDF 원본은 저장하지 않으며, 미공개 논문·개인정보·연구실 내부 자료는 넣지 마세요.
             </p>
           </div>
 
@@ -889,136 +1175,40 @@ ${contactEmailBody}`;
   );
 }
 
-/**
- * 4단계 · 컨택 메일.
- *
- * 3분 카드로 만든 요약만 근거로 초안을 만듭니다. 요약 없이 보내는 메일을 막기 위해
- * 이 단계는 분석이 끝난 화면에서만 나타나고, 공식 목록에서 고른 논문일 때만 활성화됩니다.
- * 발송은 하지 않습니다. 학생이 검토하고 직접 보냅니다.
- */
-function ContactEmailStep({
-  available,
-  professorName,
-  loading,
-  error,
-  notice,
-  result,
-  body,
-  onBodyChange,
-  onGenerate,
-  onCopy,
-}: {
-  available: boolean;
-  professorName: string;
-  loading: boolean;
-  error: string;
-  notice: string;
-  result: ContactEmailResult | null;
-  body: string;
-  onBodyChange: (value: string) => void;
-  onGenerate: () => void;
-  onCopy: () => void;
-}) {
-  return (
-    <section className="paper-bite-email-next" aria-labelledby="paper-email-next-title">
-      <div className="paper-bite-pdf-next__copy">
-        <span><Mail size={20} aria-hidden="true" /></span>
-        <div>
-          <small>4단계 · 컨택 메일</small>
-          <h2 id="paper-email-next-title">
-            {result ? "메일 초안을 검토해 주세요" : "이 요약으로 컨택 메일을 써볼까요?"}
-          </h2>
-          <p>
-            {available
-              ? "방금 정리한 3분 카드만 근거로 첫 연락 메일 초안을 만들어요. 요약에 없는 내용은 쓰지 않습니다."
-              : "공식 논문 목록에서 고른 논문일 때 교수님 정보를 함께 넣어 메일을 만들 수 있어요."}
-          </p>
-        </div>
-      </div>
-
-      {available ? (
-        <PrimaryButton type="button" onClick={onGenerate} disabled={loading}>
-          {loading ? (
-            <><LoaderCircle size={16} className="spin" aria-hidden="true" /> 초안 만드는 중…</>
-          ) : result ? "다시 만들기" : `${professorName} 교수님께 보낼 초안 만들기`}
-        </PrimaryButton>
-      ) : (
-        <PrimaryButton type="button" disabled>
-          공식 목록에서 논문을 선택해 주세요
-        </PrimaryButton>
-      )}
-
-      {error && (
-        <p className="action-feedback is-error" role="alert">{error}</p>
-      )}
-
-      {result && (
-        <div className="paper-bite-email-draft">
-          <SectionHeading title="메일 제목" />
-          <Card className="paper-bite-email-draft__subject">{result.subject}</Card>
-
-          <SectionHeading title="메일 본문" />
-          <textarea
-            className="paper-bite-email-draft__body"
-            value={body}
-            onChange={(event) => onBodyChange(event.target.value)}
-            rows={14}
-            aria-label="컨택 메일 본문 초안"
-          />
-
-          <SectionHeading title="이 초안이 근거로 삼은 요약" />
-          <ul className="paper-bite-email-draft__grounds">
-            {result.groundedOn.map((ground) => (
-              <li key={ground}>{ground}</li>
-            ))}
-          </ul>
-
-          <SectionHeading title="보내기 전에 확인할 것" />
-          <ul className="paper-bite-email-draft__checklist">
-            {result.beforeSending.map((item) => (
-              <li key={item}><ListChecks size={15} aria-hidden="true" /> {item}</li>
-            ))}
-          </ul>
-
-          <div className="paper-bite-email-draft__actions">
-            <SecondaryButton type="button" onClick={onCopy}>
-              <Copy size={16} aria-hidden="true" /> 제목·본문 복사
-            </SecondaryButton>
-          </div>
-
-          {notice && <p className="action-feedback" role="status">{notice}</p>}
-        </div>
-      )}
-
-      <small className="paper-bite-pdf-next__note">
-        이 서비스는 교수님께 메일을 보내지 않습니다. 초안을 복사해 학생이 직접 검토하고 발송해 주세요.
-      </small>
-    </section>
-  );
-}
-
 function PaperPdfNextStep({ ready }: { ready: boolean }) {
   return (
     <section className="paper-bite-pdf-next" aria-labelledby="paper-pdf-next-title">
       <div className="paper-bite-pdf-next__copy">
         <span><BookOpen size={20} aria-hidden="true" /></span>
         <div>
-          <small>3단계 · PDF 해설</small>
-          <h2 id="paper-pdf-next-title">PDF 원문으로 더 깊게 읽을까요?</h2>
-          <p>PDF를 직접 넣으면 현재 페이지를 중심으로 원문·번역·해설·요약·질문을 이어갈 수 있어요.</p>
+          <small>다음 준비 선택</small>
+          <h2 id="paper-pdf-next-title">첫 질문을 고르거나 PDF를 더 읽어보세요</h2>
+          <p>논문 읽기는 선택입니다. 바로 첫 질문을 준비하거나, PDF 원문을 더 읽은 뒤 이어갈 수 있어요.</p>
         </div>
       </div>
-      {ready ? (
-        <LinkButton href="/paper/reader?mode=pdf">
-          PDF 넣고 페이지별 해설·요약하기
-        </LinkButton>
-      ) : (
-        <PrimaryButton type="button" disabled>
-          먼저 3분 카드를 저장해 주세요
-        </PrimaryButton>
-      )}
+      <div className="paper-bite-next-actions">
+        {ready ? (
+          <>
+            <LinkButton href={FIRST_QUESTION_FROM_PAPER_HREF}>
+              4단계 · 목적별 첫 질문 고르기
+            </LinkButton>
+            <LinkButton href="/paper/reader?mode=pdf&from=card" secondary>
+              PDF 해설 더 보기 · 선택
+            </LinkButton>
+          </>
+        ) : (
+          <>
+            <PrimaryButton type="button" disabled>
+              첫 질문은 카드 저장 후 이용
+            </PrimaryButton>
+            <SecondaryButton type="button" disabled>
+              PDF 해설은 카드 저장 후 이용
+            </SecondaryButton>
+          </>
+        )}
+      </div>
       <small className="paper-bite-pdf-next__note">
-        PDF 파일은 브라우저에서 열고, AI 요청에는 현재 확인 중인 페이지 텍스트만 전송해요.
+        PDF를 사용하지 않아도 진로·연구·프로젝트·멘토링 목적의 첫 질문과 메일을 작성할 수 있어요.
       </small>
     </section>
   );

@@ -1,18 +1,21 @@
 import type { MetadataRoute } from "next";
 
-import { getSiteUrl } from "@/lib/site-url";
-
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = getSiteUrl();
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const canonicalPaths = [
     "",
     "/tutorial",
     "/research",
+    "/research/conditions",
     "/co-design",
     "/result",
+    "/result/compare",
     "/paper",
     "/paper/reader",
     "/professors",
+    "/project-professors",
+    "/project-execution",
+    "/project-meeting",
     "/quest",
     "/quest/first-line",
     "/quest/silence-rescue",

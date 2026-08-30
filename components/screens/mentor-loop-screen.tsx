@@ -29,6 +29,7 @@ import type {
   ProfessorMatch,
   ProfessorMentorLoopEntry,
 } from "@/lib/professor-domain";
+import { hasUnsavedMentorLoopChanges } from "@/lib/mentor-loop-state";
 import { resolveJourneyTopic } from "@/lib/research-topic-context";
 import { useResearchStore } from "@/store/research-store";
 
@@ -189,6 +190,9 @@ function MentorLoopEditor({
   const [entry, setEntry] = useState<ProfessorMentorLoopEntry>(
     () => storedEntry ?? createEntry(topic, match),
   );
+  const [lastSavedEntry, setLastSavedEntry] = useState<ProfessorMentorLoopEntry | undefined>(
+    () => storedEntry,
+  );
   const [stage, setStage] = useState<MentorLoopStage>(() => {
     if (!storedEntry?.feedbackSummary.trim()) return 1;
     if (!storedEntry.commitment.trim()) return 2;
@@ -196,6 +200,8 @@ function MentorLoopEditor({
   });
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const isDirty = hasUnsavedMentorLoopChanges(entry, lastSavedEntry);
+  const hasPendingSavedChanges = Boolean(lastSavedEntry) && isDirty;
 
   const moveToStage = (nextStage: MentorLoopStage) => {
     if (nextStage > 1 && !entry.feedbackSummary.trim()) {
@@ -213,7 +219,7 @@ function MentorLoopEditor({
 
   const updateEntry = (patch: Partial<ProfessorMentorLoopEntry>) => {
     setEntry((current) => ({ ...current, ...patch }));
-    setStatus("");
+    setStatus(lastSavedEntry ? "입력 내용이 변경됐어요. 다시 저장해 주세요." : "");
     setError("");
   };
 
@@ -222,7 +228,7 @@ function MentorLoopEditor({
       ...current,
       after: { ...current.after, [field]: value },
     }));
-    setStatus("");
+    setStatus(lastSavedEntry ? "입력 내용이 변경됐어요. 다시 저장해 주세요." : "");
     setError("");
   };
 
@@ -232,7 +238,7 @@ function MentorLoopEditor({
       sevenDayActions[index] = value;
       return { ...current, sevenDayActions };
     });
-    setStatus("");
+    setStatus(lastSavedEntry ? "입력 내용이 변경됐어요. 다시 저장해 주세요." : "");
     setError("");
   };
 
@@ -264,6 +270,7 @@ function MentorLoopEditor({
       updatedAt: new Date().toISOString(),
     };
     setEntry(next);
+    setLastSavedEntry(next);
     saveEntry(key, next);
     setStage(3);
     setError("");
@@ -294,6 +301,7 @@ function MentorLoopEditor({
     if (!window.confirm("이 교수와 주제의 다음 만남 씨앗 기록을 이 브라우저에서 삭제할까요?")) return;
     deleteEntry(key);
     setEntry(createEntry(topic, match));
+    setLastSavedEntry(undefined);
     setStage(1);
     setError("");
     setStatus("저장된 다음 만남 씨앗 기록을 삭제했습니다.");
@@ -406,16 +414,17 @@ function MentorLoopEditor({
           </PrimaryButton>
         ) : (
           <PrimaryButton className="mentor-loop-save" onClick={saveAndPlan}>
-            <RefreshCcw size={18} aria-hidden="true" /> 저장하고 7일 계획 만들기
+            <RefreshCcw size={18} aria-hidden="true" /> {hasPendingSavedChanges ? "다시 저장하고 7일 계획 업데이트" : "저장하고 7일 계획 만들기"}
           </PrimaryButton>
         )}
       </div>
       {error && <p className="mentor-loop-error" role="alert">{error}</p>}
       {status && <p className="mentor-loop-status" role="status"><CheckCircle2 size={16} /> {status}</p>}
+      {hasPendingSavedChanges && <p className="mentor-loop-error" role="status">저장된 내용에서 바뀐 항목이 있어요. 다시 저장해야 홈 진행률과 기록에 반영됩니다.</p>}
 
       {stage === 3 && entry.followUpEmail ? (
         <details className="mentor-loop-email-disclosure">
-          <summary>감사·후속 이메일 초안 보기 <span>저장됨</span></summary>
+          <summary>감사·후속 이메일 초안 보기 <span>{hasPendingSavedChanges ? "재저장 필요" : "저장됨"}</span></summary>
           <Card className="mentor-loop-email">
             <textarea className="textarea" value={entry.followUpEmail} onChange={(event) => updateEntry({ followUpEmail: event.target.value })} aria-label="감사 및 후속 이메일 초안" />
             <div>
@@ -454,10 +463,10 @@ export function MentorLoopScreen() {
   const match = matches.find((item) => item.professor.id === selectedProfessorId);
   if (!topic || !match) {
     return (
-      <AppShell title="다음 만남 씨앗" backHref="/" className="mentor-loop-screen">
+      <AppShell title="다음 만남 씨앗" backHref="/quest" className="mentor-loop-screen">
         <PageHeader title="먼저 교수와 연구주제를 연결해 주세요" description="나의 교수님과 교수님 퀘스트를 거치면 면담 피드백을 같은 맥락에서 기록할 수 있습니다." />
-        <PrimaryButton onClick={() => router.push("/home")}>
-          교수 연결 3단계로 이동 <ArrowRight size={17} />
+        <PrimaryButton onClick={() => router.push("/professors")}>
+          교수 매칭부터 시작하기 <ArrowRight size={17} />
         </PrimaryButton>
       </AppShell>
     );

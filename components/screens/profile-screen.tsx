@@ -8,11 +8,9 @@ import {
   LoaderCircle,
   MapPin,
   PencilLine,
-  RotateCcw,
   Save,
   Settings2,
   ShieldCheck,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -231,7 +229,7 @@ export function ProfileScreen() {
               <CheckCircle2 size={16} aria-hidden="true" />
               <div><strong>로컬 저장</strong><span>{formatUpdatedAt(profile.updatedAt)}</span></div>
             </div>
-            <Link href="/portfolio/manage" className={styles.recordsAction}>
+            <Link href="/portfolio/manage?from=profile" className={styles.recordsAction}>
               <span><Settings2 size={18} aria-hidden="true" /></span>
               <div>
                 <strong>내 기록 관리</strong>
@@ -239,16 +237,6 @@ export function ProfileScreen() {
               </div>
               <ArrowRight size={17} aria-hidden="true" />
             </Link>
-            <div className={styles.previewAction}>
-              <span><Sparkles size={18} aria-hidden="true" /></span>
-              <div>
-                <strong>랜딩페이지가 다시 궁금하다면</strong>
-                <p>서비스 소개 화면은 여기서 언제든 다시 볼 수 있어요.</p>
-              </div>
-              <Link href="/welcome" aria-label="랜딩페이지 다시 보기">
-                <RotateCcw size={17} aria-hidden="true" /> 다시 보기
-              </Link>
-            </div>
             <p className={styles.localNote}><MapPin size={15} aria-hidden="true" /> 다른 기기나 브라우저에는 자동으로 공유되지 않아요.</p>
           </aside>
 

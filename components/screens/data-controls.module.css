@@ -119,6 +119,45 @@
   box-shadow: 0 9px 20px rgba(87, 58, 218, 0.19);
 }
 
+.backupActions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.restoreButton {
+  display: inline-flex;
+  min-height: 46px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 15px;
+  border: 1px solid #cfc8f3;
+  border-radius: 12px;
+  color: #5439c8;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 790;
+}
+
+.restoreButton:hover {
+  border-color: #aa9de9;
+  background: #faf9ff;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .downloadButton:hover:not(:disabled) {
   background: #5437d6;
   transform: translateY(-1px);
@@ -162,6 +201,65 @@
   margin-top: 3px;
   color: #3a7069;
   font-size: 11px;
+  line-height: 1.5;
+}
+
+.restoreConfirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid #d7c9fb;
+  border-radius: 14px;
+  background: #faf8ff;
+}
+
+.restoreConfirm strong {
+  display: block;
+  color: #46318d;
+  font-size: 14px;
+}
+
+.restoreConfirm p {
+  max-width: 680px;
+  margin-top: 4px;
+  color: #695f83;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.restoreConfirmActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.restoreConfirmActions button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #ddd6ec;
+  border-radius: 10px;
+  color: #5f5a6d;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 780;
+}
+
+.restoreConfirmActions .restoreConfirmButton {
+  border-color: #6548d9;
+  color: #fff;
+  background: #6548d9;
+}
+
+.restoreError {
+  padding: 12px 15px;
+  border: 1px solid #f0c7ca;
+  border-radius: 12px;
+  color: #a2333c;
+  background: #fff7f7;
+  font-size: 12px;
+  font-weight: 700;
   line-height: 1.5;
 }
 
@@ -582,12 +680,30 @@
     width: 100%;
   }
 
+  .backupActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .restoreButton {
+    width: 100%;
+  }
+
   .localNotice {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
   .localNotice > svg {
     display: none;
+  }
+
+  .restoreConfirm {
+    display: grid;
+  }
+
+  .restoreConfirmActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
   .groupHeading {

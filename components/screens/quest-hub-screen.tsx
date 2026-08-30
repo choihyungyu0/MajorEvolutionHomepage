@@ -6,19 +6,16 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   ArrowRight,
-  Ban,
   BookOpenCheck,
   CalendarCheck,
   Check,
   Compass,
   FileText,
-  HandHeart,
   LoaderCircle,
   Mail,
   MessageCircleQuestion,
   MessageSquareText,
   NotebookPen,
-  ShieldCheck,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -26,7 +23,6 @@ import {
   AppShell,
   Card,
   ChoiceChip,
-  PageHeader,
   SectionHeading,
   Tag,
 } from "@/components/app/primitives";
@@ -38,11 +34,13 @@ import {
   HubRow,
   HubUtilityLink,
   HubUtilityLinks,
-  ServiceHubIntro,
   serviceHubStyles as styles,
 } from "@/components/app/service-hub";
+import { JourneyStageHero } from "@/components/app/journey-stage-hero";
 import { SceneBanner } from "@/components/app/scene-banner";
 import { brandScene, questIcon } from "@/lib/brand-assets";
+import { getJourneyProgress } from "@/lib/journey-progress";
+import { useQuestContext } from "@/lib/quest-context";
 import { cardsForTool, useQuestStore, type QuestToolId } from "@/store/quest-store";
 import { useResearchStore } from "@/store/research-store";
 import questStyles from "./quest-hub-screen.module.css";
@@ -93,7 +91,7 @@ const TOOLS: Tool[] = [
     code: "Q02",
     name: "첫마디 랜덤박스",
     timings: ["before"],
-    summary: "수업 후·이메일·오피스아워 첫 문장 3개",
+    summary: "상황·목적·말투를 고른 첫 문장 1개",
     output: "학생이 수정 가능한 첫 문장",
     icon: questIcon.firstLine,
     href: "/quest/first-line",
@@ -130,23 +128,15 @@ const TOOLS: Tool[] = [
   },
 ];
 
-const NEVER_DOES = [
-  "자동 발송",
-  "면담 녹음",
-  "교수 성격·가능성 추정",
-  "근거 범위 표시 없는 요약",
-];
-
 const TOOL_NAME = new Map(TOOLS.map((tool) => [tool.id, tool.name]));
 
 export function QuestHubScreen() {
   const hasHydrated = useQuestStore((state) => state.hasHydrated);
   const hasResearchHydrated = useResearchStore((state) => state.hasHydrated);
-  const selectedProfessorId = useResearchStore((state) => state.selectedProfessorId);
-  const professorMatches = useResearchStore((state) => state.professorMatches);
   const knockKitDrafts = useResearchStore((state) => state.knockKitDrafts);
   const mentorLoopEntries = useResearchStore((state) => state.mentorLoopEntries);
   const cards = useQuestStore((state) => state.cards);
+  const { topic, match: selectedProfessorMatch } = useQuestContext();
 
   if (!hasHydrated || !hasResearchHydrated) {
     return (
@@ -157,17 +147,21 @@ export function QuestHubScreen() {
     );
   }
 
-  const paperCount = cardsForTool(cards, "paper-bite").length;
-  const questionCount = cardsForTool(cards, "first-line").length;
-  const silenceCount = cardsForTool(cards, "silence-rescue").length;
-  const emailCount = cardsForTool(cards, "email-guard").length + Object.keys(knockKitDrafts).length;
-  const afterCount = cardsForTool(cards, "next-seed").length + Object.keys(mentorLoopEntries).length;
-  const beforeCount = paperCount + questionCount + emailCount;
-  const selectedProfessorMatch = professorMatches.find(
-    (match) => match.professor.id === selectedProfessorId,
-  ) ?? null;
   const selectedProfessor = selectedProfessorMatch?.professor ?? null;
-  const hasConnectedProfessor = Boolean(selectedProfessorId);
+  const progress = getJourneyProgress({
+    topicId: topic?.id ?? null,
+    professorId: selectedProfessor?.id ?? null,
+    cards,
+    emailDrafts: knockKitDrafts,
+    mentorEntries: mentorLoopEntries,
+  });
+  const paperCount = progress.before.paper;
+  const questionCount = progress.before.question;
+  const silenceCount = progress.during.total;
+  const emailCount = progress.before.email;
+  const afterCount = progress.after.total;
+  const beforeCount = progress.before.total;
+  const hasConnectedProfessor = progress.readySteps.professor;
 
   const primary = !hasConnectedProfessor
       ? {
@@ -203,7 +197,7 @@ export function QuestHubScreen() {
               icon: Mail,
               heading: "첫 연락을 보내기 전에 점검해 볼까요?",
               taskTitle: "첫 연락 준비 · 이메일 초안 점검",
-              description: "자동 발송하지 않고, 연결 이유와 요청을 담은 초안을 내가 검토해요.",
+              description: "연결 이유와 요청을 담아 목적별 이메일 초안을 준비해요.",
               cta: "이메일 준비하기",
               href: "/quest/email-guard",
             }
@@ -232,7 +226,7 @@ export function QuestHubScreen() {
       id: "professor",
       label: "교수 선택",
       status: hasConnectedProfessor ? "연결 완료" : "먼저 선택",
-      href: selectedProfessor ? `/professors/${selectedProfessor.id}` : "/professors",
+      href: selectedProfessor ? `/professors/${selectedProfessor.id}?from=quest` : "/professors",
       icon: Compass,
       done: hasConnectedProfessor,
     },
@@ -278,14 +272,15 @@ export function QuestHubScreen() {
   const progressPercent = Math.round((completedMeetingSteps / meetingSteps.length) * 100);
 
   return (
-    <AppShell showHeader={false} className={styles.shell} bottomNav={<ServiceBottomNav />}>
+    <AppShell showHeader={false} className={`${styles.shell} ${questStyles.meetingShell}`} bottomNav={<ServiceBottomNav />}>
       <div className={`${styles.hub} ${questStyles.questHub}`}>
-        <ServiceHubIntro
+        <JourneyStageHero
+          stage="meeting"
+          eyebrow="교수 연결 · 2단계"
           title={selectedProfessor
             ? `${selectedProfessor.name} 교수님과 첫 만남을 준비해요`
             : "교수님과 첫 만남을 준비해요"}
           description="교수 선택부터 연락, 대화 중 질문, 면담 후 행동까지 현재 단계와 다음 할 일을 한 화면에서 이어가요."
-          variant="compact"
         />
         <HubAdaptiveLayout
           layout="stacked"
@@ -293,7 +288,6 @@ export function QuestHubScreen() {
           primary={(
             <HubPrimaryTask
               icon={primary.icon}
-              eyebrow="지금 먼저 할 일"
               title={primary.taskTitle}
               description={primary.description}
               cta={primary.cta}
@@ -316,17 +310,13 @@ export function QuestHubScreen() {
                 {selectedProfessorMatch?.reason ? (
                   <blockquote>{selectedProfessorMatch.reason}</blockquote>
                 ) : null}
-                {selectedProfessor ? (
-                  <Link
-                    href={`/professors/${selectedProfessor.id}`}
-                    className={questStyles.contextLink}
-                  >
-                    연결 근거 다시 보기
-                    <ArrowRight size={16} aria-hidden="true" />
-                  </Link>
-                ) : (
-                  <p className={questStyles.contextNextHint}>위의 ‘교수 찾기’부터 시작하면 연결 상태가 여기에 표시돼요.</p>
-                )}
+                <Link
+                  href={selectedProfessor ? `/professors/${selectedProfessor.id}?from=quest` : "/professors"}
+                  className={questStyles.contextLink}
+                >
+                  {selectedProfessor ? "연결 근거 다시 보기" : "교수 찾기"}
+                  <ArrowRight size={16} aria-hidden="true" />
+                </Link>
                 <Link href="/quest/all#saved-cards" className={questStyles.mobileSavedLink}>
                   저장한 준비물 {beforeCount + silenceCount + afterCount}개 보기
                   <ArrowRight size={16} aria-hidden="true" />
@@ -344,6 +334,13 @@ export function QuestHubScreen() {
                   <div><dt>대화 중</dt><dd>{silenceCount}</dd></div>
                   <div><dt>만난 후</dt><dd>{afterCount}</dd></div>
                 </dl>
+                <div className={questStyles.contextProgressCopy}>
+                  <span>첫 만남 여정</span>
+                  <strong>{progressPercent}%</strong>
+                </div>
+                <div className={questStyles.contextProgressTrack} aria-hidden="true">
+                  <span style={{ width: `${progressPercent}%` }} />
+                </div>
               </section>
             </div>
           )}
@@ -449,9 +446,6 @@ export function QuestHubScreen() {
             미니 도구 <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </nav>
-        <p className={`${styles.trustNote} ${questStyles.mobileTrust}`}>
-          <ShieldCheck size={17} aria-hidden="true" /> 연락과 면담은 학생이 직접 진행해요.
-        </p>
       </div>
     </AppShell>
   );
@@ -550,21 +544,6 @@ export function QuestAllToolsScreen() {
         </div>
         <ArrowRight size={16} aria-hidden="true" />
       </button>
-
-      <Card className="quest-hub-note">
-        <HandHeart size={18} aria-hidden="true" />
-        <div>
-          <strong>학생이 직접 실행</strong>
-          <p>앱은 준비·검토·기록만 돕고, 연락과 면담은 학생이 직접 합니다.</p>
-        </div>
-      </Card>
-
-      <Card className="quest-hub-never">
-        <h2><Ban size={16} aria-hidden="true" /> 공통 금지</h2>
-        <ul>
-          {NEVER_DOES.map((item) => <li key={item}>{item}</li>)}
-        </ul>
-      </Card>
 
       {cards.length > 0 && (
         <div id="saved-cards">

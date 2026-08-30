@@ -17,15 +17,25 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  Upload,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuestStore } from "@/store/quest-store";
 import { useResearchStore } from "@/store/research-store";
 import { useAiProfessorStore } from "@/store/ai-professor-store";
 import { useProfileStore } from "@/store/profile-store";
 import { buildConversationMap } from "@/lib/ai-conversation-map";
+import {
+  LOCAL_RECORD_BACKUP_MAX_BYTES,
+  LOCAL_RECORD_STORAGE_KEYS,
+  createLocalRecordBackup,
+  parseLocalRecordBackup,
+  restoreLocalRecordBackup,
+  type LocalRecordBackup,
+  type LocalStorageLike,
+} from "@/lib/local-record-backup";
 import styles from "./data-controls.module.css";
 
 type CategoryGroup = "direction" | "meeting" | "ai";
@@ -35,8 +45,21 @@ type RecordItem = {
   title: string;
   description: string;
   latestAt: string | null;
-  remove: () => void;
+  remove: () => boolean | void;
   warning?: string;
+};
+
+export type ManagedAuxiliaryRecord = {
+  key: string;
+  kind: "research-tutorial" | "project-execution";
+  record: Record<string, unknown>;
+};
+
+export type ManagedAuxiliaryLoadState = {
+  records: ManagedAuxiliaryRecord[];
+  loaded: boolean;
+  error: string | null;
+  hasPersistedSnapshots: boolean;
 };
 
 type Category = {
@@ -122,6 +145,116 @@ const QUEST_TOOL_LABEL = {
   "next-seed": "다음 만남 씨앗",
 } as const;
 
+const RESEARCH_TUTORIAL_STORAGE_KEY = "major-evolution-research-tutorial-v1";
+
+function validateManagedAuxiliaryRecord(
+  key: string,
+  rawValue: string,
+): ManagedAuxiliaryRecord | null {
+  const isolatedStorage: LocalStorageLike = {
+    length: 1,
+    key: (index) => index === 0 ? key : null,
+    getItem: (candidateKey) => candidateKey === key ? rawValue : null,
+    setItem: () => undefined,
+    removeItem: () => undefined,
+  };
+  try {
+    const record = createLocalRecordBackup(isolatedStorage).records[key];
+    if (!record) return null;
+    return {
+      key,
+      kind: key === RESEARCH_TUTORIAL_STORAGE_KEY
+        ? "research-tutorial"
+        : "project-execution",
+      record,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function collectManagedAuxiliaryRecords(
+  storage: LocalStorageLike,
+): ManagedAuxiliaryRecord[] {
+  const records: ManagedAuxiliaryRecord[] = [];
+  const seenKeys = new Set<string>();
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (!key || seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    const rawValue = storage.getItem(key);
+    if (rawValue === null) continue;
+    const record = validateManagedAuxiliaryRecord(key, rawValue);
+    if (record) records.push(record);
+  }
+  return records.sort((left, right) => left.key.localeCompare(right.key));
+}
+
+export function loadManagedAuxiliaryRecords(
+  getStorage: () => LocalStorageLike,
+): ManagedAuxiliaryLoadState {
+  try {
+    const storage = getStorage();
+    return {
+      records: collectManagedAuxiliaryRecords(storage),
+      loaded: true,
+      error: null,
+      hasPersistedSnapshots: LOCAL_RECORD_STORAGE_KEYS.some(
+        (key) => storage.getItem(key) !== null,
+      ),
+    };
+  } catch {
+    return {
+      records: [],
+      loaded: true,
+      error: "현재 브라우저의 프로젝트 초안 기록을 읽지 못했습니다. 저장소 접근 설정을 확인해 주세요.",
+      hasPersistedSnapshots: false,
+    };
+  }
+}
+
+export function removeManagedAuxiliaryRecord(
+  storage: LocalStorageLike,
+  key: string,
+): boolean {
+  try {
+    const rawValue = storage.getItem(key);
+    if (rawValue === null || !validateManagedAuxiliaryRecord(key, rawValue)) return false;
+    storage.removeItem(key);
+    return storage.getItem(key) === null;
+  } catch {
+    return false;
+  }
+}
+
+export function removeManagedAuxiliaryRecordFromProvider(
+  getStorage: () => LocalStorageLike,
+  key: string,
+): boolean {
+  try {
+    return removeManagedAuxiliaryRecord(getStorage(), key);
+  } catch {
+    return false;
+  }
+}
+
+export function canDownloadLocalRecordBackup(
+  totalRecords: number,
+  auxiliaryState: Pick<ManagedAuxiliaryLoadState, "loaded" | "error" | "hasPersistedSnapshots">,
+): boolean {
+  return auxiliaryState.loaded
+    && auxiliaryState.error === null
+    && (totalRecords > 0 || auxiliaryState.hasPersistedSnapshots);
+}
+
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function recordString(record: Record<string, unknown>, key: string): string {
+  return typeof record[key] === "string" ? record[key] : "";
+}
+
 export function DataControls({ showHeading = true }: { showHeading?: boolean }) {
   const profile = useProfileStore((state) => state.profile);
   const clearProfile = useProfileStore((state) => state.clearProfile);
@@ -144,15 +277,28 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
   const aiMessages = useAiProfessorStore((state) => state.messages);
   const aiGrowthNotes = useAiProfessorStore((state) => state.growthNotes);
   const aiMapDecisions = useAiProfessorStore((state) => state.mapDecisions);
-  const aiSavedConversations = useAiProfessorStore((state) => state.savedConversations);
-  const aiActiveConversationId = useAiProfessorStore((state) => state.activeConversationId);
   const removeConversationBranch = useAiProfessorStore((state) => state.removeConversationBranch);
-  const removeSavedConversation = useAiProfessorStore((state) => state.removeSavedConversation);
   const removeGrowthNote = useAiProfessorStore((state) => state.removeGrowthNote);
 
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [pending, setPending] = useState<{ categoryId: string; itemId: string } | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [recordError, setRecordError] = useState<string | null>(null);
+  const [restoreCandidate, setRestoreCandidate] = useState<LocalRecordBackup | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [managedAuxiliaryState, setManagedAuxiliaryState] = useState<ManagedAuxiliaryLoadState>({
+    records: [],
+    loaded: false,
+    error: null,
+    hasPersistedSnapshots: false,
+  });
+  const backupInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setManagedAuxiliaryState(loadManagedAuxiliaryRecords(() => window.localStorage));
+  }, []);
+
+  const managedAuxiliaryRecords = managedAuxiliaryState.records;
 
   const professorNameById = new Map<string, { name: string; department: string }>();
   for (const match of matches) {
@@ -200,6 +346,59 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
     latestAt: record.selectedAt,
     remove: () => removeGrowthProjectRecord(record.topicId),
   }));
+
+  const managedAuxiliaryItems: RecordItem[] = managedAuxiliaryRecords.map((managedRecord) => {
+    const { key, kind, record } = managedRecord;
+    const remove = () => {
+      const removed = removeManagedAuxiliaryRecordFromProvider(() => window.localStorage, key);
+      if (!removed) {
+        setManagedAuxiliaryState(loadManagedAuxiliaryRecords(() => window.localStorage));
+        return false;
+      }
+      setManagedAuxiliaryState((current) => ({
+        ...current,
+        records: current.records.filter((item) => item.key !== key),
+      }));
+      return true;
+    };
+    if (kind === "research-tutorial") {
+      const conditions = isUnknownRecord(record.conditions) ? record.conditions : {};
+      const major = recordString(conditions, "major");
+      const step = recordString(record, "step");
+      const stepLabel = {
+        welcome: "시작 안내",
+        major: "학교·전공 입력",
+        mode: "탐색 방식 선택",
+        interests: "관심 분야 입력",
+        readiness: "준비 수준 확인",
+        feasibility: "실행 조건 확인",
+        review: "최종 확인",
+      }[step] ?? "프로젝트 조건 입력";
+      return {
+        id: key,
+        title: `${major || "프로젝트"} 설계 진행 중`,
+        description: `프로젝트 설계 튜토리얼 · ${stepLabel}`,
+        latestAt: null,
+        remove,
+      };
+    }
+
+    const topicId = recordString(record, "topicId");
+    const professorId = recordString(record, "professorId");
+    const topicTitle = growthProjectHistory.find((item) => item.topicId === topicId)?.title
+      || "프로젝트";
+    const professor = professorLabel(professorId);
+    const summary = recordString(record, "meetingGoal")
+      || recordString(record, "executionPlan")
+      || "교수 자문과 실행 계획을 정리한 초안";
+    return {
+      id: key,
+      title: `${topicTitle} 실행 초안`,
+      description: excerpt(`${professor.name} · ${summary}`),
+      latestAt: recordString(record, "updatedAt") || null,
+      remove,
+    };
+  });
 
   const professorItems: RecordItem[] = growthProfessorHistory.map((record) => ({
     id: `${record.source}:${record.professorId}`,
@@ -291,19 +490,6 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
     remove: () => removeGrowthNote(note.id),
   }));
 
-  const savedConversationItems: RecordItem[] = aiSavedConversations.map((conversation) => ({
-    id: conversation.id,
-    title: conversation.title,
-    description: excerpt(`${conversation.preview} · 생각 카드 ${
-      conversation.messages.filter((message) => message.role === "assistant").length
-    }개`),
-    latestAt: conversation.updatedAt,
-    remove: () => removeSavedConversation(conversation.id),
-    warning: conversation.id === aiActiveConversationId
-      ? "저장본만 삭제하며, 현재 열려 있는 대화와 성장 메모는 남아요."
-      : "이 저장본의 대화·생각 카드·지도 분기가 함께 삭제돼요.",
-  }));
-
   const categories: Category[] = [
     {
       id: "profile",
@@ -337,6 +523,17 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
       unit: "개 프로젝트",
       icon: FlaskConical,
       tone: "violet",
+    },
+    {
+      id: "project-local-drafts",
+      group: "direction",
+      label: "프로젝트 설계·실행 초안",
+      description: "아직 완료하지 않은 프로젝트 조건과 교수 자문 실행 준비",
+      details: ["진행 중인 프로젝트 설계 튜토리얼", "교수별 프로젝트 실행 계획과 질문"],
+      items: managedAuxiliaryItems,
+      unit: "개 초안",
+      icon: NotebookPen,
+      tone: "blue",
     },
     {
       id: "matches",
@@ -394,17 +591,6 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
       tone: "mint",
     },
     {
-      id: "ai-saved-conversations",
-      group: "ai",
-      label: "저장한 AI 대화",
-      description: "대화·생각 카드·지도 분기를 한 묶음으로 저장한 기록",
-      details: ["대화 원문과 생각 카드", "가지 연결과 지도 남김·제외 상태"],
-      items: savedConversationItems,
-      unit: "개 대화",
-      icon: MessageCircleMore,
-      tone: "violet",
-    },
-    {
       id: "ai-conversation",
       group: "ai",
       label: "AI 교수님 대화",
@@ -432,41 +618,52 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
   const activeCategories = categories.filter((category) => category.items.length > 0).length;
 
   const downloadBackup = () => {
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      storageNotice: "이 파일은 사용자가 현재 브라우저에 저장한 기록의 개인 백업입니다.",
-      profile,
-      growth: {
-        directionBaseline: growthDirectionBaseline,
-        projectHistory: growthProjectHistory,
-        professorHistory: growthProfessorHistory,
-      },
-      professorConnection: {
-        currentMatches: matches,
-        selectedProfessorPaper,
-        favoriteProfessorIds,
-        knockKitDrafts,
-        mentorLoopEntries,
-      },
-      questCards: cards,
-      aiProfessor: {
-        messages: aiMessages,
-        growthNotes: aiGrowthNotes,
-        mapDecisions: aiMapDecisions,
-        savedConversations: aiSavedConversations,
-        activeConversationId: aiActiveConversationId,
-      },
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `너의교수님은-내기록-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-    setDone("현재 기기에 저장된 기록을 백업 파일로 내려받았습니다.");
+    try {
+      const payload = JSON.stringify(createLocalRecordBackup(window.localStorage), null, 2);
+      const blob = new Blob([payload], { type: "application/json" });
+      if (blob.size > LOCAL_RECORD_BACKUP_MAX_BYTES) {
+        throw new Error("현재 기록이 2MB를 넘어 백업 파일로 만들 수 없습니다. 불필요한 기록을 정리한 뒤 다시 시도해 주세요.");
+      }
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `너의교수님은-내기록-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setDone("현재 기기에 저장된 기록을 백업 파일로 내려받았습니다.");
+    } catch (error) {
+      setDone(error instanceof Error ? error.message : "기록 백업 파일을 만들지 못했습니다. 다시 시도해 주세요.");
+    }
+  };
+
+  const selectBackupFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setDone(null);
+    setRestoreCandidate(null);
+    if (file.size > LOCAL_RECORD_BACKUP_MAX_BYTES) {
+      setRestoreError("백업 파일은 2MB 이하만 가져올 수 있습니다.");
+      return;
+    }
+    try {
+      setRestoreCandidate(parseLocalRecordBackup(await file.text()));
+      setRestoreError(null);
+    } catch (error) {
+      setRestoreError(error instanceof Error ? error.message : "기록 파일을 읽지 못했습니다. 다시 선택해 주세요.");
+    }
+  };
+
+  const confirmRestore = () => {
+    if (!restoreCandidate) return;
+    try {
+      restoreLocalRecordBackup(window.localStorage, restoreCandidate);
+      window.location.reload();
+    } catch (error) {
+      setRestoreError(error instanceof Error ? error.message : "기록을 복원하지 못했습니다. 다시 시도해 주세요.");
+    }
   };
 
   return (
@@ -488,10 +685,30 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
             <small>{activeCategories} / {categories.length}개 기록 종류 사용 중</small>
           </div>
         </div>
-        <button type="button" className={styles.downloadButton} onClick={downloadBackup} disabled={totalRecords === 0}>
-          <Download size={17} aria-hidden="true" />
-          기록 내려받기
-        </button>
+        <div className={styles.backupActions}>
+          <button
+            type="button"
+            className={styles.downloadButton}
+            onClick={downloadBackup}
+            disabled={!canDownloadLocalRecordBackup(totalRecords, managedAuxiliaryState)}
+          >
+            <Download size={17} aria-hidden="true" />
+            기록 내려받기
+          </button>
+          <button type="button" className={styles.restoreButton} onClick={() => backupInputRef.current?.click()}>
+            <Upload size={17} aria-hidden="true" />
+            기록 가져오기
+          </button>
+          <input
+            ref={backupInputRef}
+            className={styles.fileInput}
+            type="file"
+            accept="application/json,.json"
+            onChange={selectBackupFile}
+            tabIndex={-1}
+            aria-hidden="true"
+          />
+        </div>
       </section>
 
       <aside className={styles.localNotice}>
@@ -502,6 +719,24 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
         </div>
         <ShieldCheck size={20} aria-hidden="true" />
       </aside>
+
+      {managedAuxiliaryState.error ? (
+        <p className={styles.restoreError} role="alert">{managedAuxiliaryState.error}</p>
+      ) : null}
+
+      {restoreCandidate ? (
+        <section className={styles.restoreConfirm} role="alert">
+          <div>
+            <strong>기존 기록을 교체할까요?</strong>
+            <p>가져온 파일의 프로필·연구·퀘스트·AI 교수님·프로젝트 시작 및 실행 초안으로 현재 브라우저 기록을 모두 교체합니다. 이 작업은 되돌릴 수 없어요.</p>
+          </div>
+          <div className={styles.restoreConfirmActions}>
+            <button type="button" onClick={() => setRestoreCandidate(null)}>취소</button>
+            <button type="button" className={styles.restoreConfirmButton} onClick={confirmRestore}>기존 기록 교체</button>
+          </div>
+        </section>
+      ) : null}
+      {restoreError ? <p className={styles.restoreError} role="alert">{restoreError}</p> : null}
 
       {GROUPS.map((group) => {
         const groupedCategories = categories.filter((category) => category.group === group.id);
@@ -554,6 +789,7 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
                       aria-controls={`record-items-${category.id}`}
                       onClick={() => {
                         setDone(null);
+                        setRecordError(null);
                         setPending(null);
                         setExpandedCategory(isExpanded ? null : category.id);
                       }}
@@ -584,6 +820,7 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
                                       aria-label={`${item.title} 삭제`}
                                       onClick={() => {
                                         setDone(null);
+                                        setRecordError(null);
                                         setPending({ categoryId: category.id, itemId: item.id });
                                       }}
                                     >
@@ -602,8 +839,14 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
                                         type="button"
                                         className={styles.dangerButton}
                                         onClick={() => {
-                                          item.remove();
+                                          const removalResult = item.remove();
                                           setPending(null);
+                                          if (removalResult === false) {
+                                            setDone(null);
+                                            setRecordError(`‘${item.title}’ 항목을 삭제하지 못했습니다. 저장소 접근 상태를 확인한 뒤 다시 시도해 주세요.`);
+                                            return;
+                                          }
+                                          setRecordError(null);
                                           setDone(`‘${item.title}’ 항목만 삭제했습니다.`);
                                         }}
                                       >
@@ -630,6 +873,7 @@ export function DataControls({ showHeading = true }: { showHeading?: boolean }) 
         <Link href="/portfolio">성장과정에서 기록 보기</Link>
         <Link href="/profile">내 기본 정보 수정</Link>
       </footer>
+      {recordError ? <p className={styles.restoreError} role="alert">{recordError}</p> : null}
       {done ? <p className={styles.status} role="status">{done}</p> : null}
     </div>
   );

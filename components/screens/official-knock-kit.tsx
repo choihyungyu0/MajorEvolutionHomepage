@@ -1,92 +1,175 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BookOpenCheck,
+  BriefcaseBusiness,
   CheckCircle2,
   Copy,
   ExternalLink,
+  FlaskConical,
   GraduationCap,
+  Handshake,
+  Home,
   Mail,
-  ShieldCheck,
+  Sparkles,
   Timer,
 } from "lucide-react";
 import {
   AppShell,
   Card,
+  LinkButton,
   PageHeader,
-  PrimaryButton,
   SectionHeading,
-  StatusBanner,
   Tag,
 } from "@/components/app/primitives";
 import { SceneBanner } from "@/components/app/scene-banner";
+import { PaperReadingSteps } from "@/components/paper-reader/paper-reading-steps";
 import type { ResearchTopic } from "@/data/research-mvp";
 import { brandScene } from "@/lib/brand-assets";
+import {
+  buildEmailDraft,
+  EMAIL_DRAFT_PURPOSE_OPTIONS,
+  emailGuardStickyActions,
+  emailDraftStorageKey,
+  emailPurposeFromFirstLineTitle,
+  FIRST_QUESTION_FROM_PAPER_HREF,
+  firstQuestionForEmail,
+  MINI_TOOL_SHUFFLE_HREF,
+  MINI_TOOLS_HREF,
+  paperTitleForProfessor,
+  type EmailDraftPurpose,
+} from "@/lib/email-draft-purpose";
 import type {
   ProfessorKnockKitDraft,
   ProfessorMatch,
 } from "@/lib/professor-domain";
-import { resolveJourneyTopic } from "@/lib/research-topic-context";
+import {
+  createProfessorPaperQuestTopic,
+  resolveJourneyTopic,
+} from "@/lib/research-topic-context";
+import { resolveQuestProfessorContextMatch } from "@/lib/professor-match-state";
+import { useQuestStore } from "@/store/quest-store";
 import { useResearchStore } from "@/store/research-store";
 
-function selectedTopicFromStore(): ResearchTopic | null {
+function selectedTopicFromStore(source: "student" | "project" = "student"): ResearchTopic | null {
   const { result, selectedTopicId, professorDiscoveryTopic } = useResearchStore.getState();
-  return resolveJourneyTopic({ result, selectedTopicId, professorDiscoveryTopic });
+  return resolveJourneyTopic({
+    result,
+    selectedTopicId,
+    professorDiscoveryTopic: source === "student" ? professorDiscoveryTopic : null,
+  });
 }
 
-function createDraft(topic: ResearchTopic, match: ProfessorMatch): ProfessorKnockKitDraft {
-  const professor = match.professor;
-  const field = professor.researchFields[0] ?? "공식 프로필의 연구분야";
-  const publicationEvidence = professor.publications.find((publication) =>
-    match.evidenceIds.includes(publication.id));
-  const readingQuestion = publicationEvidence
-    ? `공식 프로필에 소개된 「${publicationEvidence.title}」의 관점을 제 연구질문에 연결할 때 가장 먼저 구분해야 할 개념은 무엇인가요?`
-    : "공식 프로필에 논문 목록이 노출되지 않았습니다. 면담 전 읽어야 할 공개 자료나 논문을 한 편 추천해 주실 수 있을까요?";
-  const introduction = `안녕하세요. 저는 ${topic.title}을 주제로 작은 연구를 준비하고 있습니다. 현재 연구질문은 “${topic.question}”이며, ${topic.methodDetail} 방식으로 시작하려 합니다. 교수님의 공식 프로필에서 ${field} 연구분야를 확인해 주제의 범위와 방법을 점검받고 싶어 찾아뵙고자 합니다.`;
-  return {
-    topicId: topic.id,
-    professorId: professor.id,
-    introduction,
-    questions: [
-      `${field} 관점에서 “${topic.question}”의 범위를 더 명확하게 줄이려면 무엇을 먼저 구분해야 할까요?`,
-      `${topic.methodDetail}을 적용할 때 학부생이 가장 먼저 확인해야 할 데이터·방법상의 오류는 무엇인가요?`,
-      readingQuestion,
-    ],
-    agenda: "0~3분: 학생·주제 소개\n3~8분: 연구질문과 범위 확인\n8~14분: 데이터·방법 점검\n14~18분: 먼저 읽을 자료와 다음 행동 확인\n18~20분: 제가 할 일과 후속 확인 시점 정리",
-    emailDraft: `[면담 요청] ${topic.title} 연구주제 관련 조언을 부탁드립니다\n\n${professor.name} ${professor.title}님께,\n\n안녕하세요. ${topic.title}을 주제로 학부 연구를 준비하고 있는 학생입니다.\n교수님의 대학 공식 프로필에서 ${field} 연구분야를 확인하고, 제 연구질문과 방법을 더 정확히 다듬기 위해 조언을 부탁드리고자 합니다.\n\n현재 질문: ${topic.question}\n준비한 내용: ${topic.methodDetail}\n면담에서 확인하고 싶은 점: 연구범위, 데이터·방법, 먼저 읽을 공개 자료\n\n가능하시다면 20분 정도 면담을 요청드려도 될지 여쭙습니다. 교수님의 가능한 방식과 시간을 따르겠습니다.\n\n감사합니다.`,
-    updatedAt: new Date().toISOString(),
-  };
-}
+const PURPOSE_ICONS = {
+  career: GraduationCap,
+  "research-interest": BookOpenCheck,
+  "project-review": FlaskConical,
+  mentoring: Handshake,
+} as const;
+const [HOME_ACTION, FEEDBACK_ACTION] = emailGuardStickyActions();
 
 export function OfficialKnockKitScreen({
   topic,
   match,
+  journeySource = null,
 }: {
   topic: ResearchTopic;
   match: ProfessorMatch;
+  journeySource?: "paper" | "paper-first-line" | "first-line" | null;
 }) {
-  const router = useRouter();
-  const key = `${topic.id}:${match.professor.id}`;
-  const storedDraft = useResearchStore((state) => state.knockKitDrafts[key]);
-  const saveDraft = useResearchStore((state) => state.saveKnockKitDraft);
-  const generatedDraft = useMemo(() => createDraft(topic, match), [topic, match]);
-  const draft = storedDraft ?? generatedDraft;
-  const [copyStatus, setCopyStatus] = useState("");
   const professor = match.professor;
-  const publicationEvidence = professor.publications.find((publication) =>
-    match.evidenceIds.includes(publication.id));
+  const hasSelectedProject = useResearchStore((state) => Boolean(state.selectedTopicId));
+  const selectedProfessorPaper = useResearchStore((state) => state.selectedProfessorPaper);
+  const questCards = useQuestStore((state) => state.cards);
+  const saveDraft = useResearchStore((state) => state.saveKnockKitDraft);
+  const firstLineCard = questCards.find((card) => (
+    card.tool === "first-line"
+    && card.professorId === professor.id
+    && card.topicId === topic.id
+  ));
+  const firstLine = firstLineCard
+    ? firstQuestionForEmail(firstLineCard.body, firstLineCard.title)
+    : "";
+  const [purpose, setPurpose] = useState<EmailDraftPurpose>(
+    () => (journeySource === "first-line" || journeySource === "paper-first-line") && firstLineCard
+      ? emailPurposeFromFirstLineTitle(firstLineCard.title) ?? (hasSelectedProject ? "project-review" : "career")
+      : hasSelectedProject ? "project-review" : "career",
+  );
+  const [includePaper, setIncludePaper] = useState(false);
+  const [includeFirstLine, setIncludeFirstLine] = useState(
+    () => (journeySource === "first-line" || journeySource === "paper-first-line") && Boolean(firstLine),
+  );
+  const [firstLineApplied, setFirstLineApplied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState("");
+  const paperTitle = paperTitleForProfessor(selectedProfessorPaper, professor.id);
+  const key = emailDraftStorageKey(
+    topic.id,
+    professor.id,
+    purpose,
+    includePaper,
+    includeFirstLine && Boolean(firstLine),
+  );
+  const legacyKey = `${topic.id}:${professor.id}`;
+  const preFirstLineKey = `${topic.id}:${professor.id}:email:${purpose}:${includePaper ? "paper" : "no-paper"}`;
+  const storedDraft = useResearchStore((state) => state.knockKitDrafts[key]);
+  const preFirstLineDraft = useResearchStore((state) => state.knockKitDrafts[preFirstLineKey]);
+  const legacyDraft = useResearchStore((state) => state.knockKitDrafts[legacyKey]);
+  const researchField = professor.researchFields[0] ?? "공식 프로필의 연구분야";
+  const generatedDraft = useMemo(() => buildEmailDraft({
+    purpose,
+    includePaper: includePaper && Boolean(paperTitle),
+    includeFirstLine: includeFirstLine && Boolean(firstLine),
+    topicId: topic.id,
+    topicTitle: topic.title,
+    topicQuestion: topic.question,
+    methodDetail: topic.methodDetail,
+    professorId: professor.id,
+    professorName: professor.name,
+    professorTitle: professor.title,
+    researchField,
+    paperTitle,
+    firstLine,
+  }), [
+    firstLine,
+    includeFirstLine,
+    includePaper,
+    paperTitle,
+    professor.id,
+    professor.name,
+    professor.title,
+    purpose,
+    researchField,
+    topic.id,
+    topic.methodDetail,
+    topic.question,
+    topic.title,
+  ]);
+  const reusableLegacyDraft = !includeFirstLine
+    ? preFirstLineDraft ?? (purpose === "project-review" && !includePaper ? legacyDraft : undefined)
+    : undefined;
+  const draft = storedDraft ?? reusableLegacyDraft ?? generatedDraft;
 
   const updateDraft = (patch: Partial<ProfessorKnockKitDraft>) => {
     saveDraft(key, { ...draft, ...patch, updatedAt: new Date().toISOString() });
   };
 
   useEffect(() => {
-    if (!storedDraft) saveDraft(key, generatedDraft);
-  }, [generatedDraft, key, saveDraft, storedDraft]);
+    if (!storedDraft) saveDraft(key, draft);
+  }, [draft, key, saveDraft, storedDraft]);
+
+  useEffect(() => {
+    if (
+      (journeySource !== "first-line" && journeySource !== "paper-first-line")
+      || !firstLineCard
+      || firstLineApplied
+    ) return;
+    setPurpose(emailPurposeFromFirstLineTitle(firstLineCard.title) ?? (hasSelectedProject ? "project-review" : "career"));
+    setIncludeFirstLine(true);
+    setFirstLineApplied(true);
+  }, [firstLineApplied, firstLineCard, hasSelectedProject, journeySource]);
 
   const copyEmail = async () => {
     try {
@@ -100,24 +183,157 @@ export function OfficialKnockKitScreen({
   return (
     <AppShell
       title="메일 흑역사 방지기"
-      backHref="/quest"
+      backHref={journeySource === "paper-first-line"
+        ? "/quest/first-line?from=paper"
+        : journeySource === "first-line"
+          ? "/quest/first-line"
+          : journeySource === "paper"
+            ? "/paper/reader?mode=bite&source=favorites&step=card"
+            : "/quest"}
       stickyAction={(
-        <PrimaryButton onClick={() => router.push("/mentor-loop")}>
-          면담 후 피드백 기록 <ArrowRight size={17} />
-        </PrimaryButton>
+        <div className="knock-kit-sticky-actions">
+          <LinkButton href={HOME_ACTION.href} secondary>
+            <Home size={17} aria-hidden="true" /> {HOME_ACTION.label}
+          </LinkButton>
+          <LinkButton href={FEEDBACK_ACTION.href}>
+            {FEEDBACK_ACTION.label} <ArrowRight size={17} aria-hidden="true" />
+          </LinkButton>
+        </div>
       )}
     >
+      {journeySource === "paper" || journeySource === "paper-first-line"
+        ? <PaperReadingSteps current={5} />
+        : null}
       <SceneBanner
         scene={brandScene.emailGuard}
-        alt="보내기 전 메일 초안을 다시 읽어 보는 장면"
+        alt="노트북에서 면담 요청 메일 초안과 체크리스트를 확인하는 장면"
         eyebrow={`${professor.name} ${professor.title} · ${professor.university}`}
         title="준비된 상태로 면담을 요청하세요"
-        description="공식 프로필 근거와 선택한 연구주제를 바탕으로 소개·질문·안건·이메일을 한곳에서 준비합니다."
+        description="진로·연구·프로젝트·멘토링 중 목적을 고르고, 논문 내용은 원할 때만 포함해 초안을 준비합니다."
         priority
       />
-      <StatusBanner icon={ShieldCheck} title="자동 발송하지 않습니다" tone="lavender">
-        이메일과 질문은 초안입니다. 사용자가 검토한 뒤 복사하거나 대학 공식 페이지를 직접 엽니다.
-      </StatusBanner>
+      <SectionHeading
+        title="어떤 목적으로 메일을 쓰나요?"
+        description="목적마다 초안을 따로 저장하므로 버튼을 바꿔도 수정한 내용이 남아요."
+      />
+      <div className="email-purpose-grid" role="group" aria-label="이메일 작성 목적">
+        {EMAIL_DRAFT_PURPOSE_OPTIONS.map((option) => {
+          const Icon = PURPOSE_ICONS[option.id];
+          const selected = purpose === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              className={selected ? "email-purpose-option is-selected" : "email-purpose-option"}
+              aria-pressed={selected}
+              onClick={() => {
+                setPurpose(option.id);
+                setCopyStatus("");
+              }}
+            >
+              <span><Icon size={20} aria-hidden="true" /></span>
+              <strong>{option.label}</strong>
+              <p>{option.description}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      <SectionHeading
+        title="논문 내용을 메일에 포함할까요?"
+        description="논문을 읽지 않은 진로 상담도 가능합니다. 선택한 교수님의 논문만 직접 선택해 넣어요."
+      />
+      <Card className="email-paper-choice">
+        <div className="email-paper-choice__intro">
+          <span><BookOpenCheck size={20} aria-hidden="true" /></span>
+          <div>
+            <strong>{paperTitle ?? "선택한 논문이 없어요"}</strong>
+            <p>
+              {paperTitle
+                ? "포함 O를 고르면 논문 제목과 관심 이유가 현재 목적의 초안에 반영됩니다."
+                : "논문 없이 작성하거나, 관심 교수님의 공식 논문을 먼저 선택할 수 있어요."}
+            </p>
+          </div>
+        </div>
+        <div className="email-paper-choice__options" role="group" aria-label="논문 내용 포함 여부">
+          <button
+            type="button"
+            className={!includePaper ? "is-selected" : undefined}
+            aria-pressed={!includePaper}
+            onClick={() => {
+              setIncludePaper(false);
+              setCopyStatus("");
+            }}
+          >
+            논문 내용 포함 X
+          </button>
+          <button
+            type="button"
+            className={includePaper ? "is-selected" : undefined}
+            aria-pressed={includePaper}
+            disabled={!paperTitle}
+            onClick={() => {
+              setIncludePaper(true);
+              setCopyStatus("");
+            }}
+          >
+            논문 내용 포함 O
+          </button>
+        </div>
+        {!paperTitle ? (
+          <Link href="/paper/reader?mode=bite&source=favorites">
+            관심 교수님의 논문 선택하기 <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+        ) : null}
+      </Card>
+
+      <SectionHeading
+        title="준비한 첫 질문을 메일에 이어 쓸까요?"
+        description="첫 질문을 고르지 않았거나 단순 상담 메일을 원하면 포함하지 않아도 됩니다."
+      />
+      <Card className="email-paper-choice email-first-line-choice">
+        <div className="email-paper-choice__intro">
+          <span><Sparkles size={20} aria-hidden="true" /></span>
+          <div>
+            <strong>{firstLine || "저장한 첫 질문이 없어요"}</strong>
+            <p>
+              {firstLine
+                ? "포함 O를 고르면 이 질문이 메일 본문과 면담 질문 목록의 첫 번째에 이어집니다."
+                : "목적을 고르고 첫 질문을 만든 뒤 현재 메일에 바로 이어 쓸 수 있어요."}
+            </p>
+          </div>
+        </div>
+        <div className="email-paper-choice__options" role="group" aria-label="첫 질문 포함 여부">
+          <button
+            type="button"
+            className={!includeFirstLine ? "is-selected" : undefined}
+            aria-pressed={!includeFirstLine}
+            onClick={() => {
+              setIncludeFirstLine(false);
+              setCopyStatus("");
+            }}
+          >
+            첫 질문 포함 X
+          </button>
+          <button
+            type="button"
+            className={includeFirstLine ? "is-selected" : undefined}
+            aria-pressed={includeFirstLine}
+            disabled={!firstLine}
+            onClick={() => {
+              setIncludeFirstLine(true);
+              setCopyStatus("");
+            }}
+          >
+            첫 질문 포함 O
+          </button>
+        </div>
+        {!firstLine ? (
+          <Link href={FIRST_QUESTION_FROM_PAPER_HREF}>
+            목적별 첫 질문 만들기 <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+        ) : null}
+      </Card>
 
       <SectionHeading title="왜 이 교수인지" />
       <Card className="knock-kit-reason">
@@ -125,24 +341,6 @@ export function OfficialKnockKitScreen({
         <p>{match.reason}</p>
         <small>근거 ID: {match.evidenceIds.join(" · ")}</small>
       </Card>
-
-      <SectionHeading title="먼저 읽을 공식 자료" />
-      {publicationEvidence ? (
-        <Card className="knock-kit-reading">
-          <BookOpenCheck size={20} />
-          <div>
-            <h3>{publicationEvidence.title}</h3>
-            <p>{publicationEvidence.publicationType} · {publicationEvidence.publishedDate ?? "발행일 미기재"}</p>
-            <small>이 제목과 서지정보는 대학 공식 프로필 노출 목록에서만 가져왔습니다. 원문 내용을 읽었다고 간주하지 않습니다.</small>
-          </div>
-        </Card>
-      ) : (
-        <StatusBanner icon={BookOpenCheck} title="공식 프로필 논문 근거 없음" tone="warning">
-          {professor.publicationsStatus === "NOT_LISTED_ON_OFFICIAL_PROFILE"
-            ? "공식 프로필에 논문 목록이 노출되지 않았습니다. 면담 질문으로 먼저 읽을 공개 자료를 요청하도록 구성했습니다."
-            : "선택 주제와 제목 수준에서 연결되는 공식 프로필 논문을 찾지 못했습니다. 관련성을 추정해 제시하지 않습니다."}
-        </StatusBanner>
-      )}
 
       <SectionHeading title="60초 자기소개" />
       <textarea
@@ -196,14 +394,34 @@ export function OfficialKnockKitScreen({
         />
         {copyStatus && <p role="status">{copyStatus}</p>}
       </Card>
+      <p className="email-scope-note">이메일 초안은 이 화면에 저장되며 자동 전송되지 않아요.</p>
+
+      <section className="email-followup-tools" aria-labelledby="email-followup-tools-title">
+        <div>
+          <span><Sparkles size={20} aria-hidden="true" /></span>
+          <div>
+            <small>메일 다음 준비</small>
+            <h2 id="email-followup-tools-title">첫 질문도 가볍게 준비해 볼까요?</h2>
+            <p>첫 질문을 셔플하거나, 교수님과 친해지기 미니도구에서 논문 리액션·용어·키워드를 정리해 보세요.</p>
+          </div>
+        </div>
+        <div className="email-followup-tools__actions">
+          <Link href={MINI_TOOL_SHUFFLE_HREF}>
+            첫 질문 셔플 해보기 <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+          <Link href={MINI_TOOLS_HREF}>
+            미니도구 전체 보기
+          </Link>
+        </div>
+      </section>
 
       <SectionHeading title="연구예절 체크리스트" />
       <Card className="knock-kit-etiquette">
         {[
           "공식 프로필과 공개 자료를 먼저 확인했다.",
           "20분 안에 답할 수 있는 질문 3개만 준비했다.",
-          "교수의 면담·지도 가능성을 당연하게 전제하지 않는다.",
-          "미공개 아이디어나 면담 메모를 허락 없이 공유하지 않는다.",
+          "면담 시간과 방식은 교수님의 안내에 맞춘다.",
+          "공유 가능한 자료만 골라 질문에 활용한다.",
           "면담 후 감사와 내가 하기로 한 일을 짧게 정리한다.",
         ].map((item) => (
           <p key={item}><CheckCircle2 size={17} /> {item}</p>
@@ -224,9 +442,18 @@ export function OfficialKnockKitScreen({
 
 export function getOfficialQuestContext(): { topic: ResearchTopic; match: ProfessorMatch } | null {
   const state = useResearchStore.getState();
-  const topic = selectedTopicFromStore();
-  const match = state.professorMatches.find(
-    (item) => item.professor.id === state.selectedProfessorId,
-  );
-  return topic && match ? { topic, match } : null;
+  const selectedPaper = state.selectedProfessorPaper;
+  const resolved = resolveQuestProfessorContextMatch({
+    studentMatches: state.professorMatches,
+    selectedStudentProfessorId: state.selectedProfessorId,
+    favoriteStudentProfessorIds: state.favoriteProfessorIds,
+    projectMatches: state.projectProfessorMatches,
+    selectedProjectProfessorId: state.selectedProjectProfessorId,
+    selectedProfessorPaper: selectedPaper,
+  });
+  if (!resolved) return null;
+  const topic = resolved.source === "paper" && selectedPaper
+    ? createProfessorPaperQuestTopic(selectedPaper)
+    : selectedTopicFromStore(resolved.source === "project" ? "project" : "student");
+  return topic ? { topic, match: resolved.match } : null;
 }

@@ -4,15 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronRight, CompassIcon, FlaskConical, GraduationCap, Home, MessagesSquare, TrendingUp, UserRound } from "lucide-react";
-import {
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type RefObject,
-} from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { guideCharacter } from "@/lib/brand-assets";
 import {
@@ -27,6 +19,7 @@ import {
   SERVICE_NAV_GUIDE_QUERY_PARAM,
   SERVICE_NAV_GUIDE_QUERY_VALUE,
   SERVICE_NAV_GUIDE_STORAGE_KEY,
+  projectExecutionTabHref,
 } from "@/lib/service-navigation";
 import { useProfileStore } from "@/store/profile-store";
 import { useResearchStore } from "@/store/research-store";
@@ -45,8 +38,8 @@ export const NAV_ITEMS = [
   { href: "/home", section: "/home", label: "홈", shortLabel: "홈", icon: Home },
   { href: "/home?professor=quick", section: "/professors", label: "교수 매칭", shortLabel: "매칭", icon: CompassIcon },
   { href: "/quest", section: "/quest", label: "교수 만남 준비", shortLabel: "만남", icon: MessagesSquare },
-  { href: "/home?project=quick", section: "/research", label: "AI 프로젝트 설계", shortLabel: "프로젝트", icon: FlaskConical },
-  { href: "/project-professors", section: "/project-professors", label: "맞춤 교수 추천", shortLabel: "추천", icon: GraduationCap },
+  { href: "/research", section: "/research", label: "AI 프로젝트 설계", shortLabel: "프로젝트", icon: FlaskConical },
+  { href: "/project-professors", section: "/project-professors", label: "프로젝트 실행", shortLabel: "실행", icon: GraduationCap },
   { href: "/portfolio", section: "/portfolio", label: "나의 성장과정", shortLabel: "성장", icon: TrendingUp },
 ] as const;
 
@@ -87,43 +80,28 @@ function useProfessorTabHref() {
   return canOpenProfessorHome ? "/professors" : "/home?professor=quick";
 }
 
-function useProjectTabHref(): "/home?project=quick" | "/research" | "/co-design" | "/result" {
+function useProjectExecutionTabHref(): "/project-professors" | "/project-execution" {
   const hasHydrated = useResearchStore((state) => state.hasHydrated);
-  const result = useResearchStore((state) => state.result);
-  const ideaMode = useResearchStore((state) => state.ideaMode);
-  const conditions = useResearchStore((state) => state.conditions);
-  const hasSavedDraft = Boolean(
-    ideaMode
-    || conditions.majorArea
-    || conditions.major
-    || conditions.interests.length
-    || conditions.methods.length,
-  );
-  const hasCompleteSetup = Boolean(
-    ideaMode
-    && conditions.school.trim()
-    && conditions.majorArea
-    && conditions.major?.trim()
-    && conditions.interests.length
-    && conditions.experience
-    && conditions.methods.length
-    && conditions.period
-    && conditions.dataAccess,
-  );
-
-  if (!hasHydrated) return "/home?project=quick";
-  if (result) return "/result";
-  if (hasCompleteSetup) return "/co-design";
-  return hasSavedDraft ? "/research" : "/home?project=quick";
+  const selectedTopicId = useResearchStore((state) => state.selectedTopicId);
+  const projectProfessorMatchTopicId = useResearchStore((state) => state.projectProfessorMatchTopicId);
+  const selectedProjectProfessorId = useResearchStore((state) => state.selectedProjectProfessorId);
+  const projectProfessorMatches = useResearchStore((state) => state.projectProfessorMatches);
+  return projectExecutionTabHref({
+    hasHydrated,
+    selectedTopicId,
+    projectProfessorMatchTopicId,
+    selectedProjectProfessorId,
+    availableProfessorIds: projectProfessorMatches.map((match) => match.professor.id),
+  });
 }
 
 function navigationHref(
   item: (typeof NAV_ITEMS)[number],
   professorTabHref: "/professors" | "/home?professor=quick",
-  projectTabHref: "/home?project=quick" | "/research" | "/co-design" | "/result",
+  projectExecutionHref: "/project-professors" | "/project-execution",
 ) {
   if (item.section === "/professors") return professorTabHref;
-  if (item.section === "/research") return projectTabHref;
+  if (item.section === "/project-professors") return projectExecutionHref;
   return item.href;
 }
 
@@ -142,94 +120,6 @@ function markNavigationGuideOpen() {
       document.documentElement.removeAttribute("data-service-nav-guide-open");
     }
   };
-}
-
-function useNavigationGuideModal({
-  open,
-  onClose,
-  dialogRef,
-  viewport,
-}: {
-  open: boolean;
-  onClose: () => void;
-  dialogRef: RefObject<HTMLElement | null>;
-  viewport: "mobile" | "desktop";
-}) {
-  useEffect(() => {
-    if (!open) return;
-
-    const releaseGuideOpen = markNavigationGuideOpen();
-    const appViewport = document.querySelector<HTMLElement>(".app-viewport");
-    const inertTargets = viewport === "desktop"
-      ? appViewport ? [appViewport] : []
-      : Array.from(document.querySelectorAll<HTMLElement>(
-          ".app-viewport > header, .app-viewport > main, .app-viewport > .sticky-action",
-        ));
-    const previousInert = inertTargets.map((element) => [element, element.inert] as const);
-    inertTargets.forEach((element) => { element.inert = true; });
-
-    const previousBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const focusFrame = window.requestAnimationFrame(() => {
-      dialogRef.current?.querySelector<HTMLElement>("button.is-primary, button")?.focus();
-    });
-
-    const handleKeys = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== "Tab") return;
-
-      const focusable = Array.from(
-        dialogRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      ).filter((element) => !element.hasAttribute("hidden"));
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (!dialogRef.current?.contains(document.activeElement)) {
-        event.preventDefault();
-        (event.shiftKey ? last : first).focus();
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeys);
-    return () => {
-      releaseGuideOpen();
-      window.cancelAnimationFrame(focusFrame);
-      previousInert.forEach(([element, inert]) => { element.inert = inert; });
-      document.body.style.overflow = previousBodyOverflow;
-      window.removeEventListener("keydown", handleKeys);
-    };
-  }, [dialogRef, onClose, open, viewport]);
-}
-
-function useNavigationGuideStepFocus({
-  open,
-  step,
-  dialogRef,
-}: {
-  open: boolean;
-  step: number;
-  dialogRef: RefObject<HTMLElement | null>;
-}) {
-  useEffect(() => {
-    if (!open) return;
-    const frame = window.requestAnimationFrame(() => {
-      dialogRef.current?.querySelector<HTMLElement>("button.is-primary, button")?.focus();
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [dialogRef, open, step]);
 }
 
 function hasRequestedNavigationGuide(pathname: string) {
@@ -255,10 +145,9 @@ function ServiceBottomNavContent() {
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideStep, setGuideStep] = useState(0);
   const forcedGuideRef = useRef(false);
-  const guideDialogRef = useRef<HTMLElement>(null);
   const guide = SERVICE_GUIDE_STEPS[guideStep];
   const professorTabHref = useProfessorTabHref();
-  const projectTabHref = useProjectTabHref();
+  const projectExecutionHref = useProjectExecutionTabHref();
 
   const finishGuide = useCallback(() => {
     forcedGuideRef.current = false;
@@ -328,13 +217,19 @@ function ServiceBottomNavContent() {
     return () => window.removeEventListener(SERVICE_NAV_GUIDE_EVENT, openGuide);
   }, []);
 
-  useNavigationGuideModal({
-    open: guideOpen,
-    onClose: finishGuide,
-    dialogRef: guideDialogRef,
-    viewport: "mobile",
-  });
-  useNavigationGuideStepFocus({ open: guideOpen, step: guideStep, dialogRef: guideDialogRef });
+  useEffect(() => {
+    if (!guideOpen) return;
+    const closeWithEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") finishGuide();
+    };
+    window.addEventListener("keydown", closeWithEscape);
+    return () => window.removeEventListener("keydown", closeWithEscape);
+  }, [finishGuide, guideOpen]);
+
+  useEffect(() => {
+    if (!guideOpen) return;
+    return markNavigationGuideOpen();
+  }, [guideOpen]);
 
   const goToNextGuideStep = () => {
     if (guideStep === SERVICE_GUIDE_STEPS.length - 1) {
@@ -356,7 +251,7 @@ function ServiceBottomNavContent() {
     >
       {NAV_ITEMS.map((item, index) => {
         const Icon = item.icon;
-        const href = navigationHref(item, professorTabHref, projectTabHref);
+        const href = navigationHref(item, professorTabHref, projectExecutionHref);
         const isActive = active === item.section;
         const journey = navigationJourney(item.section);
         const isGuideTarget = guideOpen && guideStep === index;
@@ -377,10 +272,8 @@ function ServiceBottomNavContent() {
             aria-current={isActive ? "page" : undefined}
             aria-label={journey ? `${item.label}, ${journey.label} ${journey.step}단계` : item.label}
             aria-describedby={isGuideTarget ? "bottom-nav-guide-description" : undefined}
-            aria-disabled={guideOpen || undefined}
-            tabIndex={guideOpen ? -1 : undefined}
-            onClick={(event) => {
-              if (guideOpen) event.preventDefault();
+            onClick={() => {
+              if (guideOpen) finishGuide();
             }}
           >
             {journey?.step === 1 ? (
@@ -393,12 +286,11 @@ function ServiceBottomNavContent() {
       })}
       {guideOpen ? (
         <aside
-          ref={guideDialogRef}
           key={guide.label}
           className="service-bottom-nav__guide"
           style={{ "--nav-guide-anchor": guide.anchor } as CSSProperties}
           role="dialog"
-          aria-modal="true"
+          aria-modal="false"
           aria-label="하단 메뉴 사용 가이드"
           aria-live="polite"
         >
@@ -471,10 +363,9 @@ function SideNavContent() {
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideStep, setGuideStep] = useState(0);
   const forcedGuideRef = useRef(false);
-  const guideDialogRef = useRef<HTMLElement>(null);
   const guide = SERVICE_GUIDE_STEPS[guideStep];
   const professorTabHref = useProfessorTabHref();
-  const projectTabHref = useProjectTabHref();
+  const projectExecutionHref = useProjectExecutionTabHref();
   const hasProfileHydrated = useProfileStore((state) => state.hasHydrated);
   const hasEnteredService = useProfileStore((state) => state.hasEnteredService);
   const markServiceEntered = useProfileStore((state) => state.markServiceEntered);
@@ -550,13 +441,18 @@ function SideNavContent() {
     return () => window.removeEventListener(SERVICE_NAV_GUIDE_EVENT, openGuide);
   }, []);
 
-  useNavigationGuideModal({
-    open: guideOpen,
-    onClose: finishGuide,
-    dialogRef: guideDialogRef,
-    viewport: "desktop",
-  });
-  useNavigationGuideStepFocus({ open: guideOpen, step: guideStep, dialogRef: guideDialogRef });
+  useEffect(() => {
+    if (!guideOpen) return;
+    const releaseGuideOpen = markNavigationGuideOpen();
+    const closeWithEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") finishGuide();
+    };
+    window.addEventListener("keydown", closeWithEscape);
+    return () => {
+      releaseGuideOpen();
+      window.removeEventListener("keydown", closeWithEscape);
+    };
+  }, [finishGuide, guideOpen]);
 
   useEffect(() => {
     if (!guideOpen) return;
@@ -587,7 +483,7 @@ function SideNavContent() {
       <ul>
         {NAV_ITEMS.map((item, index) => {
           const Icon = item.icon;
-          const href = navigationHref(item, professorTabHref, projectTabHref);
+          const href = navigationHref(item, professorTabHref, projectExecutionHref);
           const isActive = active === item.section;
           const journey = navigationJourney(item.section);
           const isGuideTarget = guideOpen && guideStep === index;
@@ -624,10 +520,9 @@ function SideNavContent() {
               </Link>
               {isGuideTarget ? (
                 <aside
-                  ref={guideDialogRef}
                   className="side-nav__guide"
                   role="dialog"
-                  aria-modal="true"
+                  aria-modal="false"
                   aria-label="주요 메뉴 사용 가이드"
                   aria-live="polite"
                 >
@@ -680,7 +575,6 @@ function SideNavContent() {
         })}
       </ul>
       <div className="side-nav__footer">
-        <p className="side-nav__note">연락과 면담은 학생이 직접 진행합니다.</p>
         <Link
           href="/profile"
           className={`side-nav__profile${active === "/profile" ? " is-active" : ""}`}

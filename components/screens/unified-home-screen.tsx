@@ -31,7 +31,8 @@ import { HomeAiMapPreview } from "@/components/screens/home-ai-map-preview";
 import { ProfessorQuickStartPanel } from "@/components/screens/professor-quick-start-panel";
 import { ProjectQuickStartPanel } from "@/components/screens/project-quick-start-panel";
 import type { ProfessorAcademicTaxonomy } from "@/lib/professor-academic-taxonomy";
-import { resolveJourneyTopic } from "@/lib/research-topic-context";
+import { getJourneyProgress } from "@/lib/journey-progress";
+import { useQuestContext } from "@/lib/quest-context";
 import {
   cardsForTool,
   useQuestStore,
@@ -143,12 +144,9 @@ export function UnifiedHomeScreen({
   const quickPanelOpen = professorQuickOpen || projectQuickOpen;
   const hasResearchHydrated = useResearchStore((state) => state.hasHydrated);
   const result = useResearchStore((state) => state.result);
-  const selectedTopicId = useResearchStore((state) => state.selectedTopicId);
   const matches = useResearchStore((state) => state.professorMatches);
   const professorMatchStatus = useResearchStore((state) => state.professorMatchStatus);
   const professorMatchTopicId = useResearchStore((state) => state.professorMatchTopicId);
-  const selectedProfessorId = useResearchStore((state) => state.selectedProfessorId);
-  const favoriteProfessorIds = useResearchStore((state) => state.favoriteProfessorIds);
   const discoverySummary = useResearchStore((state) => state.professorDiscoverySummary);
   const discoveryTopic = useResearchStore((state) => state.professorDiscoveryTopic);
   const selectedPaper = useResearchStore((state) => state.selectedProfessorPaper);
@@ -156,6 +154,7 @@ export function UnifiedHomeScreen({
   const mentorLoopEntries = useResearchStore((state) => state.mentorLoopEntries);
   const hasQuestHydrated = useQuestStore((state) => state.hasHydrated);
   const questCards = useQuestStore((state) => state.cards);
+  const { topic, match: connectedProfessor } = useQuestContext({ includeFavoriteFallback: false });
   const hasStoredProfessorPitch = professorMatchStatus === "success"
     && matches.length > 0
     && discoveryTopic !== null
@@ -175,36 +174,21 @@ export function UnifiedHomeScreen({
     );
   }
 
-  const connectedProfessor = matches.find(
-    (match) => match.professor.id === selectedProfessorId,
-  ) ?? matches.find(
-    (match) => favoriteProfessorIds.includes(match.professor.id),
-  ) ?? null;
-  const topic = resolveJourneyTopic({
-    result,
-    selectedTopicId,
-    professorDiscoveryTopic: discoveryTopic,
+  const journeyProgress = getJourneyProgress({
+    topicId: topic?.id ?? null,
+    professorId: connectedProfessor?.professor.id ?? null,
+    cards: questCards,
+    emailDrafts: knockKitDrafts,
+    mentorEntries: mentorLoopEntries,
   });
-  const journeyKey = connectedProfessor && topic
-    ? `${topic.id}:${connectedProfessor.professor.id}`
-    : null;
-
-  const paperCards = cardsForTool(questCards, "paper-bite");
-  const questionCards = cardsForTool(questCards, "first-line");
-  const emailCards = cardsForTool(questCards, "email-guard");
-  const meetingCards = cardsForTool(questCards, "next-seed");
-  const hasPaper = Boolean(selectedPaper || paperCards.length);
-  const hasQuestion = questionCards.length > 0;
-  const hasEmail = Boolean(
-    emailCards.length || (journeyKey && knockKitDrafts[journeyKey]),
-  );
-  const hasMeeting = Boolean(
-    meetingCards.length || (journeyKey && mentorLoopEntries[journeyKey]),
-  );
+  const hasPaper = journeyProgress.before.paper > 0;
+  const hasQuestion = journeyProgress.before.question > 0;
+  const hasEmail = journeyProgress.before.email > 0;
+  const hasMeeting = journeyProgress.after.total > 0;
   const hasConcernContext = Boolean(result || discoveryTopic || discoverySummary);
 
   let nextAction: NextAction;
-  if (matches.length === 0 && !hasConcernContext) {
+  if (!connectedProfessor && matches.length === 0 && !hasConcernContext) {
     nextAction = {
       heading: "전공과 관심 분야부터 가볍게 설정해 볼까요?",
       supporting: "가입 없이 두 단계 기본 설정을 마치면 첫 교수 연결을 시작할 수 있어요.",
@@ -214,7 +198,7 @@ export function UnifiedHomeScreen({
       href: "/home?professor=quick",
       icon: Compass,
     };
-  } else if (matches.length === 0) {
+  } else if (!connectedProfessor && matches.length === 0) {
     nextAction = {
       heading: "이제 누구와 이야기할지 찾아볼까요?",
       supporting: "정리한 고민을 학교 공식 교수 정보와 연결해 첫 대화 후보를 찾아요.",
@@ -227,7 +211,7 @@ export function UnifiedHomeScreen({
   } else if (!connectedProfessor) {
     nextAction = {
       heading: "첫 대화를 나눌 교수를 선택해 볼까요?",
-      supporting: "순위가 아니라, 내 고민과 연결된 이유와 직접 확인할 점을 비교해 보세요.",
+      supporting: "순위보다 내 고민과 연결된 이유와 함께 살펴볼 정보를 비교해 보세요.",
       title: `교수 ${matches.length}인 피칭 살펴보기`,
       description: "학교 공식 정보에서 확인한 연결 근거를 읽고 첫 교수를 선택해요.",
       cta: "교수 피칭 보기",
@@ -292,7 +276,7 @@ export function UnifiedHomeScreen({
       label: "교수 선택",
       shortLabel: "교수 선택",
       href: connectedProfessor
-        ? `/professors/${connectedProfessor.professor.id}`
+        ? `/professors/${connectedProfessor.professor.id}?from=home`
         : matches.length
           ? "/professors/pitch"
           : "/home?professor=quick",
@@ -434,7 +418,7 @@ export function UnifiedHomeScreen({
                   </div>
                 </div>
                 <div className={styles.professorActions}>
-                  <Link href={`/professors/${connectedProfessor.professor.id}`}>교수 정보 보기</Link>
+                  <Link href={`/professors/${connectedProfessor.professor.id}?from=home`}>교수 정보 보기</Link>
                   <Link href="/professors/pitch">다른 교수도 보기</Link>
                 </div>
               </>
@@ -447,18 +431,15 @@ export function UnifiedHomeScreen({
                   height={128}
                   alt=""
                   aria-hidden="true"
+                  priority
                 />
                 <div>
                   <h3>아직 선택한 교수가 없어요</h3>
                   <p>공식 근거를 비교한 뒤 첫 대화를 준비할 교수를 선택해요.</p>
                 </div>
-                {matches.length ? (
-                  <Link href="/professors/pitch">
-                    교수 피칭 보기 <ChevronRight size={16} />
-                  </Link>
-                ) : (
-                  <p className={styles.professorEmptyHint}>위의 ‘기본 설정하기’부터 시작해 주세요.</p>
-                )}
+                <Link href={matches.length ? "/professors/pitch" : "/home?professor=quick"}>
+                  {matches.length ? "교수 피칭 보기" : "교수 찾기"} <ChevronRight size={16} />
+                </Link>
               </div>
             )}
           </section>

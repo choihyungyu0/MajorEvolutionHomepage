@@ -1,13 +1,14 @@
 import { PaperReader } from "@/components/paper-reader/paper-reader";
 import { PaperReaderShell } from "@/components/paper-reader/paper-reader-shell";
+import { pdfReaderBackHref } from "@/lib/navigation-flow";
 
 export default async function PaperReaderPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mode?: string; source?: string; step?: string }>;
+  searchParams: Promise<{ mode?: string; source?: string; step?: string; from?: string }>;
 }) {
-  const { mode, source, step } = await searchParams;
-  if (mode === "pdf") return <PaperReader />;
+  const { mode, source, step, from } = await searchParams;
+  if (mode === "pdf") return <PaperReader backHref={pdfReaderBackHref(from)} />;
   if (mode === "bite" || source === "favorites") {
     return (
       <PaperReaderShell
@@ -17,5 +18,5 @@ export default async function PaperReaderPage({
     );
   }
 
-  return <PaperReader />;
+  return <PaperReader backHref={pdfReaderBackHref(from)} />;
 }

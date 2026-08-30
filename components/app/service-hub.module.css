@@ -50,25 +50,7 @@
   word-break: keep-all;
 }
 
-.introCompact {
-  padding: 24px 0 18px;
-}
-
-.introCompact h1 {
-  max-width: 720px;
-  font-size: clamp(26px, 2.7vw, 32px);
-  line-height: 1.28;
-}
-
-.introCompact p {
-  max-width: 640px;
-  margin-top: 7px;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
 .primaryTask {
-  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas:
@@ -77,21 +59,10 @@
   column-gap: 14px;
   row-gap: 16px;
   padding: 22px;
-  overflow: hidden;
-  border: 1px solid #dcd6f7;
+  border: 1px solid var(--divider);
   border-radius: 20px;
-  background: linear-gradient(135deg, #fff 46%, #faf9ff 100%);
-  box-shadow: 0 14px 34px rgba(41, 50, 92, 0.09);
-}
-
-.primaryTask::before {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--brand-purple), var(--brand-mint-dark));
-  content: "";
+  background: #fff;
+  box-shadow: var(--shadow-card);
 }
 
 .primaryIcon {
@@ -114,16 +85,6 @@
   overflow-wrap: anywhere;
   text-wrap: balance;
   word-break: keep-all;
-}
-
-.primaryEyebrow {
-  display: inline-flex;
-  width: fit-content;
-  margin-bottom: 5px;
-  color: #6043d9;
-  font-size: 11px;
-  font-weight: 840;
-  letter-spacing: -0.01em;
 }
 
 .primaryCopy p {
@@ -161,7 +122,7 @@
   padding: 11px 20px;
   border-radius: 12px;
   color: #fff;
-  background: #5e43d9;
+  background: var(--service-stage-accent, #5e43d9);
   box-shadow: none;
   font-size: 15px;
   font-weight: 800;
@@ -172,7 +133,9 @@
   transition: background-color 160ms ease, transform 120ms ease;
 }
 
-.primaryButton:hover { background: #5739db; }
+.primaryButton:hover {
+  background: color-mix(in srgb, var(--service-stage-accent, #5e43d9) 88%, #18295d);
+}
 .primaryButton:active { transform: scale(0.985); }
 .primaryButton svg,
 .secondaryLink svg { flex: 0 0 auto; }
@@ -180,7 +143,7 @@
 .secondaryLink:focus-visible,
 .row:focus-visible,
 .utilityLinks a:focus-visible {
-  outline: 2px solid var(--brand-purple);
+  outline: 2px solid var(--service-stage-accent, var(--brand-purple));
   outline-offset: 3px;
 }
 
@@ -191,14 +154,14 @@
   justify-content: center;
   gap: 3px;
   padding: 0 12px;
-  color: var(--text-secondary);
+  color: var(--brand-purple);
   font-size: 13px;
   font-weight: 760;
   border-radius: 10px;
   transition: background-color 160ms ease;
 }
 
-.secondaryLink:hover { color: var(--brand-purple); background: var(--brand-violet-soft); }
+.secondaryLink:hover { background: var(--brand-violet-soft); }
 
 .adaptiveLayout,
 .adaptivePrimary,
@@ -232,7 +195,7 @@
   border: 1px solid var(--divider);
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 3px 12px rgba(41, 50, 92, 0.035);
+  box-shadow: var(--shadow-card);
 }
 
 .listHeading {
@@ -278,16 +241,6 @@
 }
 
 .row:hover { background: #f7f6ff; transform: translateX(2px); }
-
-.rowStatic {
-  cursor: default;
-  background: #fbfcfe;
-}
-
-.rowStatic:hover {
-  background: #fbfcfe;
-  transform: none;
-}
 
 .rowIcon {
   display: grid;
@@ -344,7 +297,7 @@
   border: 1px solid var(--divider);
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 3px 12px rgba(41, 50, 92, 0.035);
+  box-shadow: var(--shadow-card);
 }
 
 .utilityLinks a {
@@ -380,8 +333,6 @@
   .shell :global(.screen-content) { padding: 0 44px 58px; }
   .hub { padding-top: 22px; }
   .intro { padding: 36px 0 24px; }
-  .introCompact { padding: 26px 0 18px; }
-  .introCompact p { font-size: 14px; }
   .intro p { font-size: 16px; line-height: 1.5; }
   .primaryTask {
     grid-template-columns: auto minmax(0, 1fr);
@@ -462,7 +413,6 @@
 
 @media (max-width: 420px) {
   .intro { padding-top: 28px; }
-  .introCompact { padding: 22px 0 16px; }
   .primaryTask { padding: 20px; }
   .listSection { padding: 18px 16px 6px; }
   .utilityLinks { padding-inline: 16px; }

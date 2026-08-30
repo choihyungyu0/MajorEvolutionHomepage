@@ -1,12 +1,19 @@
 import { AppShell, PageHeader } from "@/components/app/primitives";
 import { ServiceBottomNav } from "@/components/app/side-nav";
 import { DataControls } from "@/components/screens/data-controls";
+import { portfolioManageReturnHref } from "@/lib/navigation-flow";
 
-export default function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string }>;
+}) {
+  const { from } = await searchParams;
+
   return (
     <AppShell
       title="내 기록 관리"
-      backHref="/profile"
+      backHref={portfolioManageReturnHref(from)}
       className="portfolio-screen"
       bottomNav={<ServiceBottomNav />}
     >

@@ -28,9 +28,9 @@ import {
   HubRow,
   HubUtilityLink,
   HubUtilityLinks,
-  ServiceHubIntro,
   serviceHubStyles as styles,
 } from "@/components/app/service-hub";
+import { growthProjectRecordHref } from "@/lib/navigation-flow";
 import { cardsForTool, useQuestStore } from "@/store/quest-store";
 import { useResearchStore } from "@/store/research-store";
 import { useAiProfessorStore } from "@/store/ai-professor-store";
@@ -106,8 +106,8 @@ export function PortfolioHubScreen() {
   );
 
   const steps: GrowthStep[] = [
-    { id: "topic", label: "주제 탐색", description: "관심 주제와 고민을 정리했어요.", href: "/portfolio/builder", icon: Search, done: hasTopic },
-    { id: "professor", label: "교수 근거", description: "교수의 연구와 연결 근거를 확인했어요.", href: "/portfolio/builder", icon: UserRound, done: hasProfessor },
+    { id: "topic", label: "주제 탐색", description: "관심 주제와 고민을 정리했어요.", href: "/research", icon: Search, done: hasTopic },
+    { id: "professor", label: "교수 근거", description: "교수의 연구와 연결 근거를 확인했어요.", href: "/professors", icon: UserRound, done: hasProfessor },
     { id: "paper", label: "읽은 논문", description: "교수님의 연구를 한입 카드로 남겨보세요.", href: "/paper/reader?mode=bite&source=favorites", icon: BookOpenCheck, done: hasPaper },
     { id: "prepare", label: "면담 준비", description: "첫 질문과 연락 초안을 준비해 보세요.", href: "/quest", icon: MessageCircleQuestion, done: hasPreparation },
     { id: "revision", label: "수정 전후", description: "받은 조언으로 달라진 점을 남겨보세요.", href: "/mentor-loop", icon: Lightbulb, done: hasRevision },
@@ -167,6 +167,14 @@ export function PortfolioHubScreen() {
       : "저장되는 기록이 쌓이면 처음 고민과 지금의 방향을 비교해 보여드려요.";
   const visibleProjects = [...growthProjectHistory].reverse().slice(0, 3);
   const visibleProfessors = [...growthProfessorHistory].reverse().slice(0, 6);
+  const currentResultTopicIds = result?.kind === "ok"
+    ? result.candidates.map((candidate) => candidate.topic.id)
+    : result?.kind === "insufficient"
+      ? [result.candidate.topic.id]
+      : [];
+  const hasValidCurrentResult = Boolean(
+    selectedTopicId && currentResultTopicIds.includes(selectedTopicId),
+  );
   const conversationCount = aiMessages.filter((message) => message.role === "user").length;
   const conversationBranchCount = aiMessages.filter((message) => message.branchParentMessageId).length;
   const latestConversationReflection = [...aiMessages]
@@ -184,10 +192,19 @@ export function PortfolioHubScreen() {
       bottomNav={<ServiceBottomNav />}
     >
       <div className={`${styles.hub} ${growthStyles.portfolioHub}`}>
-        <ServiceHubIntro
-          title="나의 성장과정"
-          description="처음 남긴 고민부터 프로젝트 설계, 교수 연결, 다음 행동까지 내가 이 서비스에서 쌓은 경험을 한곳에서 확인해요."
-        />
+        <section className={growthStyles.growthIntro} aria-labelledby="growth-hub-title">
+          <header>
+            <span className={growthStyles.growthIntroEyebrow}><Sprout size={17} /> 성장 기록 요약</span>
+            <h1 id="growth-hub-title">나의 성장과정</h1>
+            <p>처음 남긴 고민부터 프로젝트 설계, 교수 연결, 다음 행동까지 내가 이 서비스에서 쌓은 경험을 한곳에서 확인해요.</p>
+          </header>
+          <dl className={growthStyles.growthOverviewStats} aria-label="성장 기록 전체 요약">
+            <div><dt>기록 단계</dt><dd>{recordedCount}<span>/ 6</span></dd></div>
+            <div><dt>프로젝트</dt><dd>{growthProjectHistory.length}<span>개</span></dd></div>
+            <div><dt>교수 연결</dt><dd>{growthProfessorHistory.length}<span>명</span></dd></div>
+            <div><dt>다음 기록</dt><dd className={growthStyles.growthOverviewNext}>{next.title}</dd></div>
+          </dl>
+        </section>
 
         <section
           className={growthStyles.aiProfessorSection}
@@ -321,7 +338,7 @@ export function PortfolioHubScreen() {
           <Link href="/portfolio/builder" className={growthStyles.mobileStoryAction}>
             전체 성장 흐름 보기 <ArrowRight size={16} aria-hidden="true" />
           </Link>
-          <p className={growthStyles.storyNote}>입력하지 않은 변화는 추정하지 않고, 직접 선택하거나 저장한 내용만 보여줘요.</p>
+          <p className={growthStyles.storyNote}>선택하고 저장한 기록을 시간 순서대로 모아 성장 흐름을 보여줘요.</p>
         </section>
 
         <div className={growthStyles.mobileCompactList}>
@@ -361,8 +378,8 @@ export function PortfolioHubScreen() {
               trailing={(
                 <>
                   <span className={growthStyles.desktopListCount}>{growthProjectHistory.length}개 프로젝트</span>
-                  <Link href="/result" className={growthStyles.mobileListAction}>
-                    현재 결과 <ArrowRight size={14} aria-hidden="true" />
+                  <Link href={hasValidCurrentResult ? "/result" : "/portfolio/builder"} className={growthStyles.mobileListAction}>
+                    {hasValidCurrentResult ? "현재 결과" : "전체 기록"} <ArrowRight size={14} aria-hidden="true" />
                   </Link>
                 </>
               )}
@@ -374,7 +391,11 @@ export function PortfolioHubScreen() {
                   title={project.title}
                   description={project.question}
                   status={project.topicId === selectedTopicId ? "현재 프로젝트" : "이전 선택"}
-                  href="/result"
+                  href={growthProjectRecordHref({
+                    recordTopicId: project.topicId,
+                    selectedTopicId,
+                    currentResultTopicIds,
+                  })}
                   tone={project.topicId === selectedTopicId ? "violet" : "neutral"}
                 />
               ))}
@@ -404,7 +425,9 @@ export function PortfolioHubScreen() {
                   status={record.selectedAt
                     ? "선택한 교수"
                     : `${PROFESSOR_SOURCE_LABEL[record.source]} · ${PROFESSOR_ROLE_LABEL[record.role]}`}
-                  href={`/professors/${record.professorId}`}
+                  href={record.source === "project"
+                    ? `/professors/${record.professorId}?from=portfolio&journey=project`
+                    : `/professors/${record.professorId}?from=portfolio`}
                   tone={record.selectedAt ? "mint" : record.source === "project" ? "violet" : "neutral"}
                 />
               ))}

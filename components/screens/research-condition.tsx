@@ -67,7 +67,15 @@ const ERROR_STEP: Record<string, ResearchStep> = {
   dataAccess: "feasibility",
 };
 
-export function ConditionSelectScreen() {
+export function ConditionSelectScreen({
+  initialStep = "direction",
+  returnHref = "/research/tutorial?source=full",
+  returnLabel = "단계별 설계로 돌아가기",
+}: {
+  initialStep?: ResearchStep;
+  returnHref?: string;
+  returnLabel?: string;
+} = {}) {
   const router = useRouter();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const c = useResearchStore((s) => s.conditions);
@@ -85,7 +93,7 @@ export function ConditionSelectScreen() {
   const toggleAvoid = useResearchStore((s) => s.toggleAvoid);
   const submit = useResearchStore((s) => s.submit);
 
-  const [activeStep, setActiveStep] = useState<ResearchStep>("direction");
+  const [activeStep, setActiveStep] = useState<ResearchStep>(initialStep);
   const [errors, setErrors] = useState<string[]>([]);
   const [customInterest, setCustomInterest] = useState("");
   const [interestInputError, setInterestInputError] = useState<string | null>(null);
@@ -141,7 +149,7 @@ export function ConditionSelectScreen() {
 
   const goBack = () => {
     if (activeIndex === 0) {
-      router.push("/research/tutorial?source=full");
+      router.replace(returnHref);
       return;
     }
     moveTo(RESEARCH_STEPS[activeIndex - 1].id);
@@ -175,7 +183,7 @@ export function ConditionSelectScreen() {
       focusTop();
       return;
     }
-    router.push("/co-design");
+    router.replace("/co-design");
   };
 
   const modeIcon: Record<IdeaMode, typeof Brain> = {
@@ -373,7 +381,7 @@ export function ConditionSelectScreen() {
       </div>
       <div className="research-inline-note research-inline-note--trust">
         <ShieldCheck size={19} />
-        <p>AI 제안과 확인된 사실을 구분해 보여드리며, 최종 선택은 학생이 직접 진행해요.</p>
+        <p>확인한 정보와 AI 제안을 나눠 보여드려 비교하면서 선택할 수 있어요.</p>
       </div>
       {errors.length > 0 && <div className="cond-error-banner" role="alert"><CircleAlert size={18} /> 비어 있는 필수 조건을 먼저 확인해 주세요.</div>}
     </section>
@@ -395,7 +403,7 @@ export function ConditionSelectScreen() {
       bottomNav={<ServiceBottomNav />}
       stickyAction={(
         <div className="research-step-actions" data-service-help="research-actions">
-          <SecondaryButton onClick={goBack}><ArrowLeft size={18} /> {activeIndex === 0 ? "설계 방식" : "이전"}</SecondaryButton>
+          <SecondaryButton onClick={goBack}><ArrowLeft size={18} /> {activeIndex === 0 ? "시작 화면" : "이전"}</SecondaryButton>
           <span>{activeIndex + 1} / {RESEARCH_STEPS.length}</span>
           {activeStep === "review" ? (
             <PrimaryButton onClick={onSubmit}>AI 공동설계 시작 <ArrowRight size={18} /></PrimaryButton>
@@ -406,14 +414,14 @@ export function ConditionSelectScreen() {
       )}
     >
       <header className="research-workspace-header">
-        <Link href="/research/tutorial?source=full" className="research-back-link" aria-label="설계 방식 선택으로 돌아가기"><ArrowLeft size={19} /> 돌아가기</Link>
+        <Link href={returnHref} className="research-back-link" aria-label={returnLabel}><ArrowLeft size={19} /> 돌아가기</Link>
         <Image src={guideCharacter.questFlag} alt="" width={52} height={50} priority unoptimized />
       </header>
 
       <div className="research-progress-head" data-service-help="research-progress">
         <div className="research-progress-copy">
           <span>{completedCount} / 5 조건 확인</span>
-          <Link href="/research/tutorial?source=full"><Route size={15} /> 질문형으로 바꾸기</Link>
+          <Link href="/research/tutorial?source=full"><Route size={15} /> 단계별 설계로 돌아가기</Link>
         </div>
         <div className="research-progress-track" aria-label={`프로젝트 조건 ${completedCount}개 확인됨`} role="progressbar" aria-valuemin={0} aria-valuemax={5} aria-valuenow={completedCount}>
           <span style={{ width: `${(completedCount / 5) * 100}%` }} />
