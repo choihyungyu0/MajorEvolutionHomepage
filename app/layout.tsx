@@ -6,6 +6,7 @@ import { MobileViewportSync } from "@/components/app/mobile-viewport-sync";
 import { StoreHydrator } from "@/components/app/store-hydrator";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { brandScene } from "@/lib/brand-assets";
+import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const pretendard = localFont({
@@ -22,7 +23,7 @@ const description =
 const ogImage = brandScene.home.og ?? brandScene.home.w1440;
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(getSiteUrl()),
   title,
   description,
   applicationName: "너의 교수님은?",
