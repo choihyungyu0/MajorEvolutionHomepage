@@ -7,7 +7,7 @@ export type ProfessorDataStatus =
 
 export type ProfessorMatchRole = "TOPIC" | "METHOD" | "CONTEXT";
 export type ProfessorMatchStrength = "DIRECT" | "RELATED" | "LIMITED";
-export const PROFESSOR_MATCH_POLICY = "OFFICIAL_EVIDENCE_RULES_V4" as const;
+export const PROFESSOR_MATCH_POLICY = "OFFICIAL_EVIDENCE_RULES_V5" as const;
 export const SUPPORTED_PROFESSOR_UNIVERSITY = "단국대학교" as const;
 
 export type ProfessorMatchedAcademicAffiliation = {

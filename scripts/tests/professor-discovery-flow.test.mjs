@@ -185,8 +185,23 @@ test("교수 매칭 튜토리얼은 최소 설정 뒤 확인 화면으로 이어
     path.join(repositoryRoot, "components/tutorial/professor-tutorial-screen.tsx"),
     "utf8",
   );
+  const directFormSource = fs.readFileSync(
+    path.join(repositoryRoot, "components/screens/official-professor-screens.tsx"),
+    "utf8",
+  );
 
   assert.match(source, /const SETUP_STEPS = \["academic", "interests"\] as const;/);
+  assert.deepEqual(discoveryModule.PRESENTATION_PROFESSOR_DEFAULTS, {
+    college: "SW융합대학",
+    major: "통계데이터사이언스학과",
+    interests: ["AI·데이터", "경제·금융", "SW·보안", "경영·마케팅", "환경·ESG"],
+  });
+  assert.match(source, /college: PRESENTATION_PROFESSOR_DEFAULTS\.college/);
+  assert.match(source, /major: PRESENTATION_PROFESSOR_DEFAULTS\.major/);
+  assert.match(source, /interests: \[\.\.\.PRESENTATION_PROFESSOR_DEFAULTS\.interests\]/);
+  assert.match(directFormSource, /college: PRESENTATION_PROFESSOR_DEFAULTS\.college/);
+  assert.match(directFormSource, /major: PRESENTATION_PROFESSOR_DEFAULTS\.major/);
+  assert.match(directFormSource, /interests: \[\.\.\.PRESENTATION_PROFESSOR_DEFAULTS\.interests\]/);
   assert.match(source, /title: "이제 교수님을 찾으러 가볼까요\?"/);
   assert.match(source, />교수님 찾기 <ArrowRight/);
   assert.match(source, /const profileState = useProfileStore\.getState\(\);/);
@@ -608,7 +623,7 @@ test("새 연구주제로 전환하면 프로젝트 자문 추천만 초기화�
   );
 });
 
-test("첫 교수 매칭은 주전공·부전공·복수전공 중 한 명 뒤에 외부 주제·방법 후보를 둔다", () => {
+test("첫 교수 매칭은 주전공 후보를 우선하고 학과 밖에서 주제·방법 후보를 둔다", () => {
   const matcher = fs.readFileSync(
     path.join(repositoryRoot, "lib/professor-data.server.ts"),
     "utf8",
@@ -618,7 +633,9 @@ test("첫 교수 매칭은 주전공·부전공·복수전공 중 한 명 뒤에
     "utf8",
   );
 
-  assert.match(matcher, /departmentMatchesMajor\)\s*\.sort/);
+  assert.match(matcher, /const academicHomeCandidates = officialProfileCandidates/);
+  assert.match(matcher, /const primaryMajorCandidates = academicHomeCandidates\.filter/);
+  assert.match(matcher, /primaryMajorCandidates\.length > 0 \? primaryMajorCandidates : academicHomeCandidates/);
   assert.match(matcher, /!item\.match\.decisionBasis\.departmentMatchesMajor/);
   assert.match(matcher, /academicAffiliations/);
   assert.match(matcher, /topic\.secondaryMajor/);
@@ -628,7 +645,7 @@ test("첫 교수 매칭은 주전공·부전공·복수전공 중 한 명 뒤에
   assert.match(matcher, /affiliation\?\.label === "복수전공"/);
   assert.match(matcher, /affiliation\?\.label === "부전공"/);
   assert.match(matcher, /\["CONTEXT", "TOPIC", "METHOD"\]/);
-  assert.match(matcher, /homeCollege/);
+  assert.doesNotMatch(matcher, /homeCollege|leftSharesCollege|rightSharesCollege/);
   assert.match(route, /journey: isProjectMentorRequest \? "project" : "student"/);
   assert.match(
     matcher,
@@ -648,6 +665,27 @@ test("첫 교수 매칭은 주전공·부전공·복수전공 중 한 명 뒤에
   assert.match(store, /persistedVersion < 7[\s\S]*secondaryMajor/);
   assert.match(store, /selectionPolicy:\s*response\.selectionPolicy/);
   assert.match(discoveryForm, /부·복수전공도 가까운 학과 연결 범위에 포함/);
+});
+
+test("교수 추천 정책은 주전공 한 자리와 공식 근거 기반 주제·방법 자리를 분리한다", () => {
+  const source = fs.readFileSync(
+    path.join(repositoryRoot, "lib/professor-data.server.ts"),
+    "utf8",
+  );
+  const domain = fs.readFileSync(
+    path.join(repositoryRoot, "lib/professor-domain.ts"),
+    "utf8",
+  );
+
+  assert.match(domain, /OFFICIAL_EVIDENCE_RULES_V5/);
+  assert.match(source, /label: "경제·금융"/);
+  assert.match(source, /topicTerms: \[[\s\S]*"경제·금융"[\s\S]*"금융"/);
+  assert.match(source, /primaryMajorCandidates\.length > 0 \? primaryMajorCandidates : academicHomeCandidates/);
+  assert.match(source, /if \(requireDirectRole && !item\.match\.decisionBasis\.roleMatches\[roleKey\]\) return false/);
+  assert.match(source, /right\.roleEvidenceCounts\[role\] - left\.roleEvidenceCounts\[role\]/);
+  assert.doesNotMatch(source, /leftSharesCollege|rightSharesCollege/);
+  assert.match(source, /같은 단과대 여부와 무관하게 주제·방법 역할의 직접 공식 근거를 우선/);
+  assert.match(source, /다른 공식 연구 연결 근거가 있는 후보만 제한적으로 보완/);
 });
 
 test("전공 아이디어 튜토리얼은 최종 확인 전 로컬 초안만 쓰고 한 번에 공동설계를 시작한다", () => {

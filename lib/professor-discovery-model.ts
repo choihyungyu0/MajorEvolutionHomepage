@@ -144,6 +144,12 @@ export const EMPTY_PROFESSOR_DISCOVERY_CONTEXT: ProfessorDiscoveryContext = {
   additionalContext: "",
 };
 
+export const PRESENTATION_PROFESSOR_DEFAULTS = {
+  college: "SW융합대학",
+  major: "통계데이터사이언스학과",
+  interests: ["AI·데이터", "경제·금융", "SW·보안", "경영·마케팅", "환경·ESG"],
+} as const;
+
 export function discoveryContextToMatchTopic(
   context: ProfessorDiscoveryContext,
   savedTopic?: ResearchTopic | null,

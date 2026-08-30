@@ -133,6 +133,11 @@ const professorModule = loadTutorialModule(
     "@/lib/professor-discovery-model": {
       DIRECT_ACADEMIC_ENTRY: "직접 입력",
       EMPTY_PROFESSOR_DISCOVERY_CONTEXT: emptyProfessorContext,
+      PRESENTATION_PROFESSOR_DEFAULTS: {
+        college: "SW융합대학",
+        major: "통계데이터사이언스학과",
+        interests: ["AI·데이터", "경제·금융", "SW·보안", "경영·마케팅", "환경·ESG"],
+      },
       INTEREST_OPTIONS: [],
       MAX_DISCOVERY_INTERESTS: 5,
       discoveryContextToMatchTopic: () => ({ id: "topic" }),
@@ -331,6 +336,11 @@ test("교수 튜토리얼 재시작과 새 검색 요청은 성공 응답 전 �
       "@/lib/professor-discovery-model": {
         DIRECT_ACADEMIC_ENTRY: "직접 입력",
         EMPTY_PROFESSOR_DISCOVERY_CONTEXT: emptyProfessorContext,
+        PRESENTATION_PROFESSOR_DEFAULTS: {
+          college: "SW융합대학",
+          major: "통계데이터사이언스학과",
+          interests: ["AI·데이터", "경제·금융", "SW·보안", "경영·마케팅", "환경·ESG"],
+        },
         INTEREST_OPTIONS: [],
         MAX_DISCOVERY_INTERESTS: 5,
         discoveryContextToMatchTopic: () => ({ id: "topic-1" }),

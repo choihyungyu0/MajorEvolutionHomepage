@@ -115,6 +115,34 @@ const matchingConcepts: Array<{
     role: "TOPIC",
   },
   {
+    label: "경제·금융",
+    topicTerms: [
+      "경제·금융",
+      "경제",
+      "금융",
+      "금리",
+      "증권",
+      "투자",
+      "거시경제",
+      "미시경제",
+      "계량경제",
+    ],
+    evidenceTerms: [
+      "경제",
+      "경제학",
+      "금융",
+      "금리",
+      "증권",
+      "투자",
+      "계량경제",
+      "거시경제",
+      "미시경제",
+      "화폐",
+      "재정",
+    ],
+    role: "TOPIC",
+  },
+  {
     label: "농식품·식품 시장",
     topicTerms: ["농식품", "식품", "농산물", "푸드", "먹거리"],
     evidenceTerms: [
@@ -387,6 +415,7 @@ function publicationEvidence(
 type EvaluatedProfessor = {
   match: ProfessorMatch;
   hasRelevantEvidence: boolean;
+  roleEvidenceCounts: Record<ProfessorMatchRole, number>;
   matchedConcepts: Set<string>;
   researchFieldConcepts: Set<string>;
   publicationConcepts: Set<string>;
@@ -545,6 +574,14 @@ function evaluateProfessor(
   const roleMatches = new Set<ProfessorMatchRole>(
     conceptMatches.map((concept) => concept.role),
   );
+  const roleEvidenceTerms: Record<ProfessorMatchRole, Set<string>> = {
+    TOPIC: new Set<string>(),
+    METHOD: new Set<string>(),
+    CONTEXT: new Set<string>(),
+  };
+  for (const concept of conceptMatches) {
+    for (const term of concept.evidenceHits) roleEvidenceTerms[concept.role].add(term);
+  }
   const researchFieldRoles = new Set<ProfessorMatchRole>(
     conceptMatches
       .filter((concept) => concept.fieldHits.length > 0)
@@ -561,6 +598,7 @@ function evaluateProfessor(
     const directRole = methodDirectTerms.length > 0 ? "METHOD" : "TOPIC";
     roleMatches.add(directRole);
     researchFieldRoles.add(directRole);
+    for (const term of directTerms) roleEvidenceTerms[directRole].add(term);
   }
   const hasRelevantEvidence = roleMatches.size > 0;
   const publication = hasRelevantEvidence
@@ -657,6 +695,11 @@ function evaluateProfessor(
       decisionBasis,
     },
     hasRelevantEvidence,
+    roleEvidenceCounts: {
+      TOPIC: roleEvidenceTerms.TOPIC.size,
+      METHOD: roleEvidenceTerms.METHOD.size,
+      CONTEXT: roleEvidenceTerms.CONTEXT.size,
+    },
     matchedConcepts: new Set(conceptMatches.map((concept) => concept.label)),
     researchFieldConcepts: new Set(
       conceptMatches
@@ -721,6 +764,8 @@ function compareForRole(
   if (leftHasPublicationEvidence !== rightHasPublicationEvidence) {
     return leftHasPublicationEvidence ? -1 : 1;
   }
+  const evidenceCountDifference = right.roleEvidenceCounts[role] - left.roleEvidenceCounts[role];
+  if (evidenceCountDifference !== 0) return evidenceCountDifference;
   for (const concept of conceptsForRole(role)) {
     const leftFieldMatch = left.researchFieldConcepts.has(concept.label);
     const rightFieldMatch = right.researchFieldConcepts.has(concept.label);
@@ -941,13 +986,14 @@ export function matchOfficialProfessors(
   const matchByRole = new Map<ProfessorMatchRole, ProfessorMatch>();
 
   /*
-   * 첫 후보는 학생이 상대적으로 접근하기 쉬운 학업 소속 교수입니다.
-   * 주전공과, 심층분석에서 입력한 부·복수전공을 함께 확인하되
+   * 첫 후보는 학생이 상대적으로 접근하기 쉬운 주전공 소속 교수입니다.
+   * 주전공 후보가 없을 때만 부·복수전공 소속으로 범위를 넓히며,
    * 공식 소속 근거와 관심 주제 근거는 분리해서 설명합니다.
    */
-  const homeDepartmentCandidate = officialProfileCandidates
-    .filter((item) => item.match.decisionBasis.departmentMatchesMajor)
-    .sort((left, right) => {
+  const compareHomeDepartmentCandidate = (
+    left: EvaluatedProfessor,
+    right: EvaluatedProfessor,
+  ) => {
       if (left.hasRelevantEvidence !== right.hasRelevantEvidence) {
         return left.hasRelevantEvidence ? -1 : 1;
       }
@@ -974,7 +1020,15 @@ export function matchOfficialProfessors(
       const affiliationDifference = affiliationPriority(left) - affiliationPriority(right);
       if (affiliationDifference !== 0) return affiliationDifference;
       return compareEvaluatedProfessors(left, right);
-    })[0];
+    };
+  const academicHomeCandidates = officialProfileCandidates
+    .filter((item) => item.match.decisionBasis.departmentMatchesMajor);
+  const primaryMajorCandidates = academicHomeCandidates.filter(
+    (item) => item.match.decisionBasis.matchedAcademicAffiliation?.type === "PRIMARY",
+  );
+  const homeDepartmentCandidate = (
+    primaryMajorCandidates.length > 0 ? primaryMajorCandidates : academicHomeCandidates
+  ).sort(compareHomeDepartmentCandidate)[0];
 
   if (homeDepartmentCandidate) {
     usedProfessorIds.add(homeDepartmentCandidate.match.professor.id);
@@ -993,11 +1047,6 @@ export function matchOfficialProfessors(
    * 역할 직접 근거를 우선하고, 가능하면 서로 다른 학과를 제안합니다.
    */
   const usedExternalDepartments = new Set<string>();
-  const homeCollege = normalize(
-    homeDepartmentCandidate?.match.professor.college
-      || topic.college
-      || "",
-  );
   const externalCandidates = officialCandidates.filter(
     (item) => !item.match.decisionBasis.departmentMatchesMajor,
   );
@@ -1011,18 +1060,7 @@ export function matchOfficialProfessors(
           const departmentKey = normalize(item.match.professor.department);
           return !requireNewDepartment || !usedExternalDepartments.has(departmentKey);
         })
-        .sort((left, right) => {
-          const leftSharesCollege = Boolean(
-            homeCollege
-            && normalizedContains(normalize(left.match.professor.college), homeCollege),
-          );
-          const rightSharesCollege = Boolean(
-            homeCollege
-            && normalizedContains(normalize(right.match.professor.college), homeCollege),
-          );
-          if (leftSharesCollege !== rightSharesCollege) return leftSharesCollege ? -1 : 1;
-          return compareForRole(role, left, right);
-        })[0];
+        .sort((left, right) => compareForRole(role, left, right))[0];
     const candidate = findCandidate(true, true)
       ?? findCandidate(true, false)
       ?? findCandidate(false, true)
@@ -1045,7 +1083,7 @@ export function matchOfficialProfessors(
     officialRecordCount: dataset.official_record_count,
     scopeStatus: dataset.scope_status,
     coverageGaps,
-    note: `${dataset.note} 단국대학교 공식 교수 ${dataset.official_record_count.toLocaleString("ko-KR")}명 안에서 입력한 주전공·부전공·복수전공 중 공식 소속이 확인된 학과 교수 1명을 먼저 확인하고, 해당 학과 밖에서 주제 연결형·방법 연결형을 공식 근거와 안정적 교수 ID 순서로 선택합니다.`,
+    note: `${dataset.note} 단국대학교 공식 교수 ${dataset.official_record_count.toLocaleString("ko-KR")}명 안에서 주전공 공식 소속 교수 1명을 먼저 확인하고, 해당 학과 밖에서는 같은 단과대 여부와 무관하게 주제·방법 역할의 직접 공식 근거를 우선합니다. 역할 직접 근거가 부족하면 다른 공식 연구 연결 근거가 있는 후보만 제한적으로 보완합니다.`,
     rankingSource: "official-rules",
     rankingModel: null,
   };
