@@ -309,6 +309,41 @@ export function toggleLimitedValue(
   return [...values, value];
 }
 
+export type ProfessorDiscoveryDeepTransition = {
+  context: ProfessorDiscoveryContext;
+  error: string | null;
+};
+
+/**
+ * 기본분석에서 심층분석으로 넘어갈 때 관심 분야를 한 번 확정합니다.
+ * 이미 고른 칩과 아직 '추가'를 누르지 않은 직접 입력값을 함께 정리해,
+ * 화면 전환과 부모 상태 갱신이 같은 이벤트에서 일어나도록 합니다.
+ */
+export function prepareProfessorDiscoveryDeepTransition(
+  context: ProfessorDiscoveryContext,
+  pendingCustomInterest = "",
+): ProfessorDiscoveryDeepTransition {
+  const interests = [...new Set(
+    context.interests.map((interest) => interest.trim()).filter(Boolean),
+  )].slice(0, MAX_DISCOVERY_INTERESTS);
+  const pendingInterest = pendingCustomInterest.trim();
+
+  if (pendingInterest && !interests.includes(pendingInterest)) {
+    if (interests.length >= MAX_DISCOVERY_INTERESTS) {
+      return {
+        context: { ...context, interests },
+        error: `관심 분야는 최대 ${MAX_DISCOVERY_INTERESTS}개까지 선택할 수 있어요.`,
+      };
+    }
+    interests.push(pendingInterest);
+  }
+
+  return {
+    context: { ...context, interests },
+    error: null,
+  };
+}
+
 export function normalizeSecondaryMajor(
   context: ProfessorDiscoveryContext,
 ): ProfessorDiscoveryContext {

@@ -312,6 +312,81 @@ test("기본·심층 맥락은 세 개의 면담 질문으로 변환된다", () 
   assert.match(redactedQuestion, /고효율 무선 전력 장치/);
 });
 
+test("심층분석 전환은 현재 관심 분야와 직접 입력 초안을 한 번에 확정한다", () => {
+  const context = {
+    ...discoveryModule.EMPTY_PROFESSOR_DISCOVERY_CONTEXT,
+    university: "단국대학교",
+    college: "공공인재대학",
+    major: "식품자원경제학과",
+    studentStage: "진로를 다시 탐색하는 중",
+    goal: "대학원·연구실 탐색",
+    interests: ["AI·데이터", "SW·보안", "경제·금융", "식품·농업"],
+    careerConcerns: ["인턴·프로젝트 경험", "취업과 대학원 사이"],
+  };
+  const prepared = discoveryModule.prepareProfessorDiscoveryDeepTransition(
+    context,
+    "  농산물 가격예측  ",
+  );
+
+  assert.equal(prepared.error, null);
+  assert.deepEqual(prepared.context.interests, [
+    "AI·데이터",
+    "SW·보안",
+    "경제·금융",
+    "식품·농업",
+    "농산물 가격예측",
+  ]);
+  assert.deepEqual(context.interests, ["AI·데이터", "SW·보안", "경제·금융", "식품·농업"]);
+  assert.deepEqual(
+    discoveryModule.discoveryContextToMatchTopic(prepared.context, null).interests,
+    prepared.context.interests,
+  );
+
+  const duplicate = discoveryModule.prepareProfessorDiscoveryDeepTransition(
+    prepared.context,
+    "식품·농업",
+  );
+  assert.equal(duplicate.error, null);
+  assert.deepEqual(duplicate.context.interests, prepared.context.interests);
+
+  const overflow = discoveryModule.prepareProfessorDiscoveryDeepTransition(
+    prepared.context,
+    "환경·ESG",
+  );
+  assert.match(overflow.error, /최대 5개/);
+  assert.deepEqual(overflow.context.interests, prepared.context.interests);
+});
+
+test("심층분석과 기본분석 복귀는 동일한 관심 분야 context를 사용한다", () => {
+  const source = fs.readFileSync(
+    path.join(repositoryRoot, "components/screens/professor-discovery-form.tsx"),
+    "utf8",
+  );
+  const continueBlock = source.slice(
+    source.indexOf("  const continueToDeepAnalysis = () => {"),
+    source.indexOf("\n\n  return ("),
+  );
+  assert.match(continueBlock, /prepareProfessorDiscoveryDeepTransition\(context, customInterest\)/);
+  assert.match(continueBlock, /interests: \[\.\.\.prepared\.context\.interests\]/);
+  assert.ok(
+    continueBlock.indexOf("changeContext") < continueBlock.indexOf("setStep(2)"),
+    "최신 관심 분야를 부모 context에 반영한 뒤 심층 단계로 이동해야 한다",
+  );
+
+  const deepBlock = source.slice(
+    source.indexOf('<div className="professor-discovery-step" data-step="deep">'),
+    source.indexOf("{(stepError || inputError)"),
+  );
+  assert.match(deepBlock, /aria-label="심층분석에 반영된 관심 분야"/);
+  assert.match(deepBlock, /context\.interests\.map/);
+  const backButton = deepBlock.slice(
+    deepBlock.indexOf('className="discovery-back-button"'),
+    deepBlock.indexOf("<PrimaryButton onClick={submit}"),
+  );
+  assert.match(backButton, /onClick=\{\(\) => setStep\(1\)\}/);
+  assert.doesNotMatch(backButton, /changeContext|onContextChange|interests:/);
+});
+
 test("새로고침용 매칭 요청에서 교수 찾기 맥락을 복원한다", () => {
   const original = {
     ...discoveryModule.EMPTY_PROFESSOR_DISCOVERY_CONTEXT,
@@ -675,6 +750,9 @@ test("첫 교수 매칭은 입력한 학업 소속을 연결하고 전체 후보
   assert.match(store, /persistedVersion < 7[\s\S]*secondaryMajor/);
   assert.match(store, /selectionPolicy:\s*response\.selectionPolicy/);
   assert.match(discoveryForm, /부·복수전공도 가까운 학과 연결 범위에 포함/);
+  assert.match(discoveryForm, /onClick=\{continueToDeepAnalysis\}/);
+  assert.match(discoveryForm, /prepareProfessorDiscoveryDeepTransition\(context, customInterest\)/);
+  assert.match(discoveryForm, /심층분석에 반영된 관심 분야/);
 });
 
 test("교수 추천 정책은 학업 소속 한 자리와 공식 근거 기반 주제·방법 자리를 분리한다", () => {

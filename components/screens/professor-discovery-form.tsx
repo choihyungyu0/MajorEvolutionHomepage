@@ -34,6 +34,7 @@ import {
   MAX_DISCOVERY_INTERESTS,
   MEETING_OPTIONS,
   normalizeSecondaryMajor,
+  prepareProfessorDiscoveryDeepTransition,
   SECONDARY_MAJOR_TYPES,
   STUDENT_STAGE_OPTIONS,
   SUPPORT_STYLE_OPTIONS,
@@ -171,8 +172,8 @@ export function ProfessorDiscoveryForm({
     }));
   };
 
-  const validateBasics = (): boolean => {
-    const issue = validateProfessorDiscoveryBasics(context);
+  const validateBasics = (candidate = context): boolean => {
+    const issue = validateProfessorDiscoveryBasics(candidate);
     if (!issue) {
       setStepError(null);
       return true;
@@ -215,6 +216,23 @@ export function ProfessorDiscoveryForm({
     }));
     setCustomInterest("");
     setInterestInputError(null);
+  };
+
+  const continueToDeepAnalysis = () => {
+    const prepared = prepareProfessorDiscoveryDeepTransition(context, customInterest);
+    if (prepared.error) {
+      setInterestInputError(prepared.error);
+      return;
+    }
+    if (!validateBasics(prepared.context)) return;
+
+    setCustomInterest("");
+    setInterestInputError(null);
+    changeContext((current) => ({
+      ...current,
+      interests: [...prepared.context.interests],
+    }));
+    setStep(2);
   };
 
   return (
@@ -528,9 +546,7 @@ export function ProfessorDiscoveryForm({
 
             <div className="professor-discovery-form__actions">
               <PrimaryButton
-                onClick={() => {
-                  if (validateBasics()) setStep(2);
-                }}
+                onClick={continueToDeepAnalysis}
               >
                 선택 심층분석 이어가기 <ArrowRight size={17} />
               </PrimaryButton>
@@ -541,6 +557,23 @@ export function ProfessorDiscoveryForm({
           </div>
         ) : (
           <div className="professor-discovery-step" data-step="deep">
+            <section className="discovery-question" aria-labelledby="deep-interest-summary-title">
+              <div className="discovery-question__title">
+                <CheckCircle2 size={19} />
+                <div>
+                  <h3 id="deep-interest-summary-title">
+                    기본분석에서 반영된 관심 분야
+                    <SelectionCounter current={context.interests.length} max={MAX_DISCOVERY_INTERESTS} />
+                  </h3>
+                  <p>아래 관심 분야를 그대로 유지하고, 심층 입력과 함께 교수 공식 근거에 대조해요.</p>
+                </div>
+              </div>
+              <div className="chip-grid discovery-chip-grid" aria-label="심층분석에 반영된 관심 분야">
+                {context.interests.map((interest) => (
+                  <span key={interest} className="choice-chip is-selected">{interest}</span>
+                ))}
+              </div>
+            </section>
             <section className="discovery-question">
               <div className="discovery-question__title">
                 <GraduationCap size={19} />
