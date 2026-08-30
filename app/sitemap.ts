@@ -19,6 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/project-execution",
     "/project-meeting",
     "/quest",
+    "/quest/saved",
     "/quest/first-line",
     "/quest/silence-rescue",
     "/quest/email-guard",

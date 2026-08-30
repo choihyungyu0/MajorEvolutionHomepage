@@ -708,7 +708,7 @@ test("모바일 만남 화면은 현재와 다음 단계만 남기고 중복 상
   assert.match(questHubSource, /mobileJourneyStart/);
   assert.match(questHubSource, /mobileVisibleStep/);
   assert.match(questHubSource, /mobileQuickLinks/);
-  assert.match(questHubSource, /저장한 준비물 \{beforeCount \+ silenceCount \+ afterCount\}개 보기/);
+  assert.match(questHubSource, /저장한 준비물 \{savedRecordCount\}개 보기/);
   assert.match(questHubStyleSource, /@media \(max-width: 1023px\)[\s\S]*\.journeyStep:not\(\.mobileVisibleStep\)/);
   assert.match(questHubStyleSource, /@media \(max-width: 1023px\)[\s\S]*\.expandedToolLists/);
   assert.match(questHubStyleSource, /calc\(104px \+ env\(safe-area-inset-bottom\)\)/);

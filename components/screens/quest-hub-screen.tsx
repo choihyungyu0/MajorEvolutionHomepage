@@ -39,6 +39,7 @@ import { SceneBanner } from "@/components/app/scene-banner";
 import { brandScene, questIcon } from "@/lib/brand-assets";
 import { getJourneyProgress } from "@/lib/journey-progress";
 import { useQuestContext } from "@/lib/quest-context";
+import { buildProfessorConnectionSavedSections } from "@/lib/quest-saved-records";
 import { getQuestToolCompletionCounts, getRecommendedQuestToolId } from "@/lib/quest-tools-hierarchy";
 import { cardsForTool, useQuestStore, type QuestToolId } from "@/store/quest-store";
 import { useResearchStore } from "@/store/research-store";
@@ -221,6 +222,15 @@ export function QuestHubScreen() {
   const emailCount = progress.before.email;
   const afterCount = progress.after.total;
   const beforeCount = progress.before.total;
+  const savedSections = buildProfessorConnectionSavedSections({
+    cards,
+    emailDrafts: knockKitDrafts,
+    mentorEntries: mentorLoopEntries,
+  });
+  const savedRecordCount = savedSections.reduce(
+    (sum, section) => sum + section.records.length,
+    0,
+  );
   const hasConnectedProfessor = progress.readySteps.professor;
 
   const primary = !hasConnectedProfessor
@@ -377,8 +387,8 @@ export function QuestHubScreen() {
                   {selectedProfessor ? "연결 근거 다시 보기" : "교수 찾기"}
                   <ArrowRight size={16} aria-hidden="true" />
                 </Link>
-                <Link href="/quest/all#saved-cards" className={questStyles.mobileSavedLink}>
-                  저장한 준비물 {beforeCount + silenceCount + afterCount}개 보기
+                <Link href="/quest/saved" className={questStyles.mobileSavedLink}>
+                  저장한 준비물 {savedRecordCount}개 보기
                   <ArrowRight size={16} aria-hidden="true" />
                 </Link>
               </section>
@@ -484,10 +494,10 @@ export function QuestHubScreen() {
             <HubRow
               icon={FileText}
               title="저장한 준비물"
-              description={cards.length ? "작성한 질문과 논문 카드가 여기에 모여 있어요." : "아직 저장한 준비물이 없어요."}
-              status={cards.length ? `${cards.length}개` : "비어 있음"}
-              href="/quest/all#saved-cards"
-              tone={cards.length ? "mint" : "neutral"}
+              description={savedRecordCount ? "질문·논문·메일·면담 후 기록을 한곳에서 확인해요." : "아직 저장한 준비물이 없어요."}
+              status={savedRecordCount ? `${savedRecordCount}개` : "비어 있음"}
+              href="/quest/saved"
+              tone={savedRecordCount ? "mint" : "neutral"}
             />
           </HubList>
 
@@ -499,7 +509,7 @@ export function QuestHubScreen() {
           <Link href="/quest/all">
             전체 도구 <ArrowRight size={15} aria-hidden="true" />
           </Link>
-          <Link href="/quest/all#saved-cards">
+          <Link href="/quest/saved">
             저장 보기 <ArrowRight size={15} aria-hidden="true" />
           </Link>
           <Link href="/quest/mini-tools">
