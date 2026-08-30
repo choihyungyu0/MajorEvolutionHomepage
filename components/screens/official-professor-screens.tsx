@@ -51,7 +51,6 @@ import {
   buildProfessorContextQuestions,
   DIRECT_ACADEMIC_ENTRY,
   EMPTY_PROFESSOR_DISCOVERY_CONTEXT,
-  PRESENTATION_PROFESSOR_DEFAULTS,
   professorMatchTopicToDiscoveryContext,
   validateProfessorDiscoveryBasics,
   validateProfessorDiscoverySecondary,
@@ -458,10 +457,7 @@ export function OfficialProfessorsScreen({
 
   const [context, setContext] = useState<ProfessorDiscoveryContext>(() => ({
     ...EMPTY_PROFESSOR_DISCOVERY_CONTEXT,
-    university: taxonomy.university,
-    college: PRESENTATION_PROFESSOR_DEFAULTS.college,
-    major: PRESENTATION_PROFESSOR_DEFAULTS.major,
-    interests: [...PRESENTATION_PROFESSOR_DEFAULTS.interests],
+    interests: [],
     careerInterests: [],
     careerConcerns: [],
   }));

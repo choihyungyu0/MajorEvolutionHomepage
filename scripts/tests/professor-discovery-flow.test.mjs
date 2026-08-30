@@ -191,17 +191,25 @@ test("교수 매칭 튜토리얼은 최소 설정 뒤 확인 화면으로 이어
   );
 
   assert.match(source, /const SETUP_STEPS = \["academic", "interests"\] as const;/);
-  assert.deepEqual(discoveryModule.PRESENTATION_PROFESSOR_DEFAULTS, {
-    college: "SW융합대학",
-    major: "통계데이터사이언스학과",
-    interests: ["AI·데이터", "경제·금융", "SW·보안", "경영·마케팅", "환경·ESG"],
-  });
-  assert.match(source, /college: PRESENTATION_PROFESSOR_DEFAULTS\.college/);
-  assert.match(source, /major: PRESENTATION_PROFESSOR_DEFAULTS\.major/);
-  assert.match(source, /interests: \[\.\.\.PRESENTATION_PROFESSOR_DEFAULTS\.interests\]/);
-  assert.match(directFormSource, /college: PRESENTATION_PROFESSOR_DEFAULTS\.college/);
-  assert.match(directFormSource, /major: PRESENTATION_PROFESSOR_DEFAULTS\.major/);
-  assert.match(directFormSource, /interests: \[\.\.\.PRESENTATION_PROFESSOR_DEFAULTS\.interests\]/);
+  assert.equal("PRESENTATION_PROFESSOR_DEFAULTS" in discoveryModule, false);
+  assert.doesNotMatch(source, /PRESENTATION_PROFESSOR_DEFAULTS/);
+  assert.doesNotMatch(directFormSource, /PRESENTATION_PROFESSOR_DEFAULTS/);
+  const blankTutorialContextPattern = /\{\s*\.\.\.EMPTY_PROFESSOR_DISCOVERY_CONTEXT,\s*university: taxonomy\.university,\s*interests: \[\],\s*careerInterests: \[\],\s*careerConcerns: \[\],\s*\}/g;
+  assert.equal(
+    source.match(blankTutorialContextPattern)?.length,
+    2,
+    "튜토리얼 최초 진입과 재시작 모두 단과대·주전공·관심 분야가 비어 있어야 한다",
+  );
+  assert.match(
+    directFormSource,
+    /\{\s*\.\.\.EMPTY_PROFESSOR_DISCOVERY_CONTEXT,\s*interests: \[\],\s*careerInterests: \[\],\s*careerConcerns: \[\],\s*\}/,
+  );
+  assert.match(source, /major-evolution-professor-tutorial-v2/);
+  assert.doesNotMatch(source, /major-evolution-professor-tutorial-v7/);
+  assert.doesNotMatch(source, /college:\s*["']SW융합대학["']/);
+  assert.doesNotMatch(source, /major:\s*["']통계데이터사이언스학과["']/);
+  assert.doesNotMatch(directFormSource, /college:\s*["']SW융합대학["']/);
+  assert.doesNotMatch(directFormSource, /major:\s*["']통계데이터사이언스학과["']/);
   assert.match(source, /title: "이제 교수님을 찾으러 가볼까요\?"/);
   assert.match(source, />교수님 찾기 <ArrowRight/);
   assert.match(source, /const profileState = useProfileStore\.getState\(\);/);
