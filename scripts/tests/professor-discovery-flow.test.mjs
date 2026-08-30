@@ -570,7 +570,7 @@ test("교수님 3인 피칭은 찾기 폼 아래가 아니라 전용 주소에�
   );
 });
 
-test("새 연구주제로 전환하면 이전 교수 찾기 맥락과 포트폴리오 요약을 함께 지운다", () => {
+test("새 연구주제로 전환하면 프로젝트 자문 추천만 초기화하고 학생 교수 탐색은 보존한다", () => {
   const store = fs.readFileSync(
     path.join(repositoryRoot, "store/research-store.ts"),
     "utf8",
@@ -582,19 +582,25 @@ test("새 연구주제로 전환하면 이전 교수 찾기 맥락과 포트폴�
     ),
     store.slice(
       store.indexOf("  reRecommend: () => {"),
-      store.indexOf("  selectTopic: (id) => set({"),
+      store.indexOf("  selectTopic: (id) =>"),
     ),
     store.slice(
-      store.indexOf("  selectTopic: (id) => set({"),
+      store.indexOf("  selectTopic: (id) =>"),
       store.indexOf("  setProfessorMatchLoading: (professorMatchTopicId) =>"),
     ),
   ];
 
   for (const section of sections) {
-    assert.match(section, /professorMatchTopicId:\s*null/);
-    assert.match(section, /professorDiscoveryTopic:\s*null/);
-    assert.match(section, /professorDiscoverySummary:\s*null/);
+    assert.match(section, /\.\.\.emptyProjectProfessorMatchState\(\)/);
+    assert.doesNotMatch(section, /professorDiscoveryTopic:\s*null/);
+    assert.doesNotMatch(section, /professorDiscoverySummary:\s*null/);
   }
+  assert.match(store, /clearProfessorMatches:[\s\S]*professorMatches:[\s\S]*professorDiscoveryTopic:[\s\S]*selectedProfessorId:/);
+  assert.doesNotMatch(
+    store.slice(store.indexOf("clearProfessorMatches: () =>"), store.indexOf("clearProjectProfessorMatches:")),
+    /projectProfessorMatches/,
+    "학생 탐색 초기화는 프로젝트 추천 버킷을 건드리면 안 된다",
+  );
   assert.match(
     store,
     /persistedVersion < 4[\s\S]*professorDiscoverySummary:\s*null/,
@@ -638,7 +644,7 @@ test("첫 교수 매칭은 주전공·부전공·복수전공 중 한 명 뒤에
     path.join(repositoryRoot, "components/screens/professor-discovery-form.tsx"),
     "utf8",
   );
-  assert.match(store, /version:\s*8/);
+  assert.match(store, /version:\s*9/);
   assert.match(store, /persistedVersion < 7[\s\S]*secondaryMajor/);
   assert.match(store, /selectionPolicy:\s*response\.selectionPolicy/);
   assert.match(discoveryForm, /부·복수전공도 가까운 학과 연결 범위에 포함/);
@@ -664,10 +670,9 @@ test("전공 아이디어 튜토리얼은 최종 확인 전 로컬 초안만 쓰
     screen,
     /QUESTION_STEPS = \["major", "mode", "interests", "readiness", "feasibility", "review"\]/,
   );
-  assert.match(screen, /browserStorage\(\)\?\.setItem\(STORAGE_KEY, JSON\.stringify\(draft\)\)/);
   assert.match(
     screen,
-    /const startCoDesign = \(\) => \{[\s\S]*beginIdeaCoDesign\([\s\S]*router\.push\("\/co-design"\)/,
+    /const startCoDesign = \(\) => \{[\s\S]*beginIdeaCoDesign\([\s\S]*router\.replace\("\/co-design"\)/,
   );
 
   const atomicCommit = store.slice(
@@ -683,7 +688,7 @@ test("전공 아이디어 튜토리얼은 최종 확인 전 로컬 초안만 쓰
   );
 });
 
-test("프로젝트 설계는 단계형과 한 화면 입력을 오가며 건너뛰고 이어갈 수 있다", () => {
+test("프로젝트 설계는 하나의 적응형 시작 흐름에서 저장된 조건 편집으로만 분기한다", () => {
   const tutorial = fs.readFileSync(
     path.join(repositoryRoot, "components/tutorial/research-tutorial-screen.tsx"),
     "utf8",
@@ -692,22 +697,30 @@ test("프로젝트 설계는 단계형과 한 화면 입력을 오가며 건너�
     path.join(repositoryRoot, "components/screens/research-condition.tsx"),
     "utf8",
   );
+  const fullFormRoute = fs.readFileSync(
+    path.join(repositoryRoot, "app/research/conditions/page.tsx"),
+    "utf8",
+  );
   const store = fs.readFileSync(
     path.join(repositoryRoot, "store/research-store.ts"),
     "utf8",
   );
 
-  assert.match(tutorial, /한 단계씩 질문받기/);
-  assert.match(tutorial, /한 화면에서 직접 입력/);
+  assert.match(tutorial, /프로젝트 설계 시작하기|이어서 설계하기/);
+  assert.doesNotMatch(tutorial, /한 화면에서 직접 입력/);
+  assert.match(tutorial, /저장된 조건 빠르게 수정/);
+  assert.match(tutorial, /router\.push\("\/research\/conditions\?view=review"\)/);
   assert.match(tutorial, /프로젝트 설계 단계 바로가기/);
   assert.match(tutorial, /나중에 답하기/);
   assert.match(tutorial, /저장하고 나가기/);
   assert.match(tutorial, /saveIdeaDraft\(\{ ideaMode: draft\.ideaMode, conditions: draft\.conditions \}\)/);
   assert.match(fullForm, /\/research\/tutorial\?source=full/);
   assert.match(fullForm, /프로젝트 설계 단계/);
-  assert.match(fullForm, /설계 방식 선택으로 돌아가기/);
+  assert.match(fullForm, /단계별 설계로 돌아가기/);
   assert.match(fullForm, /renderCurrentStep\(\)/);
   assert.match(fullForm, /현재 입력은 이 브라우저에 자동 저장돼요/);
+  assert.match(fullForm, /initialStep/);
+  assert.match(fullFormRoute, /initialStep=\{view === "review" \? "review" : "direction"\}/);
   assert.match(store, /saveIdeaDraft: \(\{ ideaMode, conditions \}\) =>/);
 });
 
@@ -726,10 +739,18 @@ test("교수 상세와 논문 열람은 선택을 저장하지 않고 첫 대화
   );
 
   assert.doesNotMatch(openProfessorBlock, /selectProfessor\(/);
-  assert.match(openProfessorBlock, /router\.push\(`\/professors\/\$\{match\.professor\.id\}`\)/);
+  assert.match(openProfessorBlock, /router\.push\(`\/professors\/\$\{match\.professor\.id\}\?from=pitch`\)/);
   assert.match(openProfessorBlock, /router\.push\("\/paper\/reader\?mode=bite&source=favorites"\)/);
   assert.match(chooseProfessorBlock, /selectProfessor\(match\.professor\.id\)/);
   assert.match(screen, /이 교수님과 첫 대화 준비하기/);
+  const detailScreen = screen.slice(screen.indexOf("export function OfficialProfessorDetailScreen"));
+  assert.match(detailScreen, /projectProfessorMatches/);
+  assert.match(detailScreen, /selectProjectProfessor/);
+  assert.match(detailScreen, /professorDetailNavigation\(from, journey\)/);
+  assert.match(detailScreen, /detailNavigation\.matchBucket === "project"/);
+  assert.match(detailScreen, /backHref=\{detailNavigation\.backHref\}/);
+  assert.match(detailScreen, /match \? \(/);
+  assert.match(detailScreen, /교수님 찾기에서 연결 맥락 만들기/);
 });
 
 test("직접 교수 찾기도 프로필을 저장하고 기존 프로필은 빈 입력만 채운다", () => {

@@ -1,55 +1,58 @@
-import { BookOpenCheck, FileSearch, Mail, Upload } from "lucide-react";
+import Link from "next/link";
+import { BookOpenCheck, FileSearch, Mail, MessageCircleQuestion, Upload } from "lucide-react";
+import { PAPER_TO_EMAIL_STEPS } from "@/lib/email-draft-purpose";
 
-const PAPER_READING_STEPS = [
-  {
-    number: 1,
-    label: "논문 선택",
-    description: "관심 교수님의 공식 목록",
-    icon: BookOpenCheck,
-  },
-  {
-    number: 2,
-    label: "3분 카드",
-    description: "초록·본문 핵심 정리",
-    icon: FileSearch,
-  },
-  {
-    number: 3,
-    label: "PDF 해설",
-    description: "원문 읽기·요약·질문",
-    icon: Upload,
-  },
-  {
-    number: 4,
-    label: "컨택 메일",
-    description: "요약 근거로 초안 작성",
-    icon: Mail,
-  },
-] as const;
+const STEP_ICONS = [BookOpenCheck, FileSearch, Upload, MessageCircleQuestion, Mail] as const;
+const PAPER_READING_STEPS = PAPER_TO_EMAIL_STEPS.map((step, index) => ({
+  ...step,
+  icon: STEP_ICONS[index],
+}));
 
-export function PaperReadingSteps({ current }: { current: 1 | 2 | 3 | 4 }) {
+export function PaperReadingSteps({
+  current,
+  navigationLocked = false,
+}: {
+  current: 1 | 2 | 3 | 4 | 5;
+  navigationLocked?: boolean;
+}) {
   return (
-    <nav className="paper-reading-steps" aria-label="논문 읽기 4단계">
+    <nav className="paper-reading-steps" aria-label="논문 활용과 메일 준비 5단계">
       <ol>
         {PAPER_READING_STEPS.map((step) => {
           const Icon = step.icon;
           const state = step.number < current
             ? "complete"
             : step.number === current ? "current" : "upcoming";
-          return (
-            <li
-              key={step.number}
-              className={`is-${state}`}
-              aria-current={state === "current" ? "step" : undefined}
-            >
+          const locked = Boolean(step.href && state !== "current" && navigationLocked);
+          const content = (
+            <>
               <span className="paper-reading-steps__icon">
                 <Icon size={17} aria-hidden="true" />
               </span>
               <span className="paper-reading-steps__copy">
                 <small>{step.number}단계</small>
                 <strong>{step.label}</strong>
-                <em>{step.description}</em>
+                <em>{locked ? "카드 저장 후 이동" : step.description}</em>
               </span>
+            </>
+          );
+          return (
+            <li
+              key={step.number}
+              className={`is-${state}${locked ? " is-locked" : ""}`}
+              aria-current={state === "current" ? "step" : undefined}
+            >
+              {step.href && state !== "current" ? (
+                locked ? (
+                  <span className="paper-reading-steps__locked" aria-disabled="true">
+                    {content}
+                  </span>
+                ) : (
+                  <Link href={step.href} aria-label={`${step.number}단계 ${step.label}, ${step.description}`}>
+                    {content}
+                  </Link>
+                )
+              ) : content}
             </li>
           );
         })}

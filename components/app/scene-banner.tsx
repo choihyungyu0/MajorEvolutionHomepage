@@ -17,6 +17,7 @@ export function SceneBanner({
   title,
   description,
   priority = false,
+  className,
 }: {
   scene: SceneSet;
   /** 장식이 아니라 내용을 전달하면 설명을 넣고, 아니면 빈 문자열로 둡니다. */
@@ -25,9 +26,10 @@ export function SceneBanner({
   title: string;
   description?: string;
   priority?: boolean;
+  className?: string;
 }) {
   return (
-    <section className="scene-banner">
+    <section className={["scene-banner", className].filter(Boolean).join(" ")}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         className="scene-banner__image"

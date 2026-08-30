@@ -24,4 +24,3 @@ gtag('config', ${serializedId});`}
     </>
   );
 }
-

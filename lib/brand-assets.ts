@@ -73,7 +73,7 @@ export const brandScene = {
   paperBite: scene("q-paper", "nyp-scene-q-paper-bite"),
   firstLine: scene("q-opener", "nyp-scene-q-first-line"),
   silenceRescue: scene("q-silence", "nyp-scene-q-silence-rescue"),
-  emailGuard: scene("q-email", "nyp-scene-q-email-guard"),
+  emailGuard: scene("q-email", "nyp-scene-q-email-ready"),
   nextSeed: scene("q-seed", "nyp-scene-q-next-seed"),
 } as const;
 

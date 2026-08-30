@@ -394,10 +394,7 @@ function ServiceHelpGuideContent({ placement = "floating" }: ServiceHelpGuidePro
       </button>
 
       {tourOpen && activeTourArea && typeof document !== "undefined" ? createPortal((
-        <div
-          className={`service-help-tour-backdrop${spotlightRect ? " has-spotlight" : " is-measuring"}`}
-          onMouseDown={closeFromBackdrop}
-        >
+        <div className="service-help-tour-backdrop" onMouseDown={closeFromBackdrop}>
           {spotlightRect ? (
             <span
               className="service-help-tour__spotlight"
@@ -510,17 +507,6 @@ function ServiceHelpGuideContent({ placement = "floating" }: ServiceHelpGuidePro
                 <p>{help.purpose}</p>
               </div>
 
-              <div className="service-help-dialog__actions-now" aria-label="현재 우선순위와 다음 단계">
-                <article>
-                  <span>지금 먼저 할 일</span>
-                  <p>{help.now}</p>
-                </article>
-                <article>
-                  <span>그다음 이어질 일</span>
-                  <p>{help.next}</p>
-                </article>
-              </div>
-
               <section className="service-help-dialog__steps" aria-labelledby="service-help-steps-title">
                 <header>
                   <span><ListChecks size={16} aria-hidden="true" /></span>
@@ -539,6 +525,17 @@ function ServiceHelpGuideContent({ placement = "floating" }: ServiceHelpGuidePro
                   ))}
                 </ol>
               </section>
+
+              <div className="service-help-dialog__actions-now">
+                <article>
+                  <span>지금 해볼 일</span>
+                  <p>{help.now}</p>
+                </article>
+                <article>
+                  <span>다음으로 이어져요</span>
+                  <p>{help.next}</p>
+                </article>
+              </div>
 
               {journey ? (
                 <div className={`service-help-dialog__journey is-${journey.key}`}>

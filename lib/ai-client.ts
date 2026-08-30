@@ -9,7 +9,6 @@ import type {
   GrowthProfessorRequest,
   GrowthProfessorResponse,
 } from "@/lib/ai-growth-professor";
-import type { ContactEmailRequest, ContactEmailResult } from "@/lib/contact-email";
 
 type ApiErrorPayload = { error?: { message?: string } };
 
@@ -50,11 +49,4 @@ export function requestGrowthProfessorReply(
   body: GrowthProfessorRequest,
 ): Promise<GrowthProfessorResponse> {
   return postJson<GrowthProfessorResponse>("/api/ai/growth-professor", body);
-}
-
-export function requestContactEmail(
-  body: ContactEmailRequest,
-  options: { signal?: AbortSignal } = {},
-): Promise<ContactEmailResult> {
-  return postJson<ContactEmailResult>("/api/ai/contact-email", body, options);
 }

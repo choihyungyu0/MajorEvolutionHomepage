@@ -113,6 +113,15 @@ export type ProfessorPaperSelection = {
   kciId: string | null;
   officialProfileUrl: string;
   selectedAt: string;
+  confirmedPublicPaper?: {
+    officialPaperId: string;
+    title: string;
+    publishedDate: string | null;
+    doi: string | null;
+    sourceUrl: string | null;
+    license: string | null;
+    confirmedAt: string;
+  } | null;
 };
 
 export type ProfessorMatch = {

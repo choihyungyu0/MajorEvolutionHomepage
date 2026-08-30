@@ -1,7 +1,17 @@
+.matchShell {
+  --brand-purple: #2f6edb;
+  --brand-violet-soft: #eaf2ff;
+  --service-stage-accent: #2f6edb;
+  background: #f2f7ff;
+}
+
+.matchShell :global(.screen-content) { background: transparent; }
+
 .workspace {
   display: grid;
   min-width: 0;
   gap: 24px;
+  margin-top: 24px;
 }
 
 .primaryArea,
@@ -20,9 +30,9 @@
   align-items: flex-start;
   margin-top: 14px;
   padding: 14px 15px;
-  border: 1px solid #cde8e2;
+  border: 1px solid #cbdcf4;
   border-radius: 14px;
-  background: linear-gradient(145deg, #f5fffc, #ffffff);
+  background: linear-gradient(145deg, #f2f7ff, #ffffff);
 }
 
 .officialStatus > svg {
@@ -37,13 +47,13 @@
 }
 
 .officialStatus strong {
-  color: #176e61;
+  color: #245db7;
   font-size: 12px;
   font-weight: 820;
 }
 
 .officialStatus small {
-  color: #56756f;
+  color: #526a8e;
   font-size: 11px;
   font-weight: 620;
   line-height: 1.5;

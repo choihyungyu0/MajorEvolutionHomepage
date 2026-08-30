@@ -324,12 +324,12 @@
 
 .pathGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
 }
 
 .pathCard {
-  min-height: 162px;
+  min-height: 148px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
@@ -355,8 +355,8 @@
 
 .pathCardPrimary {
   border-color: #ddd8f8;
-  background: #f8f7fd;
-  box-shadow: inset 3px 0 0 var(--rt-violet), 0 8px 22px rgb(27 38 69 / 6%);
+  background: linear-gradient(115deg, #f8f7ff, #f3fbf9);
+  box-shadow: inset 4px 0 0 var(--rt-violet), 0 12px 30px rgb(47 35 111 / 8%);
 }
 
 .pathIcon {
@@ -400,6 +400,24 @@
   align-self: center;
   color: #9aa2b2;
 }
+
+.conditionEditorLink {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 40px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 4px;
+  color: #6250c7;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.conditionEditorLink:hover { color: #43339d; }
 
 .resumeResult {
   display: inline-flex;
@@ -512,6 +530,7 @@
 .secondaryButton:focus-visible,
 .skipButton:focus-visible,
 .pathCard:focus-visible,
+.conditionEditorLink:focus-visible,
 .stepNavItem:focus-visible,
 .headerActions button:focus-visible,
 .reviewRow button:focus-visible,
@@ -1249,11 +1268,6 @@
 
   .headerActions {
     gap: 12px;
-  }
-
-  /* 이전 버튼으로 시작 화면에 돌아갈 수 있어 작은 화면에서는 중복 헤더 액션을 숨깁니다. */
-  .modeChangeButton {
-    display: none;
   }
 
   .headerActions button,

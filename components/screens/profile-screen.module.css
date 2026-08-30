@@ -160,33 +160,6 @@
 .recordsAction p { margin: 4px 0 0; color: var(--text-secondary); font-size: 11px; line-height: 1.5; }
 .recordsAction > svg { color: #8b94aa; }
 
-.previewAction {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
-  margin-top: 14px;
-  padding: 14px;
-  border: 1px solid #e5e0ff;
-  border-radius: 14px;
-  background: #f6f5fb;
-}
-.previewAction > span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: white; color: var(--brand-purple); }
-.previewAction strong { color: var(--brand-navy-900); font-size: 12px; }
-.previewAction p { margin: 4px 0 0; color: var(--text-secondary); font-size: 11px; line-height: 1.5; }
-.previewAction a {
-  display: inline-flex;
-  grid-column: 1 / -1;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border-radius: 10px;
-  background: white;
-  color: var(--brand-purple);
-  font-size: 12px;
-  font-weight: 780;
-}
-
 .localNote { display: flex; gap: 6px; margin: 14px 0 0; color: var(--text-tertiary); font-size: 10px; line-height: 1.5; }
 .localNote svg { flex: 0 0 auto; margin-top: 1px; }
 
@@ -256,7 +229,6 @@
   .tags,
   .savedStatus,
   .recordsAction,
-  .previewAction,
   .localNote { grid-column: 1 / -1; }
 }
 

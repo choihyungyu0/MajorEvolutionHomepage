@@ -22,6 +22,18 @@ test("공동설계는 공통 3문항 뒤 API 맞춤 질문 2문항으로 이어�
   assert.match(route, /generateCoDesignFollowUpQuestions/);
 });
 
+test("공동설계 화면은 탐색 방식별 테마와 전용 배경 자산을 사용한다", async () => {
+  const screen = await read("components/screens/co-design-screen.tsx");
+  const styles = await read("app/globals.css");
+
+  assert.match(screen, /co-design-mode-\$\{ideaMode\}/);
+  assert.match(styles, /nyp-co-design-canvas-1600x1000-v01\.webp/);
+  assert.match(styles, /\.co-design-mode-free/);
+  assert.match(styles, /\.co-design-mode-trend/);
+  assert.match(styles, /\.co-design-mode-fusion/);
+  assert.match(styles, /--co-mode-accent/);
+});
+
 test("첫 공동설계 화면은 답변 평가가 아니라 AI의 역할과 답변 방법을 먼저 안내한다", async () => {
   const screen = await read("components/screens/co-design-screen.tsx");
 

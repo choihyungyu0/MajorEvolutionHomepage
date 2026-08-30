@@ -92,8 +92,19 @@ export async function renderPdfPage(
 }
 
 export class PdfReadError extends Error {
-  constructor(readonly code: "encrypted" | "scanned" | "parse-failed", message: string) {
+  constructor(readonly code: "encrypted" | "scanned" | "parse-failed" | "too-many-pages", message: string) {
     super(message);
+  }
+}
+
+const MAX_READER_PAGES = 40;
+
+export function assertSupportedPdfPageCount(pageCount: number): void {
+  if (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > MAX_READER_PAGES) {
+    throw new PdfReadError(
+      "too-many-pages",
+      `논문 리더는 ${MAX_READER_PAGES}쪽 이하 PDF를 지원합니다. 필요한 부분만 나눠 다시 열어 주세요.`,
+    );
   }
 }
 
@@ -121,6 +132,8 @@ export async function extractPdfText(file: File): Promise<PdfDocument> {
     }
     throw new PdfReadError("parse-failed", "PDF를 읽지 못했습니다. 파일이 손상되지 않았는지 확인해 주세요.");
   }
+
+  assertSupportedPdfPageCount(doc.numPages);
 
   const pages: PdfPage[] = [];
   for (let n = 1; n <= doc.numPages; n += 1) {

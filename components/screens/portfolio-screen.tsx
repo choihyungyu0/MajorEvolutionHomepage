@@ -43,7 +43,7 @@ const STEP_META: Array<{ id: StepId; label: string; hint: string; icon: typeof S
   { id: "actions", label: "7일 행동", hint: "면담 후 7일 동안의 행동", icon: CalendarCheck },
 ];
 
-export function PortfolioBuilderScreen() {
+export function PortfolioBuilderScreen({ topicId = null }: { topicId?: string | null }) {
   const hasHydrated = useResearchStore((state) => state.hasHydrated);
   const conditions = useResearchStore((state) => state.conditions);
   const result = useResearchStore((state) => state.result);
@@ -64,7 +64,7 @@ export function PortfolioBuilderScreen() {
   const [maskPersonal, setMaskPersonal] = useState(true);
   const [onlySelected, setOnlySelected] = useState(true);
 
-  const topic = useMemo(() => {
+  const currentTopic = useMemo(() => {
     if (!result || !selectedTopicId) return null;
     if (result.kind === "ok") {
       return result.candidates.find((c) => c.topic.id === selectedTopicId)?.topic ?? null;
@@ -75,11 +75,16 @@ export function PortfolioBuilderScreen() {
     return null;
   }, [result, selectedTopicId]);
 
+  const requestedHistoricalProject = topicId
+    ? growthProjectHistory.find((item) => item.topicId === topicId) ?? null
+    : null;
+  const topic = topicId && currentTopic?.id !== topicId ? null : currentTopic;
+
   const match = matches.find((item) => item.professor.id === selectedProfessorId) ?? matches[0] ?? null;
   const historicalProfessor = [...growthProfessorHistory]
     .reverse()
     .find((item) => item.selectedAt) ?? growthProfessorHistory.at(-1) ?? null;
-  const historicalProject = growthProjectHistory.at(-1) ?? null;
+  const historicalProject = requestedHistoricalProject ?? growthProjectHistory.at(-1) ?? null;
   const loopKey = topic && match ? `${topic.id}:${match.professor.id}` : null;
   const loop = loopKey ? mentorLoopEntries[loopKey] : null;
   const draft = loopKey ? knockKitDrafts[loopKey] : null;

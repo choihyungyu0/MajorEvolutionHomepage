@@ -15,17 +15,9 @@ export function ServiceMobileHeader({ action }: { action?: ReactNode }) {
   );
 }
 
-export function ServiceHubIntro({
-  title,
-  description,
-  variant = "default",
-}: {
-  title: string;
-  description: string;
-  variant?: "default" | "compact";
-}) {
+export function ServiceHubIntro({ title, description }: { title: string; description: string }) {
   return (
-    <header className={`${styles.intro}${variant === "compact" ? ` ${styles.introCompact}` : ""}`}>
+    <header className={styles.intro}>
       <h1>{title}</h1>
       <p>{description}</p>
     </header>
@@ -39,7 +31,6 @@ export function HubPrimaryTask({
   cta,
   href,
   secondary,
-  eyebrow = "지금 먼저 할 일",
 }: {
   icon: LucideIcon;
   title: string;
@@ -47,13 +38,11 @@ export function HubPrimaryTask({
   cta: string;
   href: string;
   secondary?: { label: string; href: string };
-  eyebrow?: string;
 }) {
   return (
     <section className={styles.primaryTask} aria-labelledby="hub-primary-task">
       <span className={styles.primaryIcon}><Icon size={27} aria-hidden="true" /></span>
       <div className={styles.primaryCopy}>
-        <span className={styles.primaryEyebrow}>{eyebrow}</span>
         <h2 id="hub-primary-task">{title}</h2>
         <p>{description}</p>
       </div>
@@ -148,11 +137,11 @@ export function HubRow({
   title: string;
   description?: string;
   status?: string;
-  href?: string;
+  href: string;
   tone?: "neutral" | "violet" | "mint";
 }) {
-  const content = (
-    <>
+  return (
+    <Link href={href} className={styles.row}>
       <span className={`${styles.rowIcon} ${styles[`rowIcon_${tone}`]}`}>
         <Icon size={21} aria-hidden="true" />
       </span>
@@ -161,15 +150,9 @@ export function HubRow({
         {description ? <small>{description}</small> : null}
       </span>
       {status ? <span className={styles.rowStatus}>{status}</span> : null}
-      {href ? <ChevronRight size={20} aria-hidden="true" /> : null}
-    </>
+      <ChevronRight size={20} aria-hidden="true" />
+    </Link>
   );
-
-  if (!href) {
-    return <article className={`${styles.row} ${styles.rowStatic}`}>{content}</article>;
-  }
-
-  return <Link href={href} className={styles.row}>{content}</Link>;
 }
 
 export function HubUtilityLinks({ children }: { children: ReactNode }) {

@@ -1,0 +1,178 @@
+.hero {
+  position: relative;
+  isolation: isolate;
+  min-height: 286px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--journey-stage-accent) 24%, #dfe4ec);
+  border-radius: 26px;
+  color: var(--journey-stage-foreground);
+  background: var(--journey-stage-fallback);
+  box-shadow: 0 18px 46px rgb(30 42 78 / 9%);
+}
+
+.background {
+  z-index: -1;
+  object-fit: cover;
+  object-position: center;
+}
+
+.content {
+  display: grid;
+  width: min(58%, 650px);
+  min-height: 286px;
+  align-content: center;
+  gap: 12px;
+  padding: 38px 44px;
+}
+
+.stageMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.stageLabel,
+.eyebrow {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 820;
+  line-height: 1.2;
+}
+
+.stageLabel {
+  color: var(--journey-stage-accent);
+  background: color-mix(in srgb, var(--journey-stage-accent-soft) 88%, white);
+}
+
+.eyebrow {
+  color: color-mix(in srgb, var(--journey-stage-foreground) 70%, white);
+  background: rgb(255 255 255 / 64%);
+}
+
+.content h1 {
+  max-width: 620px;
+  color: var(--journey-stage-foreground);
+  font-size: clamp(31px, 4vw, 46px);
+  font-weight: 880;
+  letter-spacing: -0.045em;
+  line-height: 1.15;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.content > p {
+  max-width: 610px;
+  color: color-mix(in srgb, var(--journey-stage-foreground) 72%, white);
+  font-size: 14px;
+  font-weight: 620;
+  line-height: 1.65;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 4px;
+}
+
+.actions > a,
+.actions > button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 15px;
+  border: 1px solid color-mix(in srgb, var(--journey-stage-accent) 28%, transparent);
+  border-radius: 11px;
+  color: var(--journey-stage-accent);
+  background: rgb(255 255 255 / 84%);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.actions > a:focus-visible,
+.actions > button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--journey-stage-accent) 45%, transparent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .hero,
+  .content {
+    min-height: 238px;
+  }
+
+  .background {
+    object-position: 62% center;
+    opacity: 0.74;
+  }
+
+  .hero[data-journey-stage="meeting"] .background {
+    object-position: 78% center;
+    opacity: 0.52;
+  }
+
+  .content {
+    width: min(84%, 560px);
+    gap: 9px;
+    padding: 27px 23px;
+  }
+
+  .content h1 {
+    font-size: clamp(27px, 8vw, 34px);
+    line-height: 1.2;
+  }
+
+  .content > p {
+    max-width: 500px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+}
+
+@media (max-width: 420px) {
+  .hero,
+  .content {
+    min-height: 228px;
+  }
+
+  .hero {
+    border-radius: 20px;
+  }
+
+  .background {
+    object-position: 68% center;
+    opacity: 0.6;
+  }
+
+  .content {
+    width: 92%;
+    padding: 24px 18px;
+  }
+
+  .stageLabel,
+  .eyebrow {
+    min-height: 27px;
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero,
+  .actions > a,
+  .actions > button {
+    scroll-behavior: auto;
+  }
+}

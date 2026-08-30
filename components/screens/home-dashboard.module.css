@@ -249,19 +249,6 @@
 .professorEmpty > a svg { transition: transform 160ms ease; }
 .professorEmpty > a:hover svg { transform: translateX(3px); }
 
-.professorEmptyHint {
-  grid-column: 1 / -1;
-  margin: 0;
-  padding: 11px 13px;
-  border-radius: 11px;
-  color: #5f6b84;
-  background: #eef1f7;
-  font-size: 12px;
-  font-weight: 720;
-  line-height: 1.45;
-  text-align: center;
-}
-
 .progressSection {
   overflow-x: auto;
   padding: 23px 24px 21px;

@@ -54,8 +54,8 @@ const COMMON_QUESTIONS: CoDesignQuestion[] = [
   },
   {
     id: "problem",
-    prompt: "그 대상이 지금 겪는 문제를 한 가지로 좁힌다면 무엇인가요?",
-    helper: "해결책보다 먼저 관찰할 수 있는 문제를 정해 봐요.",
+    prompt: "문제를 해결하고자 하는 대상이 지금 겪는 가장 큰 어려움은 무엇인가요?",
+    helper: "해결책을 떠올리기 전에, 대상이 실제로 겪는 어려움 한 가지를 골라 보세요.",
     options: ["정보를 찾기 어렵다", "판단 기준이 모호하다", "시간·비용이 많이 든다", "아직 잘 모르겠다"],
     contextLabel: "핵심 문제",
     allowCustom: true,

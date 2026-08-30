@@ -53,6 +53,13 @@ import {
   type GrowthProjectRecord,
 } from "@/lib/growth-journey";
 import { MAX_FAVORITE_PROFESSORS } from "@/lib/professor-paper-selection";
+import {
+  activateProfessorSelection,
+  isProjectProfessorMatchTopic,
+  migrateProfessorMatchBuckets,
+  professorMatchSourceForId,
+  removeProfessorFromMatchBuckets,
+} from "@/lib/professor-match-state";
 
 /**
  * 찾다에서 학생이 고른 탐색 조건 중 성장 포트폴리오가 쓰는 부분만 남깁니다.
@@ -143,6 +150,28 @@ function normalizePaperSelection(value: unknown): ProfessorPaperSelection | null
   if (raw.publishedDate !== null && typeof raw.publishedDate !== "string") return null;
   if (raw.doi !== null && typeof raw.doi !== "string") return null;
   if (raw.kciId !== null && typeof raw.kciId !== "string") return null;
+  const rawPublicPaper = raw.confirmedPublicPaper;
+  const confirmedPublicPaper = rawPublicPaper && typeof rawPublicPaper === "object" && !Array.isArray(rawPublicPaper)
+    ? rawPublicPaper as Record<string, unknown>
+    : null;
+  const normalizedPublicPaper = confirmedPublicPaper
+    && typeof confirmedPublicPaper.officialPaperId === "string"
+    && typeof confirmedPublicPaper.title === "string"
+    && typeof confirmedPublicPaper.confirmedAt === "string"
+    && (confirmedPublicPaper.publishedDate === null || typeof confirmedPublicPaper.publishedDate === "string")
+    && (confirmedPublicPaper.doi === null || typeof confirmedPublicPaper.doi === "string")
+    && (confirmedPublicPaper.sourceUrl === null || typeof confirmedPublicPaper.sourceUrl === "string")
+    && (confirmedPublicPaper.license === null || typeof confirmedPublicPaper.license === "string")
+    ? {
+        officialPaperId: confirmedPublicPaper.officialPaperId.slice(0, 64),
+        title: confirmedPublicPaper.title.slice(0, 300),
+        publishedDate: confirmedPublicPaper.publishedDate as string | null,
+        doi: confirmedPublicPaper.doi as string | null,
+        sourceUrl: confirmedPublicPaper.sourceUrl as string | null,
+        license: confirmedPublicPaper.license as string | null,
+        confirmedAt: confirmedPublicPaper.confirmedAt.slice(0, 40),
+      }
+    : null;
   return {
     professorId: String(raw.professorId).slice(0, 64),
     professorName: String(raw.professorName).slice(0, 80),
@@ -155,8 +184,14 @@ function normalizePaperSelection(value: unknown): ProfessorPaperSelection | null
     kciId: raw.kciId as string | null,
     officialProfileUrl: String(raw.officialProfileUrl).slice(0, 500),
     selectedAt: String(raw.selectedAt).slice(0, 40),
+    confirmedPublicPaper: normalizedPublicPaper,
   };
 }
+
+type ProfessorCoverage = Pick<
+  ProfessorMatchResponse,
+  "officialRecordCount" | "scopeStatus" | "coverageGaps" | "note" | "selectionPolicy" | "rankingSource" | "rankingModel"
+>;
 
 type ResearchState = {
   hasHydrated: boolean;
@@ -171,13 +206,17 @@ type ResearchState = {
   groundingNote: string | null;
   selectedTopicId: string | null;
   professorMatches: ProfessorMatch[];
-  professorCoverage: Pick<
-    ProfessorMatchResponse,
-    "officialRecordCount" | "scopeStatus" | "coverageGaps" | "note" | "selectionPolicy" | "rankingSource" | "rankingModel"
-  > | null;
+  professorCoverage: ProfessorCoverage | null;
   professorMatchStatus: "idle" | "loading" | "success" | "error";
   professorMatchError: string | null;
   professorMatchTopicId: string | null;
+  /** 선택 프로젝트를 위한 자문 추천은 학생의 ‘찾다’ 추천과 별도로 보관합니다. */
+  projectProfessorMatches: ProfessorMatch[];
+  projectProfessorCoverage: ProfessorCoverage | null;
+  projectProfessorMatchStatus: "idle" | "loading" | "success" | "error";
+  projectProfessorMatchError: string | null;
+  projectProfessorMatchTopicId: string | null;
+  selectedProjectProfessorId: string | null;
   /** 새로고침·퀘스트 왕복 뒤에도 피칭 문구와 다시 찾기 요청을 복원하는 최소 요청 맥락. */
   professorDiscoveryTopic: ProfessorMatchTopic | null;
   /**
@@ -249,6 +288,11 @@ type ResearchState = {
   setProfessorRejectedIds: (ids: string[]) => void;
   setProfessorDiscoverySummary: (summary: ProfessorDiscoverySummary | null) => void;
   setProfessorMatchError: (topicId: string, message: string) => void;
+  setProjectProfessorMatchLoading: (topicId: string) => void;
+  setProjectProfessorMatches: (response: ProfessorMatchResponse) => void;
+  setProjectProfessorMatchError: (topicId: string, message: string) => void;
+  selectProjectProfessor: (id: string) => void;
+  clearProjectProfessorMatches: () => void;
   selectProfessor: (id: string) => void;
   toggleFavoriteProfessor: (id: string) => FavoriteProfessorToggleResult;
   removeFavoriteProfessors: (ids: string[]) => void;
@@ -272,6 +316,15 @@ type ResearchState = {
   reset: () => void;
 };
 
+const emptyProjectProfessorMatchState = () => ({
+  projectProfessorMatches: [] as ProfessorMatch[],
+  projectProfessorCoverage: null,
+  projectProfessorMatchStatus: "idle" as const,
+  projectProfessorMatchError: null,
+  projectProfessorMatchTopicId: null,
+  selectedProjectProfessorId: null,
+});
+
 const invalidatedResearchState = () => ({
   coDesignStep: 0,
   coDesignAnswers: [] as ConfirmedAnswer[],
@@ -281,15 +334,7 @@ const invalidatedResearchState = () => ({
   resultOrigin: null,
   groundingNote: null,
   selectedTopicId: null,
-  professorMatches: [] as ProfessorMatch[],
-  professorCoverage: null,
-  professorMatchStatus: "idle" as const,
-  professorMatchError: null,
-  professorMatchTopicId: null,
-  professorDiscoveryTopic: null,
-  professorRejectedIds: [],
-  professorDiscoverySummary: null,
-  selectedProfessorId: null,
+  ...emptyProjectProfessorMatchState(),
   seenIds: [] as string[],
   reRecommendNote: null,
 });
@@ -388,6 +433,16 @@ export function migrateResearchState(
       },
     ];
   }
+  const migratedBuckets = migrateProfessorMatchBuckets<ProfessorMatch, ProfessorCoverage>({
+    selectedTopicId: state.selectedTopicId,
+    professorMatchTopicId: state.professorMatchTopicId,
+    professorMatches: state.professorMatches,
+    professorCoverage: state.professorCoverage,
+    professorMatchStatus: state.professorMatchStatus,
+    professorMatchError: state.professorMatchError,
+    professorRejectedIds: state.professorRejectedIds,
+    selectedProfessorId: state.selectedProfessorId,
+  });
 
   return {
     ...state,
@@ -399,6 +454,21 @@ export function migrateResearchState(
     growthProfessorHistory,
     interestsFull: interests.length >= MAX_INTERESTS,
     methodsFull: methods.length >= MAX_METHODS,
+    ...(persistedVersion < 9 ? {
+      professorMatches: migratedBuckets.studentBucket.matches,
+      professorCoverage: migratedBuckets.studentBucket.coverage,
+      professorMatchStatus: migratedBuckets.studentBucket.status,
+      professorMatchError: migratedBuckets.studentBucket.error,
+      professorMatchTopicId: migratedBuckets.studentBucket.topicId,
+      professorRejectedIds: migratedBuckets.studentBucket.rejectedIds,
+      selectedProfessorId: migratedBuckets.studentBucket.selectedProfessorId,
+      projectProfessorMatches: migratedBuckets.projectBucket.matches,
+      projectProfessorCoverage: migratedBuckets.projectBucket.coverage,
+      projectProfessorMatchStatus: migratedBuckets.projectBucket.status,
+      projectProfessorMatchError: migratedBuckets.projectBucket.error,
+      projectProfessorMatchTopicId: migratedBuckets.projectBucket.topicId,
+      selectedProjectProfessorId: migratedBuckets.projectBucket.selectedProfessorId,
+    } : {}),
     // v1의 개인 맞춤 입력은 보편 대학생 입력으로 바뀌어 결과를 다시 계산해야 했습니다.
     // v2→v3은 즐겨찾기·논문 선택만 추가하므로 기존 공동설계와 추천 결과를 보존합니다.
     ...(persistedVersion < 2 ? invalidatedResearchState() : {}),
@@ -457,6 +527,12 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
   professorMatchStatus: "idle",
   professorMatchError: null,
   professorMatchTopicId: null,
+  projectProfessorMatches: [],
+  projectProfessorCoverage: null,
+  projectProfessorMatchStatus: "idle",
+  projectProfessorMatchError: null,
+  projectProfessorMatchTopicId: null,
+  selectedProjectProfessorId: null,
   professorDiscoveryTopic: null,
   professorRejectedIds: [],
   selectedProfessorId: null,
@@ -476,10 +552,10 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
 
   setHasHydrated: (hasHydrated) => set({ hasHydrated }),
   setIdeaMode: (ideaMode) =>
-    set({
-      ideaMode,
-      ...invalidatedResearchState(),
-    }),
+    set((state) => state.ideaMode === ideaMode ? state : ({
+        ideaMode,
+        ...invalidatedResearchState(),
+      })),
   setSchool: (school) =>
     set((state) => ({
       conditions: { ...state.conditions, school: school.slice(0, 80) },
@@ -633,15 +709,7 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
       groundingNote: null,
       seenIds: [],
       selectedTopicId: null,
-      professorMatches: [],
-      professorCoverage: null,
-      professorMatchStatus: "idle",
-      professorMatchError: null,
-      professorMatchTopicId: null,
-      professorDiscoveryTopic: null,
-      professorRejectedIds: [],
-      professorDiscoverySummary: null,
-      selectedProfessorId: null,
+      ...emptyProjectProfessorMatchState(),
       reRecommendNote: null,
     });
     return [];
@@ -695,15 +763,7 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
       ),
       seenIds: resultIds(result),
       selectedTopicId: null,
-      professorMatches: [],
-      professorCoverage: null,
-      professorMatchStatus: "idle",
-      professorMatchError: null,
-      professorMatchTopicId: null,
-      professorDiscoveryTopic: null,
-      professorRejectedIds: [],
-      professorDiscoverySummary: null,
-      selectedProfessorId: null,
+      ...emptyProjectProfessorMatchState(),
       reRecommendNote: null,
       loadKey: state.loadKey + 1,
     }));
@@ -719,15 +779,7 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
         groundingNote: "같은 조건에서 검수된 로컬 후보를 다시 구성했습니다.",
         seenIds: [...s.seenIds, ...resultIds(next)],
         selectedTopicId: null,
-        professorMatches: [],
-        professorCoverage: null,
-        professorMatchStatus: "idle",
-        professorMatchError: null,
-        professorMatchTopicId: null,
-        professorDiscoveryTopic: null,
-        professorRejectedIds: [],
-        professorDiscoverySummary: null,
-        selectedProfessorId: null,
+        ...emptyProjectProfessorMatchState(),
         reRecommendNote: null,
         loadKey: s.loadKey + 1,
       }));
@@ -737,30 +789,22 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
     }
   },
 
-  selectTopic: (id) => set({
-    selectedTopicId: id,
-    growthProjectHistory: appendGrowthProjectRecord(
-      get().growthProjectHistory,
-      get().result,
-      id,
-    ),
-    professorMatches: [],
-    professorCoverage: null,
-    professorMatchStatus: "idle",
-    professorMatchError: null,
-    professorMatchTopicId: null,
-    professorDiscoveryTopic: null,
-    professorRejectedIds: [],
-    professorDiscoverySummary: null,
-    selectedProfessorId: null,
-  }),
+  selectTopic: (id) => set((state) => state.selectedTopicId === id ? state : ({
+      selectedTopicId: id,
+      growthProjectHistory: appendGrowthProjectRecord(
+        state.growthProjectHistory,
+        state.result,
+        id,
+      ),
+      ...emptyProjectProfessorMatchState(),
+    })),
   setProfessorMatchLoading: (professorMatchTopicId) =>
     set({ professorMatchStatus: "loading", professorMatchError: null, professorMatchTopicId }),
   // 늦게 도착한 이전 요청의 응답이 현재 결과를 덮지 않도록, 진행 중인 요청의 주제와만 대조합니다.
   setProfessorMatches: (response) =>
     set((state) => (
       response.topicId !== state.professorMatchTopicId
-      || (isProjectProfessorTopicId(response.topicId) && response.topicId !== state.selectedTopicId)
+      || isProjectProfessorMatchTopic(response.topicId, state.selectedTopicId)
     ) ? state : ({
       professorMatches: response.matches,
       professorCoverage: {
@@ -782,13 +826,65 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
       professorMatchStatus: "error",
       professorMatchError,
     })),
-  selectProfessor: (selectedProfessorId) => set((state) => ({
-    selectedProfessorId,
-    growthProfessorHistory: markGrowthProfessorSelected(
-      state.growthProfessorHistory,
-      selectedProfessorId,
-    ),
-  })),
+  setProjectProfessorMatchLoading: (projectProfessorMatchTopicId) =>
+    set({ projectProfessorMatchStatus: "loading", projectProfessorMatchError: null, projectProfessorMatchTopicId }),
+  setProjectProfessorMatches: (response) =>
+    set((state) => (
+      response.topicId !== state.projectProfessorMatchTopicId
+      || response.topicId !== state.selectedTopicId
+    ) ? state : ({
+      projectProfessorMatches: response.matches,
+      projectProfessorCoverage: {
+        officialRecordCount: response.officialRecordCount,
+        scopeStatus: response.scopeStatus,
+        coverageGaps: response.coverageGaps,
+        note: response.note,
+        selectionPolicy: response.selectionPolicy,
+        rankingSource: response.rankingSource,
+        rankingModel: response.rankingModel,
+      },
+      projectProfessorMatchStatus: "success",
+      projectProfessorMatchError: null,
+      growthProfessorHistory: mergeGrowthProfessorHistoryByTopic(state.growthProfessorHistory, response),
+      selectedProjectProfessorId: null,
+    })),
+  setProjectProfessorMatchError: (topicId, projectProfessorMatchError) =>
+    set((state) => topicId !== state.projectProfessorMatchTopicId ? state : ({
+      projectProfessorMatchStatus: "error",
+      projectProfessorMatchError,
+    })),
+  selectProjectProfessor: (selectedProjectProfessorId) => set((state) => {
+    const selection = activateProfessorSelection({
+      source: "project",
+      professorId: selectedProjectProfessorId,
+      selectedStudentProfessorId: state.selectedProfessorId,
+      selectedProjectProfessorId: state.selectedProjectProfessorId,
+    });
+    return {
+      selectedProfessorId: selection.selectedStudentProfessorId,
+      selectedProjectProfessorId: selection.selectedProjectProfessorId,
+      growthProfessorHistory: markGrowthProfessorSelected(
+        state.growthProfessorHistory,
+        selectedProjectProfessorId,
+      ),
+    };
+  }),
+  selectProfessor: (selectedProfessorId) => set((state) => {
+    const selection = activateProfessorSelection({
+      source: "student",
+      professorId: selectedProfessorId,
+      selectedStudentProfessorId: state.selectedProfessorId,
+      selectedProjectProfessorId: state.selectedProjectProfessorId,
+    });
+    return {
+      selectedProfessorId: selection.selectedStudentProfessorId,
+      selectedProjectProfessorId: selection.selectedProjectProfessorId,
+      growthProfessorHistory: markGrowthProfessorSelected(
+        state.growthProfessorHistory,
+        selectedProfessorId,
+      ),
+    };
+  }),
   toggleFavoriteProfessor: (id) => {
     const normalizedId = id.trim().slice(0, 64);
     if (!normalizedId) return "full";
@@ -815,18 +911,33 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
     }));
   },
   clearFavoriteProfessors: () => set({ favoriteProfessorIds: [] }),
-  selectProfessorPaper: (selectedProfessorPaper) => set((state) => ({
-    selectedProfessorPaper,
-    ...(selectedProfessorPaper
-      ? {
-          selectedProfessorId: selectedProfessorPaper.professorId,
-          growthProfessorHistory: rememberPaperProfessor(
-            state.growthProfessorHistory,
-            selectedProfessorPaper,
-          ),
-        }
-      : {}),
-  })),
+  selectProfessorPaper: (selectedProfessorPaper) => set((state) => {
+    if (!selectedProfessorPaper) return { selectedProfessorPaper: null };
+    const source = professorMatchSourceForId({
+      professorId: selectedProfessorPaper.professorId,
+      studentMatches: state.professorMatches,
+      projectMatches: state.projectProfessorMatches,
+    });
+    const selection = source
+      ? activateProfessorSelection({
+          source,
+          professorId: selectedProfessorPaper.professorId,
+          selectedStudentProfessorId: state.selectedProfessorId,
+          selectedProjectProfessorId: state.selectedProjectProfessorId,
+        })
+      : null;
+    return {
+      selectedProfessorPaper,
+      ...(selection ? {
+        selectedProfessorId: selection.selectedStudentProfessorId,
+        selectedProjectProfessorId: selection.selectedProjectProfessorId,
+      } : {}),
+      growthProfessorHistory: rememberPaperProfessor(
+        state.growthProfessorHistory,
+        selectedProfessorPaper,
+      ),
+    };
+  }),
   saveKnockKitDraft: (key, draft) =>
     set((state) => ({ knockKitDrafts: { ...state.knockKitDrafts, [key]: draft } })),
   saveMentorLoopEntry: (key, entry) =>
@@ -844,33 +955,52 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
       const growthProfessorHistory = state.growthProfessorHistory.filter(
         (record) => !(record.professorId === professorId && record.source === source),
       );
-      const currentSource = state.professorCoverage?.rankingSource === "ai-reranked"
-        ? "project"
-        : "student";
-      const removesCurrentMatch = source === currentSource;
-      const professorMatches = removesCurrentMatch
-        ? state.professorMatches.filter((match) => match.professor.id !== professorId)
-        : state.professorMatches;
+      const buckets = removeProfessorFromMatchBuckets({
+        source,
+        professorId,
+        studentMatches: state.professorMatches,
+        selectedStudentProfessorId: state.selectedProfessorId,
+        projectMatches: state.projectProfessorMatches,
+        selectedProjectProfessorId: state.selectedProjectProfessorId,
+      });
+      const removedStudentMatch = buckets.studentMatches.length < state.professorMatches.length;
+      const removedProjectMatch = buckets.projectMatches.length < state.projectProfessorMatches.length;
       const stillConnected = growthProfessorHistory.some(
         (record) => record.professorId === professorId,
-      ) || professorMatches.some((match) => match.professor.id === professorId);
+      ) || buckets.studentMatches.some(
+        (match) => match.professor.id === professorId,
+      ) || buckets.projectMatches.some(
+        (match) => match.professor.id === professorId,
+      );
 
       return {
         growthProfessorHistory,
-        professorMatches,
-        selectedProfessorId: state.selectedProfessorId === professorId && !stillConnected
-          ? null
-          : state.selectedProfessorId,
+        professorMatches: buckets.studentMatches,
+        projectProfessorMatches: buckets.projectMatches,
+        selectedProfessorId: stillConnected
+          ? buckets.selectedStudentProfessorId
+          : buckets.selectedStudentProfessorId === professorId ? null : buckets.selectedStudentProfessorId,
+        selectedProjectProfessorId: stillConnected
+          ? buckets.selectedProjectProfessorId
+          : buckets.selectedProjectProfessorId === professorId ? null : buckets.selectedProjectProfessorId,
         selectedProfessorPaper: state.selectedProfessorPaper?.professorId === professorId
           && source === "paper"
           ? null
           : state.selectedProfessorPaper,
-        ...(professorMatches.length === 0 && state.professorMatches.length > 0
+        ...(removedStudentMatch && buckets.studentMatches.length === 0
           ? {
               professorCoverage: null,
               professorMatchStatus: "idle" as const,
               professorMatchError: null,
               professorMatchTopicId: null,
+            }
+          : {}),
+        ...(removedProjectMatch && buckets.projectMatches.length === 0
+          ? {
+              projectProfessorCoverage: null,
+              projectProfessorMatchStatus: "idle" as const,
+              projectProfessorMatchError: null,
+              projectProfessorMatchTopicId: null,
             }
           : {}),
       };
@@ -915,9 +1045,8 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
       professorRejectedIds: [],
       selectedProfessorId: null,
       professorDiscoverySummary: null,
-      growthProfessorHistory: [],
-      selectedProfessorPaper: null,
     }),
+  clearProjectProfessorMatches: () => set(emptyProjectProfessorMatchState()),
   clearKnockKitDrafts: () => set({ knockKitDrafts: {} }),
   clearMentorLoopEntries: () => set({ mentorLoopEntries: {} }),
 
@@ -938,6 +1067,7 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
       professorMatchStatus: "idle",
       professorMatchError: null,
       professorMatchTopicId: null,
+      ...emptyProjectProfessorMatchState(),
       professorDiscoveryTopic: null,
       professorRejectedIds: [],
       professorDiscoverySummary: null,
@@ -952,7 +1082,7 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
     }),
 }), {
   name: "major-evolution-research-v1",
-  version: 8,
+  version: 9,
   migrate: migrateResearchState,
   storage: createJSONStorage(() => localStorage),
   skipHydration: true,
@@ -962,11 +1092,15 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
     methodsFull: _methodsFull,
     professorMatchStatus,
     professorMatchError,
+    projectProfessorMatchStatus,
+    projectProfessorMatchError,
     ...state
   }) => ({
     ...state,
     professorMatchStatus: professorMatchStatus === "loading" ? "idle" : professorMatchStatus,
     professorMatchError,
+    projectProfessorMatchStatus: projectProfessorMatchStatus === "loading" ? "idle" : projectProfessorMatchStatus,
+    projectProfessorMatchError,
   }),
   onRehydrateStorage: () => (state) => state?.setHasHydrated(true),
 }));

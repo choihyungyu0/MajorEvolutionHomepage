@@ -1,3 +1,80 @@
+.portfolioShell {
+  --service-stage-accent: #5b48d3;
+  background-color: #f5f6fc;
+  background-image: url("/brand/nyp-v03/scenes/journey/nyp-growth-journey-canvas-1600x1000-v01.webp");
+  background-position: center top;
+  background-size: cover;
+}
+
+.portfolioShell :global(.screen-content) { background: transparent; }
+
+.growthIntro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+  align-items: center;
+  gap: 28px;
+  margin: 26px 0 20px;
+  padding: 26px 28px;
+  border: 1px solid rgba(175, 168, 226, .56);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .88);
+  box-shadow: 0 14px 38px rgba(32, 43, 84, .08);
+  backdrop-filter: blur(14px);
+}
+
+.growthIntro > header { display: grid; gap: 8px; }
+
+.growthIntroEyebrow {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 30px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: #5844c4;
+  background: #efedff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.growthIntro h1 {
+  color: var(--brand-navy-950);
+  font-size: clamp(30px, 3vw, 39px);
+  font-weight: 870;
+  line-height: 1.2;
+  letter-spacing: -.04em;
+}
+
+.growthIntro header p {
+  max-width: 680px;
+  color: #657189;
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.growthOverviewStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.growthOverviewStats > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #e1e4ef;
+  border-radius: 12px;
+  background: rgba(248, 249, 253, .9);
+}
+
+.growthOverviewStats dt { color: #7a8499; font-size: 9px; font-weight: 740; }
+.growthOverviewStats dd { overflow: hidden; color: var(--brand-navy-950); font-size: 19px; font-weight: 850; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.growthOverviewStats dd span { margin-left: 2px; color: #8b94a6; font-size: 9px; font-weight: 700; }
+.growthOverviewStats .growthOverviewNext { color: #5844c4; font-size: 11px; line-height: 1.4; }
+
 .aiProfessorSection {
   position: relative;
   display: grid;
@@ -440,6 +517,8 @@
 }
 
 @media (max-width: 1023px) {
+  .growthIntro { grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 18px; padding: 21px; }
+
   .portfolioShell :global(.screen-content.has-bottom-nav) {
     padding-bottom: calc(112px + env(safe-area-inset-bottom));
   }
@@ -712,6 +791,12 @@
 }
 
 @media (max-width: 540px) {
+  .growthIntro { margin-top: 14px; padding: 18px; border-radius: 17px; }
+  .growthIntro h1 { font-size: 29px; }
+  .growthIntro header p { font-size: 12px; line-height: 1.55; }
+  .growthOverviewStats { gap: 7px; }
+  .growthOverviewStats > div { padding: 10px; }
+
   .portfolioHub > header:first-child {
     padding-top: 20px;
   }

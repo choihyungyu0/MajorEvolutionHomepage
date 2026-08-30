@@ -6,7 +6,6 @@ import { MobileViewportSync } from "@/components/app/mobile-viewport-sync";
 import { StoreHydrator } from "@/components/app/store-hydrator";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { brandScene } from "@/lib/brand-assets";
-import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const pretendard = localFont({
@@ -21,13 +20,9 @@ const title = "너의 교수님은? - 전공과 진로의 첫 대화를 시작�
 const description =
   "막연한 전공·진로 고민을 정리하고 학교 공식 정보로 지금 대화해 볼 교수를 찾고, 첫 질문과 다음 행동까지 준비하는 대학생 방향 설계 서비스";
 const ogImage = brandScene.home.og ?? brandScene.home.w1440;
-const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
-  // canonical과 openGraph.url은 루트에 두지 않는다. Next.js 메타데이터는
-  // 하위 페이지로 상속되므로, 루트에 고정값을 두면 모든 하위 URL이
-  // 홈페이지의 중복으로 선언되어 색인에서 빠진다. 페이지별로 지정한다.
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title,
   description,
   applicationName: "너의 교수님은?",
@@ -40,7 +35,6 @@ export const metadata: Metadata = {
   openGraph: {
     title,
     description,
-    siteName: "너의 교수님은?",
     locale: "ko_KR",
     type: "website",
     images: [ogImage],
