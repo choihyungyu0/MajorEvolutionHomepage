@@ -682,7 +682,7 @@ export function ProfessorDiscoveryForm({
                 <Sparkles size={19} />
                 <div>
                   <h3>3. 교수님과 나누고 싶은 대화 <Tag>선택</Tag></h3>
-                  <p>면담 퀘스트에서 첫 질문과 준비 카드를 만들 때 활용할 정보입니다.</p>
+                  <p>원하는 도움·구체 주제·경험은 교수 매칭과 첫 질문에 함께 반영해요. 만날 상황은 준비 카드에만 사용합니다.</p>
                 </div>
               </div>
               <span>원하는 도움 방식</span>

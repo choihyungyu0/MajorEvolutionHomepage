@@ -243,6 +243,7 @@ test("진로 고민과 만남 맥락은 공식 연구근거 검색문에 섞지 
   };
   const topic = discoveryModule.discoveryContextToMatchTopic(context, null);
   const text = evidenceModule.buildProfessorEvidenceText(topic);
+  const roleText = evidenceModule.buildProfessorRoleEvidenceText(topic);
 
   assert.match(text, /경제학과/);
   assert.match(text, /소프트웨어학과/);
@@ -261,6 +262,14 @@ test("진로 고민과 만남 맥락은 공식 연구근거 검색문에 섞지 
     /전공 관점에서 어떻게 탐색할 수 있을까/,
     "찾다 폼의 자동 생성 질문은 공식 연구근거 검색문에서 제외해야 한다",
   );
+  assert.match(roleText.topic, /AI·데이터/);
+  assert.match(roleText.method, /^$/);
+  assert.match(roleText.context, /데이터·AI 직무/);
+  assert.match(roleText.context, /진로 경험과 준비법/);
+  assert.match(roleText.context, /통계 수업과 설문 프로젝트 경험/);
+  assert.doesNotMatch(roleText.topic, /경제학과|소프트웨어학과/);
+  assert.doesNotMatch(roleText.method, /경제학과|소프트웨어학과/);
+  assert.doesNotMatch(roleText.context, /오피스아워|포트폴리오가 부족해요/);
 });
 
 test("기본·심층 맥락은 세 개의 면담 질문으로 변환된다", () => {
@@ -623,7 +632,7 @@ test("새 연구주제로 전환하면 프로젝트 자문 추천만 초기화�
   );
 });
 
-test("첫 교수 매칭은 주전공 후보를 우선하고 학과 밖에서 주제·방법 후보를 둔다", () => {
+test("첫 교수 매칭은 입력한 학업 소속을 연결하고 전체 후보에서 주제·방법 근거를 비교한다", () => {
   const matcher = fs.readFileSync(
     path.join(repositoryRoot, "lib/professor-data.server.ts"),
     "utf8",
@@ -635,8 +644,9 @@ test("첫 교수 매칭은 주전공 후보를 우선하고 학과 밖에서 주
 
   assert.match(matcher, /const academicHomeCandidates = officialProfileCandidates/);
   assert.match(matcher, /const primaryMajorCandidates = academicHomeCandidates\.filter/);
-  assert.match(matcher, /primaryMajorCandidates\.length > 0 \? primaryMajorCandidates : academicHomeCandidates/);
-  assert.match(matcher, /!item\.match\.decisionBasis\.departmentMatchesMajor/);
+  assert.match(matcher, /const hasSecondaryAcademicAffiliation = Boolean/);
+  assert.match(matcher, /hasSecondaryAcademicAffiliation[\s\S]*\? academicHomeCandidates/);
+  assert.doesNotMatch(matcher, /!item\.match\.decisionBasis\.departmentMatchesMajor/);
   assert.match(matcher, /academicAffiliations/);
   assert.match(matcher, /topic\.secondaryMajor/);
   assert.match(matcher, /matchedAcademicAffiliation/);
@@ -645,7 +655,7 @@ test("첫 교수 매칭은 주전공 후보를 우선하고 학과 밖에서 주
   assert.match(matcher, /affiliation\?\.label === "복수전공"/);
   assert.match(matcher, /affiliation\?\.label === "부전공"/);
   assert.match(matcher, /\["CONTEXT", "TOPIC", "METHOD"\]/);
-  assert.doesNotMatch(matcher, /homeCollege|leftSharesCollege|rightSharesCollege/);
+  assert.doesNotMatch(matcher, /homeCollege|leftSharesCollege|rightSharesCollege|usedExternalDepartments|externalCandidates/);
   assert.match(route, /journey: isProjectMentorRequest \? "project" : "student"/);
   assert.match(
     matcher,
@@ -667,7 +677,7 @@ test("첫 교수 매칭은 주전공 후보를 우선하고 학과 밖에서 주
   assert.match(discoveryForm, /부·복수전공도 가까운 학과 연결 범위에 포함/);
 });
 
-test("교수 추천 정책은 주전공 한 자리와 공식 근거 기반 주제·방법 자리를 분리한다", () => {
+test("교수 추천 정책은 학업 소속 한 자리와 공식 근거 기반 주제·방법 자리를 분리한다", () => {
   const source = fs.readFileSync(
     path.join(repositoryRoot, "lib/professor-data.server.ts"),
     "utf8",
@@ -677,14 +687,39 @@ test("교수 추천 정책은 주전공 한 자리와 공식 근거 기반 주�
     "utf8",
   );
 
-  assert.match(domain, /OFFICIAL_EVIDENCE_RULES_V5/);
+  assert.match(domain, /OFFICIAL_EVIDENCE_RULES_V7/);
   assert.match(source, /label: "경제·금융"/);
+  assert.match(source, /label: "SW·보안"/);
   assert.match(source, /topicTerms: \[[\s\S]*"경제·금융"[\s\S]*"금융"/);
-  assert.match(source, /primaryMajorCandidates\.length > 0 \? primaryMajorCandidates : academicHomeCandidates/);
+  assert.match(source, /specificRoleTerms/);
+  assert.match(source, /buildProfessorRoleEvidenceText/);
+  assert.match(source, /roleEvidence\.context/);
+  assert.match(source, /label: "피드백·진로 대화"/);
+  assert.match(source, /const findCandidate = \(requireDirectRole: boolean\) =>[\s\S]*officialCandidates/);
   assert.match(source, /if \(requireDirectRole && !item\.match\.decisionBasis\.roleMatches\[roleKey\]\) return false/);
   assert.match(source, /right\.roleEvidenceCounts\[role\] - left\.roleEvidenceCounts\[role\]/);
   assert.doesNotMatch(source, /leftSharesCollege|rightSharesCollege/);
-  assert.match(source, /같은 단과대 여부와 무관하게 주제·방법 역할의 직접 공식 근거를 우선/);
+  const roleComparator = source.slice(
+    source.indexOf("function compareForRole"),
+    source.indexOf("function presentAsRole"),
+  );
+  assert.equal(
+    (roleComparator.match(/departmentMatchesMajor/g) ?? []).length,
+    3,
+    "주전공 일치 여부는 CONTEXT 비교에서만 사용해야 한다",
+  );
+  assert.ok(
+    roleComparator.indexOf("explicitRoleEvidenceTerms")
+      < roleComparator.indexOf("roleEvidenceCounts"),
+    "입력 고유어 직접 근거가 일반 개념 근거보다 먼저 비교돼야 한다",
+  );
+  assert.ok(
+    source.indexOf('for (const role of ["TOPIC", "METHOD"] as const)')
+      < source.indexOf("const homeDepartmentCandidate = homeCandidatePool.find"),
+    "주제·방법 최적 후보를 예약한 뒤 남은 학업 소속 교수를 연결해야 한다",
+  );
+  assert.match(source, /입력한 주전공과 부·복수전공/);
+  assert.match(source, /주제·방법 연결은 학과를 제한하지 않은 전체 후보에서 역할별 공식 근거가 가장 강한 교수/);
   assert.match(source, /다른 공식 연구 연결 근거가 있는 후보만 제한적으로 보완/);
 });
 

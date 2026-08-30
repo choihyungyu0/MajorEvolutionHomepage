@@ -28,8 +28,8 @@ const PREVIEWS = [
     eyebrow: "가까운 연결부터 역할별 비교",
     title: "한 줄 순위 대신, 왜 이 교수님과 이야기할지 비교합니다.",
     description:
-      "내 학과에서 먼저 이야기하기 쉬운 교수 한 명과, 다른 학과의 주제·방법 연결 교수를 함께 보여줍니다. 공식 근거, 확인할 점, 첫 질문이 한 카드 안에서 이어져요.",
-    features: ["내 학과 연결 한 명", "주제·방법 역할 구분", "공식 근거와 첫 질문"],
+      "내 주전공과 입력한 부·복수전공에서 이야기하기 쉬운 교수 한 명과, 학과에 제한을 두지 않고 주제·방법 근거가 강한 교수를 함께 보여줍니다. 공식 근거, 확인할 점, 첫 질문이 한 카드 안에서 이어져요.",
+    features: ["학업 소속 연결 한 명", "주제·방법 역할 구분", "공식 근거와 첫 질문"],
     href: "/tutorial",
     cta: "내 교수 연결 시작하기",
   },
@@ -257,7 +257,7 @@ function AiProfessorPreview() {
 
 function ProfessorMatchPreview() {
   const cards = [
-    { icon: GraduationCap, type: "내 학과 연결", role: "가까운 시작점", title: "우리 학과 교수님", copy: "전공 수업과 학과 맥락 안에서 첫 질문을 시작해요." },
+    { icon: GraduationCap, type: "학업 소속 연결", role: "가까운 시작점", title: "내 전공 교수님", copy: "주전공과 입력한 부·복수전공 맥락에서 첫 질문을 시작해요." },
     { icon: SearchCheck, type: "주제 연결", role: "관심 길잡이", title: "관심 주제 교수님", copy: "공식 연구 주제에서 내 관심과 만나는 근거를 확인해요." },
     { icon: FlaskConical, type: "방법 연결", role: "방법 코치", title: "실행 방법 교수님", copy: "프로젝트에 필요한 데이터·실험 방법을 함께 비교해요." },
   ] as const;

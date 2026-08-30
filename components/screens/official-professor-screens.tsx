@@ -909,8 +909,8 @@ export function ProfessorPitchScreen() {
                   <p>
                     {hasHomeDepartmentMatch
                       ? matchedAffiliation
-                        ? `입력한 ${matchedAffiliation.label} ‘${matchedAffiliation.major}’의 공식 소속 교수님을 가까운 시작점으로 먼저 제안하고, 다른 학과에서는 내 관심 주제와 방법에 맞는 교수님을 찾아드렸어요.`
-                        : "입력한 학과의 공식 소속 교수님을 가까운 시작점으로 먼저 제안하고, 다른 학과에서는 내 관심 주제와 방법에 맞는 교수님을 찾아드렸어요."
+                        ? `입력한 ${matchedAffiliation.label} ‘${matchedAffiliation.major}’의 공식 소속 교수님을 가까운 시작점으로 먼저 제안하고, 학과 구분 없이 내 관심 주제와 방법의 공식 근거가 가장 강한 교수님을 찾아드렸어요.`
+                        : "입력한 학과의 공식 소속 교수님을 가까운 시작점으로 먼저 제안하고, 학과 구분 없이 내 관심 주제와 방법의 공식 근거가 가장 강한 교수님을 찾아드렸어요."
                       : "공식 데이터에서 입력한 주전공·부전공·복수전공 소속 교수를 확인하지 못해, 내 관심 주제와 방법을 넓혀 볼 세 분을 근거와 함께 제안했어요."}
                   </p>
                   <small>
