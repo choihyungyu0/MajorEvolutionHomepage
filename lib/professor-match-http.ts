@@ -39,6 +39,8 @@ function isProfessorMatchResponse(
     || !["SAMPLE", "PARTIAL", "COMPLETE"].includes(String(value.scopeStatus))
     || !Array.isArray(value.coverageGaps)
     || typeof value.note !== "string"
+    || !["ai-reranked", "official-rules"].includes(String(value.rankingSource))
+    || (value.rankingModel !== null && typeof value.rankingModel !== "string")
   ) {
     return false;
   }
@@ -49,6 +51,7 @@ function isProfessorMatchResponse(
       ["TOPIC", "METHOD", "CONTEXT"].includes(String(candidate.role))
       && ["DIRECT", "RELATED", "LIMITED"].includes(String(candidate.strength))
       && typeof candidate.reason === "string"
+      && (candidate.mentorFitReason === undefined || typeof candidate.mentorFitReason === "string")
       && isStringArray(candidate.evidenceIds)
       && isStringArray(candidate.matchedTerms)
       && isStringArray(candidate.doesNotEstablish)

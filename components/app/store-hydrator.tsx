@@ -4,6 +4,8 @@ import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuestStore } from "@/store/quest-store";
 import { useResearchStore } from "@/store/research-store";
+import { useAiProfessorStore } from "@/store/ai-professor-store";
+import { useProfileStore } from "@/store/profile-store";
 
 export function StoreHydrator() {
   const [isOffline, setIsOffline] = useState(false);
@@ -11,6 +13,8 @@ export function StoreHydrator() {
   useEffect(() => {
     void useResearchStore.persist.rehydrate();
     void useQuestStore.persist.rehydrate();
+    void useAiProfessorStore.persist.rehydrate();
+    void useProfileStore.persist.rehydrate();
     const updateNetwork = () => setIsOffline(!navigator.onLine);
     updateNetwork();
     window.addEventListener("online", updateNetwork);

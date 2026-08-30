@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
-import { matchOfficialProfessors } from "@/lib/professor-data.server";
+import {
+  getOfficialProfessorRoleCandidates,
+  matchOfficialProfessors,
+} from "@/lib/professor-data.server";
+import { AiServiceError, rerankProfessorMentors } from "@/lib/openai-server";
+import { checkProfessorMatchAiRequestLimit } from "@/lib/professor-match-rate-limit";
 import {
   PROFESSOR_MATCH_POLICY,
   SUPPORTED_PROFESSOR_UNIVERSITY,
   type ProfessorMatchTopic,
 } from "@/lib/professor-domain";
+import { getRateLimitStore } from "@/lib/rate-limit-store";
 
 const MAX_BODY_BYTES = 12_000;
 
@@ -149,7 +155,56 @@ export async function POST(request: Request) {
   // 학생이 거절한 교수는 다시 찾을 때 후보에서 뺍니다.
   const excludeIds = stringArray(raw?.excludeIds, 20, 64);
 
-  return NextResponse.json(matchOfficialProfessors(topic, { excludeIds }), {
+  const isProjectMentorRequest = !topic.id.startsWith("discovery:")
+    && !topic.id.startsWith("context:");
+  const baseline = matchOfficialProfessors(topic, {
+    excludeIds,
+    journey: isProjectMentorRequest ? "project" : "student",
+  });
+  let response = baseline;
+  if (isProjectMentorRequest) {
+    const rateLimit = await checkProfessorMatchAiRequestLimit(request, {
+      store: getRateLimitStore(),
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "AI 교수 멘토 연결 요청이 잠시 몰렸습니다. 잠시 후 다시 시도해 주세요." },
+        {
+          status: 429,
+          headers: {
+            "Cache-Control": "private, no-store",
+            "Retry-After": String(rateLimit.retryAfterSec),
+          },
+        },
+      );
+    }
+
+    try {
+      const roleCandidates = getOfficialProfessorRoleCandidates(topic, {
+        excludeIds,
+        limitPerRole: 4,
+      });
+      const ranked = await rerankProfessorMentors(topic, roleCandidates);
+      response = {
+        ...baseline,
+        matches: ranked.matches,
+        rankingSource: "ai-reranked",
+        rankingModel: ranked.model,
+        note: `${baseline.note} AI는 이 공식 근거 후보 안에서 선택한 프로젝트의 주제·방법·범위에 맞는 멘토 역할을 재정렬했습니다.`,
+      };
+    } catch (error) {
+      const serviceError = error instanceof AiServiceError
+        ? error
+        : new AiServiceError("upstream", "AI 멘토 재정렬을 완료하지 못했습니다.", 502);
+      console.error("[professors/match/mentor-ranking]", serviceError.code);
+      response = {
+        ...baseline,
+        note: `${baseline.note} AI 재정렬을 사용할 수 없어 공식 근거 규칙 결과로 이어갑니다.`,
+      };
+    }
+  }
+
+  return NextResponse.json(response, {
     headers: {
       "Cache-Control": "no-store",
       "X-Professor-Match-Policy": PROFESSOR_MATCH_POLICY,

@@ -1,0 +1,419 @@
+.shell {
+  background: #f4f6f9;
+}
+
+.shell :global(.screen-content) {
+  padding-top: 0;
+  background: transparent;
+}
+
+.hub {
+  --hub-type-display: clamp(31px, 3.2vw, 38px);
+  --hub-type-title: clamp(20px, 2vw, 22px);
+  --hub-type-body: 15px;
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: 0 0 26px;
+}
+
+.mobileHeader {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--divider);
+}
+
+.intro {
+  padding: 32px 0 22px;
+}
+
+.intro h1 {
+  max-width: 780px;
+  color: var(--brand-navy-950);
+  font-size: var(--hub-type-display);
+  font-weight: 850;
+  letter-spacing: -0.035em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.intro p {
+  max-width: 680px;
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: var(--hub-type-body);
+  line-height: 1.6;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.primaryTask {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "icon copy"
+    "actions actions";
+  column-gap: 14px;
+  row-gap: 16px;
+  padding: 22px;
+  border: 1px solid var(--divider);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.primaryIcon {
+  display: grid;
+  grid-area: icon;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--brand-purple);
+  background: var(--brand-violet-soft);
+}
+
+.primaryCopy h2 {
+  color: var(--brand-navy-950);
+  font-size: var(--hub-type-title);
+  font-weight: 820;
+  letter-spacing: -0.025em;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.primaryCopy p {
+  max-width: 590px;
+  margin-top: 5px;
+  color: var(--text-secondary);
+  font-size: clamp(13px, 1.15vw, 14px);
+  line-height: 1.5;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.primaryCopy {
+  grid-area: copy;
+  min-width: 0;
+}
+
+.primaryActions {
+  display: flex;
+  grid-area: actions;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.primaryButton {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 11px 20px;
+  border-radius: 12px;
+  color: #fff;
+  background: var(--service-stage-accent, #5e43d9);
+  box-shadow: none;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  word-break: keep-all;
+  transition: background-color 160ms ease, transform 120ms ease;
+}
+
+.primaryButton:hover {
+  background: color-mix(in srgb, var(--service-stage-accent, #5e43d9) 88%, #18295d);
+}
+.primaryButton:active { transform: scale(0.985); }
+.primaryButton svg,
+.secondaryLink svg { flex: 0 0 auto; }
+.primaryButton:focus-visible,
+.secondaryLink:focus-visible,
+.row:focus-visible,
+.utilityLinks a:focus-visible {
+  outline: 2px solid var(--service-stage-accent, var(--brand-purple));
+  outline-offset: 3px;
+}
+
+.secondaryLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 12px;
+  color: var(--brand-purple);
+  font-size: 13px;
+  font-weight: 760;
+  border-radius: 10px;
+  transition: background-color 160ms ease;
+}
+
+.secondaryLink:hover { background: var(--brand-violet-soft); }
+
+.adaptiveLayout,
+.adaptivePrimary,
+.adaptiveRail,
+.adaptiveBody {
+  min-width: 0;
+}
+
+.adaptiveLayout {
+  display: grid;
+  gap: 20px;
+}
+
+.adaptiveLayoutStacked { gap: 0; }
+
+.adaptiveLayoutStacked .adaptiveRail { margin-top: 20px; }
+
+.adaptiveRail {
+  display: grid;
+  gap: 14px;
+}
+
+.adaptiveBody {
+  display: grid;
+  gap: 0;
+}
+
+.listSection {
+  margin-top: 24px;
+  padding: 22px 24px 8px;
+  border: 1px solid var(--divider);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.listHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.listHeading h2 {
+  color: var(--brand-navy-950);
+  font-size: 20px;
+  font-weight: 820;
+  letter-spacing: -0.025em;
+}
+
+.listHeading > :not(h2) {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.rows {
+  border-top: 1px solid var(--divider);
+}
+
+.row {
+  display: grid;
+  min-height: 66px;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 13px;
+  border-bottom: 1px solid var(--divider);
+  color: var(--brand-navy-950);
+}
+
+.row {
+  margin-inline: -8px;
+  padding-inline: 8px;
+  border-radius: 11px;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.row:hover { background: #f7f6ff; transform: translateX(2px); }
+
+.rowIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 10px;
+  color: #536079;
+  background: #f4f6f9;
+}
+
+.rowIcon_violet { color: var(--brand-purple); background: var(--brand-violet-soft); }
+.rowIcon_mint { color: var(--brand-mint-dark); background: var(--brand-mint-soft); }
+
+.rowCopy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rowCopy strong {
+  display: block;
+  overflow: visible;
+  font-size: 15px;
+  font-weight: 780;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.rowCopy small {
+  display: block;
+  overflow: visible;
+  color: #7b8498;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.rowStatus {
+  color: #7b8498;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.utilityLinks {
+  display: grid;
+  margin-top: 26px;
+  padding: 8px 22px;
+  border: 1px solid var(--divider);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.utilityLinks a {
+  display: grid;
+  min-height: 58px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--divider);
+  color: #1e2a44;
+  font-size: 14px;
+  font-weight: 740;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.utilityLinks a:hover { color: var(--brand-purple); transform: translateX(2px); }
+
+.utilityLinks a:last-child { border-bottom: 0; }
+
+.utilityLinks a > svg:first-child { color: var(--text-secondary); }
+
+.trustNote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  color: var(--brand-mint-dark);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+@media (min-width: 1024px) {
+  .shell :global(.screen-content) { padding: 0 44px 58px; }
+  .hub { padding-top: 22px; }
+  .intro { padding: 36px 0 24px; }
+  .intro p { font-size: 16px; line-height: 1.5; }
+  .primaryTask {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "icon copy"
+      "actions actions";
+    align-items: start;
+    min-height: 0;
+    padding: 26px 28px;
+    column-gap: 18px;
+    row-gap: 18px;
+  }
+  .primaryIcon { width: 52px; height: 52px; }
+  .primaryActions { align-content: center; }
+  .primaryButton { min-height: 48px; }
+  .row { min-height: 76px; padding: 8px; }
+}
+
+@media (min-width: 1280px) {
+  .mobileHeader { display: none; }
+}
+
+/*
+ * 좌측 248px 내비를 뺀 뒤에도 본문이 충분히 넓은 구간부터 PC 전용 정보
+ * 위계를 사용합니다. 1024~1279px에서는 억지로 3열을 만들지 않습니다.
+ */
+@media (min-width: 1280px) {
+  .adaptiveLayout {
+    grid-template-columns: minmax(0, 1fr) minmax(292px, 320px);
+    grid-template-areas:
+      "primary rail"
+      "body rail";
+    align-items: start;
+    column-gap: 24px;
+    row-gap: 0;
+  }
+
+  .adaptivePrimary { grid-area: primary; }
+
+  .adaptiveRail {
+    grid-area: rail;
+    position: sticky;
+    top: 26px;
+  }
+
+  .adaptiveBody { grid-area: body; }
+
+  .adaptiveLayoutStacked {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "primary"
+      "body"
+      "rail";
+    row-gap: 0;
+  }
+
+  .adaptiveLayoutStacked .adaptiveRail {
+    position: static;
+    top: auto;
+  }
+}
+
+/* 좁은 모바일에서는 핵심 행동 하나를 전폭으로 보여주고 보조 행동을 분리합니다. */
+@media (max-width: 640px) {
+  .primaryActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .primaryButton,
+  .secondaryLink {
+    width: 100%;
+  }
+
+  .row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .rowStatus { display: none; }
+}
+
+@media (max-width: 420px) {
+  .intro { padding-top: 28px; }
+  .primaryTask { padding: 20px; }
+  .listSection { padding: 18px 16px 6px; }
+  .utilityLinks { padding-inline: 16px; }
+}

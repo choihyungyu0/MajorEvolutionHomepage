@@ -219,3 +219,55 @@ export function inferMajorArea(major: string): MajorArea | null {
 
   return null;
 }
+
+type AcademicProfileDefaultsInput = {
+  school: string;
+  major: string;
+  interests: readonly string[];
+};
+
+type AcademicConditionDefaultsInput = {
+  school: string;
+  majorArea: MajorArea | null;
+  major: string | null;
+  interests: readonly string[];
+};
+
+type AcademicConditionDefaultsResult = {
+  school: string;
+  majorArea: MajorArea | null;
+  major: string | null;
+  interests: string[];
+};
+
+/**
+ * 프로젝트 조건이 비어 있을 때만 저장된 프로필을 기본값으로 사용합니다.
+ * 사용자가 프로젝트에서 직접 고른 값은 프로필보다 항상 우선합니다.
+ */
+export function mergeAcademicProfileDefaults(
+  conditions: AcademicConditionDefaultsInput,
+  profile: AcademicProfileDefaultsInput,
+): AcademicConditionDefaultsResult {
+  const school = normalizeAcademicInput(conditions.school, 80)
+    || normalizeAcademicInput(profile.school, 80);
+  const storedMajor = normalizeAcademicInput(conditions.major, 80);
+  const profileMajor = normalizeAcademicInput(profile.major, 80);
+  const major = storedMajor || profileMajor;
+  const interests = conditions.interests.length
+    ? conditions.interests
+    : profile.interests;
+  const normalizedInterests = Array.from(new Set(
+    interests
+      .map((interest) => normalizeAcademicInput(interest, 60))
+      .filter(Boolean),
+  )).slice(0, 3);
+
+  return {
+    school,
+    majorArea: storedMajor
+      ? conditions.majorArea || inferMajorArea(storedMajor)
+      : inferMajorArea(profileMajor) || conditions.majorArea,
+    major: major || null,
+    interests: normalizedInterests,
+  };
+}

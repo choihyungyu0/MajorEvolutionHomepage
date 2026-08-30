@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 
 const baseUrl = process.argv[2] ?? "http://127.0.0.1:3000";
-const EXPECTED_POLICY = "OFFICIAL_EVIDENCE_RULES_V3";
+const EXPECTED_POLICY = "OFFICIAL_EVIDENCE_RULES_V4";
 
 async function requestMatches(topic, excludeIds = [], university = "단국대학교") {
   const response = await fetch(`${baseUrl}/api/professors/match`, {
@@ -213,21 +213,36 @@ for (const testCase of cases) {
     `${testCase.id} official source URL`,
   );
   const repeated = await requestMatches(testCase.topic);
-  assert.deepEqual(
-    repeated.matches.map(({ professor, decisionBasis, role, strength }) => ({
-      professorId: professor.id,
-      decisionBasis,
-      role,
-      strength,
-    })),
-    payload.matches.map(({ professor, decisionBasis, role, strength }) => ({
-      professorId: professor.id,
-      decisionBasis,
-      role,
-      strength,
-    })),
-    `${testCase.id} deterministic decision`,
+  assert.ok(
+    ["ai-reranked", "official-rules"].includes(repeated.rankingSource),
+    `${testCase.id} repeated ranking source`,
   );
+  assert.deepEqual(
+    repeated.matches.map((match) => match.role),
+    ["TOPIC", "METHOD", "CONTEXT"],
+    `${testCase.id} repeated role contract`,
+  );
+  repeated.matches.forEach((match) => assertDecisionContract(match, testCase.id));
+  if (
+    payload.rankingSource === "official-rules"
+    && repeated.rankingSource === "official-rules"
+  ) {
+    assert.deepEqual(
+      repeated.matches.map(({ professor, decisionBasis, role, strength }) => ({
+        professorId: professor.id,
+        decisionBasis,
+        role,
+        strength,
+      })),
+      payload.matches.map(({ professor, decisionBasis, role, strength }) => ({
+        professorId: professor.id,
+        decisionBasis,
+        role,
+        strength,
+      })),
+      `${testCase.id} deterministic decision`,
+    );
+  }
   const excludedId = payload.matches[0].professor.id;
   const excluded = await requestMatches(testCase.topic, [excludedId]);
   assert.equal(
@@ -267,6 +282,81 @@ for (const testCase of cases) {
       role: match.role,
       strength: match.strength,
       matched_terms: match.matchedTerms,
+    })),
+  });
+}
+
+for (const secondaryMajorType of ["부전공", "복수전공"]) {
+  const topic = {
+    id: `discovery:secondary-affiliation:${secondaryMajorType}`,
+    title: "AI 데이터 진로 탐색",
+    question: "경제학과 소프트웨어를 연결해 AI 데이터 진로를 어떻게 탐색할 수 있을까?",
+    methodDetail: "",
+    scope: "대학생 진로 탐색",
+    interests: ["AI·데이터"],
+    methods: [],
+    major: "경제학과",
+    university: "단국대학교",
+    college: "경영경제대학",
+    goal: "진로 방향 찾기",
+    studentStage: "재학생",
+    secondaryMajorType,
+    secondaryCollege: "SW융합대학",
+    secondaryMajor: "소프트웨어학과",
+    careerInterests: ["데이터·AI 직무"],
+  };
+  const payload = await requestMatches(topic);
+  assert.equal(payload.matches.length, 3, `${secondaryMajorType} match count`);
+  const affiliationMatch = payload.matches[0];
+  assert.equal(affiliationMatch.role, "CONTEXT", `${secondaryMajorType} first role`);
+  assert.equal(
+    affiliationMatch.decisionBasis.departmentMatchesMajor,
+    true,
+    `${secondaryMajorType} department match`,
+  );
+  assert.equal(
+    affiliationMatch.decisionBasis.matchedAcademicAffiliation?.label,
+    secondaryMajorType,
+    `${secondaryMajorType} label`,
+  );
+  assert.equal(
+    affiliationMatch.decisionBasis.matchedAcademicAffiliation?.major,
+    "소프트웨어학과",
+    `${secondaryMajorType} input major`,
+  );
+  assert.equal(
+    affiliationMatch.decisionBasis.matchedAcademicAffiliation?.officialDepartment,
+    "소프트웨어학과",
+    `${secondaryMajorType} official department`,
+  );
+  assert.match(affiliationMatch.reason, new RegExp(secondaryMajorType));
+  assert.equal(
+    payload.matches.slice(1).some((match) => match.decisionBasis.departmentMatchesMajor),
+    false,
+    `${secondaryMajorType} external cards must stay outside declared affiliations`,
+  );
+  const repeated = await requestMatches(topic);
+  assert.deepEqual(
+    repeated.matches.map((match) => ({
+      professorId: match.professor.id,
+      affiliation: match.decisionBasis.matchedAcademicAffiliation ?? null,
+    })),
+    payload.matches.map((match) => ({
+      professorId: match.professor.id,
+      affiliation: match.decisionBasis.matchedAcademicAffiliation ?? null,
+    })),
+    `${secondaryMajorType} deterministic affiliation decision`,
+  );
+  results.push({
+    topic: topic.id,
+    scope_status: payload.scopeStatus,
+    official_record_count: payload.officialRecordCount,
+    matches: payload.matches.map((match) => ({
+      name: match.professor.name,
+      department: match.professor.department,
+      role: match.role,
+      strength: match.strength,
+      academic_affiliation: match.decisionBasis.matchedAcademicAffiliation ?? null,
     })),
   });
 }

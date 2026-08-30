@@ -1,5 +1,5 @@
-import { UnifiedHomeScreen } from "@/components/screens/unified-home-screen";
+import { EntryGate } from "@/components/landing/entry-gate";
 
 export default function Page() {
-  return <UnifiedHomeScreen />;
+  return <EntryGate />;
 }

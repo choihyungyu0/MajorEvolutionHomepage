@@ -64,6 +64,32 @@ const ROLE_COPY: Record<ProfessorMatchRole, RoleCopy> = {
   },
 };
 
+export function professorMatchRoleLabel(match: ProfessorMatch): string {
+  if (match.role !== "CONTEXT" || !match.decisionBasis.departmentMatchesMajor) {
+    return ROLE_COPY[match.role].label;
+  }
+  const affiliation = match.decisionBasis.matchedAcademicAffiliation;
+  return affiliation?.label ? `${affiliation.label} 연결` : "같은 학과 연결";
+}
+
+function homeDepartmentCopy(match: ProfessorMatch): RoleCopy {
+  const affiliation = match.decisionBasis.matchedAcademicAffiliation;
+  const affiliationLabel = affiliation?.label || "같은 학과";
+  const affiliationMajor = affiliation?.major || match.professor.department;
+  return {
+    label: professorMatchRoleLabel(match),
+    nickname: "가까운 시작점",
+    learning: [
+      `${affiliationLabel} 학과의 수업·프로젝트 흐름을 질문하는 방법`,
+      "전공 안에서 세부 분야와 진로 방향을 구분하는 관점",
+      `막연한 고민을 ${affiliationLabel} 맥락의 첫 질문으로 바꾸는 과정`,
+    ],
+    mentorRole: `${affiliationLabel} 맥락에서 첫 대화의 문턱을 낮춰 볼 ‘가까운 시작점’`,
+    pitch: (interest, evidence) =>
+      `입력한 ${affiliationLabel} ‘${affiliationMajor}’와 공식 소속이 연결된 교수님이라, ‘${interest}’ 고민을 학과 수업과 전공 흐름 안에서 어디서부터 질문할지 살펴보기 좋은 시작점이에요. 공식 연결 근거는 ‘${evidence}’입니다.`,
+  };
+}
+
 function compactUnique(values: Array<string | undefined>, limit: number): string[] {
   return [...new Set(values.map((value) => value?.trim()).filter(
     (value): value is string => Boolean(value),
@@ -83,7 +109,9 @@ export function buildProfessorPitch(
   context: ProfessorDiscoveryContext,
   firstQuestion: string,
 ): ProfessorPitchViewModel {
-  const copy = ROLE_COPY[match.role];
+  const copy = match.role === "CONTEXT" && match.decisionBasis.departmentMatchesMajor
+    ? homeDepartmentCopy(match)
+    : ROLE_COPY[match.role];
   const professor = match.professor;
   const matchedOfficialConnections = compactUnique(match.matchedTerms, 3);
   const officialConnections = matchedOfficialConnections.length > 0

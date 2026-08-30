@@ -1,6 +1,5 @@
-import { OfficialProfessorsScreen } from "@/components/screens/official-professor-screens";
-import { getProfessorAcademicTaxonomy } from "@/lib/professor-data.server";
+import { ProfessorHubScreen } from "@/components/screens/professor-hub-screen";
 
 export default function Page() {
-  return <OfficialProfessorsScreen taxonomy={getProfessorAcademicTaxonomy()} />;
+  return <ProfessorHubScreen />;
 }

@@ -252,7 +252,13 @@ export type ProfessorDiscoveryValidationIssue = {
   message: string;
 };
 
-export function validateProfessorDiscoveryBasics(
+/**
+ * 빠른 교수 매칭에 필요한 최소 설정만 확인합니다.
+ *
+ * 전공과 관심 분야는 공식 교수 연구 정보와 직접 비교하는 값입니다. 현재 단계,
+ * 원하는 도움, 진로 고민은 상세 질문 개인화에 쓰이므로 기본 설정에서는 강제하지 않습니다.
+ */
+export function validateProfessorDiscoverySetup(
   context: ProfessorDiscoveryContext,
 ): ProfessorDiscoveryValidationIssue | null {
   if (!context.university.trim()) {
@@ -264,14 +270,22 @@ export function validateProfessorDiscoveryBasics(
   if (!context.major.trim()) {
     return { field: "major", message: "주전공을 선택하거나 직접 입력해 주세요." };
   }
+  if (context.interests.length === 0) {
+    return { field: "interests", message: "관심 연구·산업 분야를 하나 이상 선택해 주세요." };
+  }
+  return null;
+}
+
+export function validateProfessorDiscoveryBasics(
+  context: ProfessorDiscoveryContext,
+): ProfessorDiscoveryValidationIssue | null {
+  const setupIssue = validateProfessorDiscoverySetup(context);
+  if (setupIssue) return setupIssue;
   if (!context.studentStage.trim()) {
     return { field: "studentStage", message: "현재 진로 단계를 선택해 주세요." };
   }
   if (!context.goal.trim()) {
     return { field: "goal", message: "교수님에게 받고 싶은 도움을 선택해 주세요." };
-  }
-  if (context.interests.length === 0) {
-    return { field: "interests", message: "관심 연구·산업 분야를 하나 이상 선택해 주세요." };
   }
   if (context.careerConcerns.length === 0) {
     return { field: "careerConcerns", message: "현재 진로 고민을 하나 이상 선택해 주세요." };

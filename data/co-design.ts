@@ -54,8 +54,8 @@ const COMMON_QUESTIONS: CoDesignQuestion[] = [
   },
   {
     id: "problem",
-    prompt: "그 대상이 지금 겪는 문제를 한 가지로 좁힌다면 무엇인가요?",
-    helper: "해결책보다 먼저 관찰할 수 있는 문제를 정해 봐요.",
+    prompt: "문제를 해결하고자 하는 대상이 지금 겪는 가장 큰 어려움은 무엇인가요?",
+    helper: "해결책을 떠올리기 전에, 대상이 실제로 겪는 어려움 한 가지를 골라 보세요.",
     options: ["정보를 찾기 어렵다", "판단 기준이 모호하다", "시간·비용이 많이 든다", "아직 잘 모르겠다"],
     contextLabel: "핵심 문제",
     allowCustom: true,
@@ -86,12 +86,35 @@ const COMMON_QUESTIONS: CoDesignQuestion[] = [
   },
 ];
 
+export const CO_DESIGN_BASE_QUESTION_COUNT = 3;
+export const CO_DESIGN_TOTAL_QUESTION_COUNT = 5;
+
+/** API를 사용할 수 없을 때도 사용자가 흐름을 끝낼 수 있게 하는 검수된 후속 질문입니다. */
+export const DEFAULT_FOLLOW_UP_QUESTIONS: [CoDesignQuestion, CoDesignQuestion] = [
+  {
+    id: "adaptive-1",
+    prompt: "지금 조건에서 가장 현실적으로 먼저 시도할 방법은 무엇인가요?",
+    helper: "확인 가능한 자료와 현재 경험을 기준으로 첫 방법을 정해 봐요.",
+    options: ["문헌조사", "데이터 분석", "설문·인터뷰", "작은 프로토타입 실험"],
+    contextLabel: "맞춤 우선 방법",
+    allowCustom: true,
+  },
+  {
+    id: "adaptive-2",
+    prompt: "완료 시점에 어떤 결과가 남으면 이번 탐색이 의미 있을까요?",
+    helper: "기간 안에 확인할 수 있는 결과물과 성공 기준을 함께 정해요.",
+    options: ["연구계획서", "분석 리포트", "작동하는 프로토타입", "교수 면담용 브리프"],
+    contextLabel: "맞춤 목표 결과",
+    allowCustom: true,
+  },
+];
+
 const MODE_FIRST_QUESTION: Record<IdeaMode, CoDesignQuestion> = {
   free: COMMON_QUESTIONS[0],
   trend: {
     id: "trend-focus",
     prompt: "학과의 최근 AI 융합 흐름에서 먼저 비교해 보고 싶은 변화는 무엇인가요?",
-    helper: "공식 프로필에 근거가 없는 흐름은 ‘확인 필요’로 남겨요.",
+    helper: "가장 궁금한 변화 하나를 고르면 다음 질문에서 범위와 방법을 더 구체화해요.",
     options: ["연구 방법의 변화", "새로운 데이터 활용", "현장 문제 해결", "아직 열어두기"],
     contextLabel: "트렌드 탐색 초점",
     allowCustom: true,
@@ -106,8 +129,23 @@ const MODE_FIRST_QUESTION: Record<IdeaMode, CoDesignQuestion> = {
   },
 };
 
-export function questionsForMode(mode: IdeaMode): CoDesignQuestion[] {
-  return [MODE_FIRST_QUESTION[mode], ...COMMON_QUESTIONS.slice(1)];
+export function baseQuestionsForMode(mode: IdeaMode): CoDesignQuestion[] {
+  return [MODE_FIRST_QUESTION[mode], ...COMMON_QUESTIONS.slice(1, CO_DESIGN_BASE_QUESTION_COUNT)];
+}
+
+export function composeCoDesignQuestions(
+  mode: IdeaMode,
+  followUps: CoDesignQuestion[],
+): CoDesignQuestion[] {
+  return [...baseQuestionsForMode(mode), ...followUps.slice(0, 2)];
+}
+
+export function expectedCoDesignQuestionIds(mode: IdeaMode): string[] {
+  return [
+    ...baseQuestionsForMode(mode).map((question) => question.id),
+    "adaptive-1",
+    "adaptive-2",
+  ];
 }
 
 export type ConfirmedAnswer = {

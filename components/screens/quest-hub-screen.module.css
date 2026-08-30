@@ -1,0 +1,530 @@
+.meetingShell {
+  --brand-purple: #e86c4d;
+  --brand-violet-soft: #fff0e9;
+  --service-stage-accent: #e86c4d;
+  background: #fff8f3;
+}
+
+.meetingShell :global(.screen-content) { background: transparent; }
+
+.journey {
+  container-name: meeting-journey;
+  container-type: inline-size;
+  margin-top: 22px;
+  padding: 22px;
+  border: 1px solid #dfe3f4;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 90% 0%, rgb(107 78 237 / 12%), transparent 36%),
+    linear-gradient(145deg, #f8faff 0%, #ffffff 58%, #f5fffc 100%);
+  box-shadow: 0 14px 36px rgb(26 39 79 / 7%);
+}
+
+.contextRail {
+  display: grid;
+  gap: 14px;
+}
+
+.mobileSavedLink,
+.mobileQuickLinks {
+  display: none;
+}
+
+.contextCard {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #dfe3f1;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(107 78 237 / 10%), transparent 38%),
+    #fff;
+  box-shadow: 0 12px 30px rgb(27 39 76 / 7%);
+}
+
+.contextEyebrow {
+  display: block;
+  margin-bottom: 9px;
+  color: var(--brand-purple);
+  font-size: 11px;
+  font-weight: 820;
+  letter-spacing: 0.02em;
+}
+
+.contextCard h2 {
+  color: var(--brand-navy-950);
+  font-size: 18px;
+  font-weight: 840;
+  letter-spacing: -0.025em;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.contextCard p {
+  margin-top: 7px;
+  color: #6e788d;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.contextCard blockquote {
+  display: block;
+  margin-top: 14px;
+  overflow: visible;
+  padding: 12px 13px;
+  border-left: 3px solid var(--brand-mint-dark);
+  border-radius: 4px 10px 10px 4px;
+  color: #39445b;
+  background: #f3fbf8;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.contextLink {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 0 13px;
+  border-radius: 11px;
+  color: #fff;
+  background: var(--brand-navy-900, #18295d);
+  font-size: 13px;
+  font-weight: 780;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.contextLink svg { flex: 0 0 auto; }
+
+.contextLink:focus-visible {
+  outline: 2px solid var(--brand-purple);
+  outline-offset: 3px;
+}
+
+.contextHeadingRow,
+.contextProgressCopy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.contextHeadingRow > strong {
+  color: var(--brand-purple);
+  font-size: 14px;
+}
+
+.contextStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.contextStats > div {
+  display: grid;
+  gap: 3px;
+  padding: 10px 7px;
+  border: 1px solid #e5e7f0;
+  border-radius: 11px;
+  background: #f8f9fc;
+  text-align: center;
+}
+
+.contextStats dt {
+  color: #7d8699;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.contextStats dd {
+  color: var(--brand-navy-950);
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.contextProgressCopy {
+  margin-top: 16px;
+  color: #727c90;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.contextProgressCopy strong { color: var(--brand-mint-dark); }
+
+.contextProgressTrack {
+  height: 6px;
+  margin-top: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8ebf3;
+}
+
+.contextProgressTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand-purple), var(--brand-mint-dark));
+}
+
+.contextTrust {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 2px 4px;
+  color: var(--brand-mint-dark);
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.5;
+}
+
+.contextTrust svg { flex: 0 0 auto; margin-top: 1px; }
+
+.journeyHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.journeyHeader div > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--brand-purple);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.journeyHeader h2 {
+  color: var(--brand-navy-950);
+  font-size: 21px;
+  font-weight: 840;
+  letter-spacing: -0.03em;
+}
+
+.journeyHeader > strong {
+  color: var(--brand-purple);
+  font-size: 14px;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+.progressTrack {
+  height: 7px;
+  margin-top: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7eaf3;
+}
+
+.progressTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand-purple), var(--brand-mint-dark));
+  transition: width 240ms ease;
+}
+
+.journeySteps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.journeyStep {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 86px;
+  padding: 13px;
+  border: 1px solid #e3e6ef;
+  border-radius: 14px;
+  color: var(--brand-navy-950);
+  background: rgb(255 255 255 / 86%);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.journeyStep:hover {
+  border-color: #c9c1fa;
+  box-shadow: 0 8px 20px rgb(47 37 104 / 9%);
+  transform: translateY(-2px);
+}
+
+.journeyStep:focus-visible {
+  outline: 2px solid var(--brand-purple);
+  outline-offset: 3px;
+}
+
+.journeyStep.isCurrent {
+  border-color: var(--brand-purple);
+  background: #f7f4ff;
+  box-shadow: inset 0 0 0 1px rgb(107 78 237 / 9%);
+}
+
+.journeyStep.isDone {
+  border-color: #bfe7dc;
+  background: #f5fffb;
+}
+
+.stepIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 11px;
+  color: var(--brand-purple);
+  background: var(--brand-violet-soft);
+}
+
+.isDone .stepIcon {
+  color: var(--brand-mint-dark);
+  background: var(--brand-mint-soft);
+}
+
+.stepCopy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.stepCopy small {
+  color: #8a93a6;
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.stepCopy strong {
+  display: block;
+  overflow: visible;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.stepCopy em {
+  overflow: visible;
+  color: #70798d;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 680;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.journeyStep > svg {
+  color: #9aa2b2;
+}
+
+@container meeting-journey (max-width: 760px) {
+  .journeySteps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .journeyStep {
+    min-height: 76px;
+  }
+}
+
+@container meeting-journey (max-width: 480px) {
+  .journeySteps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .contextRail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contextTrust {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1023px) {
+  .questHub {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom));
+  }
+
+  .contextRail {
+    gap: 10px;
+  }
+
+  .professorContextCard {
+    padding: 14px 16px;
+    border-radius: 15px;
+  }
+
+  .professorContextCard .contextEyebrow {
+    margin-bottom: 4px;
+  }
+
+  .professorContextCard h2 {
+    font-size: 16px;
+  }
+
+  .professorContextCard p {
+    margin-top: 3px;
+    line-height: 1.42;
+  }
+
+  .professorContextCard blockquote,
+  .savedContextCard,
+  .expandedToolLists,
+  .mobileTrust {
+    display: none;
+  }
+
+  .contextLink,
+  .mobileSavedLink {
+    min-height: 44px;
+    margin-top: 9px;
+    padding: 0 12px;
+    border-radius: 10px;
+    font-size: 12px;
+  }
+
+  .mobileSavedLink {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid #e0e3ef;
+    color: #4f5c75;
+    background: #f8f9fc;
+    font-weight: 760;
+  }
+
+  .mobileSavedLink:focus-visible,
+  .mobileQuickLinks a:focus-visible {
+    outline: 2px solid var(--brand-purple);
+    outline-offset: 3px;
+  }
+
+  .journey {
+    margin-top: 14px;
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .journeyHeader {
+    align-items: center;
+  }
+
+  .journeyHeader div > span {
+    margin-bottom: 3px;
+  }
+
+  .journeyHeader h2 {
+    font-size: 18px;
+  }
+
+  .journeyHeader > strong {
+    font-size: 12px;
+  }
+
+  .progressTrack {
+    margin-top: 12px;
+  }
+
+  .journeySteps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .journeyStep:not(.mobileVisibleStep) {
+    display: none;
+  }
+
+  .journeyStep {
+    min-height: 72px;
+    padding: 10px;
+  }
+
+  .mobileQuickLinks {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 12px;
+  }
+
+  .mobileQuickLinks a {
+    display: flex;
+    min-width: 0;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px;
+    border: 1px solid #dde2ed;
+    border-radius: 11px;
+    color: #45516a;
+    background: #fff;
+    box-shadow: 0 7px 18px rgb(34 49 86 / 5%);
+    font-size: 12px;
+    font-weight: 760;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .mobileQuickLinks a > svg {
+    flex: 0 0 auto;
+    color: var(--brand-purple);
+  }
+}
+
+@media (min-width: 1280px) {
+  .contextRail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .contextTrust { grid-column: 1 / -1; }
+
+  /* PC의 우측 맥락 패널에서만 노출하고, 모바일 본문에는 기존 신뢰 문구를 둡니다. */
+  .mobileTrust { display: none; }
+}
+
+@media (max-width: 540px) {
+  .journey {
+    padding: 15px;
+  }
+
+  .journeyHeader {
+    align-items: flex-start;
+  }
+
+  .journeyHeader h2 {
+    font-size: 19px;
+  }
+
+  .journeySteps {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .journeyStep {
+    min-height: 72px;
+  }
+}

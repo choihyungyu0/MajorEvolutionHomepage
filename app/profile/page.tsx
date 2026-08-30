@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { ProfileScreen } from "@/components/screens/profile-screen";
 
 export default function Page() {
-  redirect("/portfolio");
+  return <ProfileScreen />;
 }

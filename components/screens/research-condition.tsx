@@ -1,17 +1,35 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { Brain, Check, CircleAlert, Compass, GitCompareArrows, ScanSearch, Sparkles } from "lucide-react";
-import { AppLogo, AppShell, Card, PageHeader, PrimaryButton, cx } from "@/components/app/primitives";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Brain,
+  Check,
+  CircleAlert,
+  Compass,
+  GitCompareArrows,
+  Route,
+  ScanSearch,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import {
+  AppShell,
+  PrimaryButton,
+  SecondaryButton,
+  cx,
+} from "@/components/app/primitives";
+import { ServiceBottomNav } from "@/components/app/side-nav";
 import {
   MAJOR_AREAS,
   MAJOR_SUGGESTIONS,
   UNIVERSITY_SUGGESTIONS,
   UNIVERSAL_INTEREST_TAGS,
 } from "@/data/academic-options";
-import { guideCharacter } from "@/lib/brand-assets";
 import { IDEA_MODES, type IdeaMode } from "@/data/co-design";
 import {
   AVOID_TAGS,
@@ -20,14 +38,46 @@ import {
   METHOD_TAGS,
   PERIODS,
 } from "@/data/research-mvp";
+import { guideCharacter } from "@/lib/brand-assets";
 import { useResearchStore } from "@/store/research-store";
 
 const CHIP = (selected: boolean, disabled = false) =>
   cx("choice-chip", selected && "is-selected", disabled && "");
 const INTEREST_TAG_SET = new Set<string>(UNIVERSAL_INTEREST_TAGS);
 
-export function ConditionSelectScreen() {
+const RESEARCH_STEPS = [
+  { id: "direction", label: "방향", title: "어떤 방식으로 프로젝트를 탐색할까요?", description: "지금 가장 끌리는 방식 하나를 고르세요. 다음 단계에서도 언제든 다시 바꿀 수 있어요." },
+  { id: "major", label: "전공", title: "출발점이 될 전공을 알려주세요", description: "학교는 선택 사항이에요. 전공 계열과 학과만 확인하면 다음으로 넘어갈 수 있어요." },
+  { id: "interests", label: "관심", title: "어떤 문제를 더 알아보고 싶나요?", description: "관심 분야를 최대 3개까지 고르거나 직접 입력해 주세요." },
+  { id: "readiness", label: "준비", title: "지금 활용할 수 있는 경험과 도구는 무엇인가요?", description: "잘하는 정도보다 이번 프로젝트에서 실제로 시도할 수 있는 범위를 선택해요." },
+  { id: "feasibility", label: "실행", title: "실행 가능한 범위를 정해볼까요?", description: "기간과 자료 접근 상황을 정하면 현실적인 프로젝트 후보로 좁힐 수 있어요." },
+  { id: "review", label: "확인", title: "입력한 조건을 확인해 주세요", description: "비어 있는 항목은 바로 수정하고, 준비가 끝났다면 AI 공동설계로 이어가세요." },
+] as const;
+
+type ResearchStep = (typeof RESEARCH_STEPS)[number]["id"];
+
+const ERROR_STEP: Record<string, ResearchStep> = {
+  ideaMode: "direction",
+  majorArea: "major",
+  major: "major",
+  interests: "interests",
+  experience: "readiness",
+  methods: "readiness",
+  period: "feasibility",
+  dataAccess: "feasibility",
+};
+
+export function ConditionSelectScreen({
+  initialStep = "direction",
+  returnHref = "/research/tutorial?source=full",
+  returnLabel = "단계별 설계로 돌아가기",
+}: {
+  initialStep?: ResearchStep;
+  returnHref?: string;
+  returnLabel?: string;
+} = {}) {
   const router = useRouter();
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const c = useResearchStore((s) => s.conditions);
   const ideaMode = useResearchStore((s) => s.ideaMode);
   const setIdeaMode = useResearchStore((s) => s.setIdeaMode);
@@ -43,30 +93,74 @@ export function ConditionSelectScreen() {
   const toggleAvoid = useResearchStore((s) => s.toggleAvoid);
   const submit = useResearchStore((s) => s.submit);
 
+  const [activeStep, setActiveStep] = useState<ResearchStep>(initialStep);
   const [errors, setErrors] = useState<string[]>([]);
   const [customInterest, setCustomInterest] = useState("");
   const [interestInputError, setInterestInputError] = useState<string | null>(null);
-  const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {
-    ideaMode: useRef(null),
-    majorArea: useRef(null),
-    major: useRef(null),
-    interests: useRef(null),
-    experience: useRef(null),
-    methods: useRef(null),
-    period: useRef(null),
-    dataAccess: useRef(null),
-  };
-  const hasError = (k: string) => errors.includes(k);
+
   const interestsFull = c.interests.length >= 3;
   const methodsFull = c.methods.length >= 2;
   const majorSuggestions = c.majorArea ? MAJOR_SUGGESTIONS[c.majorArea] : [];
   const customInterests = c.interests.filter((interest) => !INTEREST_TAG_SET.has(interest));
+  const activeIndex = RESEARCH_STEPS.findIndex((step) => step.id === activeStep);
+  const activeCopy = RESEARCH_STEPS[activeIndex];
+
+  const isStepComplete = (step: ResearchStep): boolean => {
+    if (step === "direction") return Boolean(ideaMode);
+    if (step === "major") return Boolean(c.majorArea && c.major?.trim());
+    if (step === "interests") return c.interests.length > 0;
+    if (step === "readiness") return Boolean(c.experience && c.methods.length);
+    if (step === "feasibility") return Boolean(c.period && c.dataAccess);
+    return RESEARCH_STEPS.slice(0, -1).every((item) => isStepComplete(item.id));
+  };
+
+  const completedCount = RESEARCH_STEPS.slice(0, -1).filter((step) => isStepComplete(step.id)).length;
+  const hasError = (key: string) => errors.includes(key);
+
+  const focusTop = () => {
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      headingRef.current?.focus({ preventScroll: true });
+    });
+  };
+
+  const moveTo = (step: ResearchStep) => {
+    setErrors([]);
+    setInterestInputError(null);
+    setActiveStep(step);
+    focusTop();
+  };
+
+  const missingForStep = (step: ResearchStep) => {
+    if (step === "direction") return ideaMode ? [] : ["ideaMode"];
+    if (step === "major") return [!c.majorArea && "majorArea", !c.major?.trim() && "major"].filter(Boolean) as string[];
+    if (step === "interests") return c.interests.length ? [] : ["interests"];
+    if (step === "readiness") return [!c.experience && "experience", !c.methods.length && "methods"].filter(Boolean) as string[];
+    if (step === "feasibility") return [!c.period && "period", !c.dataAccess && "dataAccess"].filter(Boolean) as string[];
+    return [];
+  };
+
+  const goNext = () => {
+    const missing = missingForStep(activeStep);
+    setErrors(missing);
+    if (missing.length) return;
+    if (activeIndex < RESEARCH_STEPS.length - 1) moveTo(RESEARCH_STEPS[activeIndex + 1].id);
+  };
+
+  const goBack = () => {
+    if (activeIndex === 0) {
+      router.replace(returnHref);
+      return;
+    }
+    moveTo(RESEARCH_STEPS[activeIndex - 1].id);
+  };
 
   const onAddInterest = () => {
     const result = addInterest(customInterest);
     if (result === "added") {
       setCustomInterest("");
       setInterestInputError(null);
+      setErrors((current) => current.filter((key) => key !== "interests"));
       return;
     }
     if (result === "duplicate") {
@@ -82,12 +176,14 @@ export function ConditionSelectScreen() {
 
   const onSubmit = () => {
     const missing = submit();
-    setErrors(missing);
     if (missing.length) {
-      refs[missing[0]]?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      const target = ERROR_STEP[missing[0]] ?? "direction";
+      setActiveStep(target);
+      window.requestAnimationFrame(() => setErrors(missing));
+      focusTop();
       return;
     }
-    router.push("/co-design");
+    router.replace("/co-design");
   };
 
   const modeIcon: Record<IdeaMode, typeof Brain> = {
@@ -96,107 +192,60 @@ export function ConditionSelectScreen() {
     fusion: GitCompareArrows,
   };
 
-  return (
-    <AppShell
-      showHeader={false}
-      className="research-screen"
-      stickyAction={<PrimaryButton onClick={onSubmit}>AI와 공동설계 시작하기</PrimaryButton>}
-    >
-      <div className="research-brand">
-        <AppLogo />
-        <Image src={guideCharacter.questFlag} alt="" width={64} height={62} priority unoptimized />
+  const renderDirection = () => (
+    <section className="research-step-body" aria-labelledby="research-step-heading">
+      <div className={cx("mode-option-list", hasError("ideaMode") && "has-error")}>
+        {IDEA_MODES.map((mode) => {
+          const Icon = modeIcon[mode.id];
+          const selected = ideaMode === mode.id;
+          return (
+            <button
+              key={mode.id}
+              type="button"
+              className={cx("mode-option", selected && "is-selected")}
+              onClick={() => {
+                setIdeaMode(mode.id);
+                setErrors([]);
+              }}
+              aria-pressed={selected}
+            >
+              <span className="mode-option__icon"><Icon size={21} /></span>
+              <span className="mode-option__copy"><strong>{mode.label}</strong><small>{mode.description}</small></span>
+              <span className="mode-option__check" aria-hidden="true">{selected ? <Check size={16} /> : null}</span>
+            </button>
+          );
+        })}
       </div>
-
-      <PageHeader
-        eyebrow="연구주제 공동설계"
-        title="탐색 방식을 고르고, AI와 질문을 좁혀 보세요"
-        description="한 번에 한 질문씩 답하면 현재 조건에 맞는 후보 2개와 비교 근거를 만들어요."
-      />
-
-      <Card className="research-notice">
-        <span><Sparkles size={18} /></span>
-        <div>
-          <strong>점수가 아니라 근거로 비교해요</strong>
-          <p>사용자 확인 사실, AI 제안, 확인 필요 항목을 분리해 보여드려요. 연구실 합격·교수 답변·독창성은 보장하지 않아요.</p>
-        </div>
-      </Card>
-
-      <div ref={refs.ideaMode} className={cx("cond-group", "mode-select-group", hasError("ideaMode") && "has-error")}>
-        <div className="field-label">아이디어 탐색 방식 <small>필수 · 1개 선택</small></div>
-        <div className="mode-option-list">
-          {IDEA_MODES.map((mode) => {
-            const Icon = modeIcon[mode.id];
-            const selected = ideaMode === mode.id;
-            return (
-              <button
-                key={mode.id}
-                type="button"
-                className={cx("mode-option", selected && "is-selected")}
-                onClick={() => setIdeaMode(mode.id)}
-                aria-pressed={selected}
-              >
-                <span className="mode-option__icon"><Icon size={21} /></span>
-                <span className="mode-option__copy">
-                  <strong>{mode.label}</strong>
-                  <small>{mode.description}</small>
-                </span>
-                <span className="mode-option__check" aria-hidden="true">{selected ? <Check size={16} /> : null}</span>
-              </button>
-            );
-          })}
-        </div>
-        {hasError("ideaMode") && <p className="field-error">아이디어 탐색 방식을 선택해 주세요.</p>}
+      {hasError("ideaMode") && <p className="field-error">아이디어 탐색 방식을 선택해 주세요.</p>}
+      <div className="research-inline-note">
+        <Sparkles size={18} />
+        <p><strong>점수 대신 근거로 비교해요.</strong> 선택한 방향은 AI 질문과 후보 구성에만 사용돼요.</p>
       </div>
+    </section>
+  );
 
-      {/* 학교 — 추천 범위를 뜻하지 않는 선택 맥락 */}
-      <div className="cond-group">
-        <label htmlFor="school-input" className="field-label">
-          학교
-          <small>선택 · 직접 입력 가능</small>
-        </label>
-        <input
-          id="school-input"
-          className="input"
-          type="text"
-          list="university-options"
-          value={c.school}
-          maxLength={80}
-          placeholder="예) 단국대학교"
-          onChange={(event) => setSchool(event.target.value)}
-        />
+  const renderMajor = () => (
+    <section className="research-step-body research-major-grid" aria-labelledby="research-step-heading">
+      <div className="cond-group research-school-field">
+        <label htmlFor="school-input" className="field-label">학교 <small>선택 · 직접 입력 가능</small></label>
+        <input id="school-input" className="input" type="text" list="university-options" value={c.school} maxLength={80} placeholder="예) 단국대학교" onChange={(event) => setSchool(event.target.value)} />
         <datalist id="university-options">
-          {UNIVERSITY_SUGGESTIONS.map((university) => (
-            <option key={university} value={university} />
-          ))}
+          {UNIVERSITY_SUGGESTIONS.map((university) => <option key={university} value={university} />)}
         </datalist>
-        <p className="field-help">학교를 입력하지 않아도 이용할 수 있으며, 교수 데이터 범위가 자동으로 넓어지는 것은 아니에요.</p>
       </div>
 
-      {/* 보편 전공 계열 */}
-      <div ref={refs.majorArea} className={cx("cond-group", hasError("majorArea") && "has-error")}>
+      <div className={cx("cond-group", "research-major-area", hasError("majorArea") && "has-error")}>
         <div className="field-label">전공 계열 <small>필수 · 1개</small></div>
         <div className="chip-grid">
           {MAJOR_AREAS.map((area) => (
-            <button
-              key={area}
-              type="button"
-              className={CHIP(c.majorArea === area)}
-              onClick={() => setMajorArea(area)}
-              aria-pressed={c.majorArea === area}
-            >
-              {area}
-            </button>
+            <button key={area} type="button" className={CHIP(c.majorArea === area)} onClick={() => { setMajorArea(area); setErrors((current) => current.filter((key) => key !== "majorArea")); }} aria-pressed={c.majorArea === area}>{area}</button>
           ))}
         </div>
         {hasError("majorArea") && <p className="field-error">전공 계열을 선택해 주세요.</p>}
       </div>
 
-      {/* 검색 또는 직접 입력하는 실제 학과·전공 */}
-      <div ref={refs.major} className={cx("cond-group", hasError("major") && "has-error")}>
-        <label htmlFor="major-input" className="field-label">
-          학과·전공
-          <small>필수 · 검색 또는 직접 입력</small>
-        </label>
+      <div className={cx("cond-group", "research-major-field", hasError("major") && "has-error")}>
+        <label htmlFor="major-input" className="field-label">학과·전공 <small>필수 · 검색 또는 직접 입력</small></label>
         <input
           id="major-input"
           className="input"
@@ -206,150 +255,200 @@ export function ConditionSelectScreen() {
           maxLength={80}
           disabled={!c.majorArea}
           placeholder={c.majorArea ? "예) 컴퓨터공학과" : "먼저 전공 계열을 선택해 주세요"}
-          onChange={(event) => setMajor(event.target.value)}
+          onChange={(event) => { setMajor(event.target.value); setErrors((current) => current.filter((key) => key !== "major")); }}
           aria-invalid={hasError("major")}
         />
         <datalist id="major-options">
-          {majorSuggestions.map((major) => (
-            <option key={major} value={major} />
-          ))}
+          {majorSuggestions.map((major) => <option key={major} value={major} />)}
         </datalist>
         <p className="field-help">목록에 없는 학과·학부·전공도 직접 입력할 수 있어요.</p>
         {hasError("major") && <p className="field-error">학과·전공을 입력해 주세요.</p>}
       </div>
+    </section>
+  );
 
-      {/* 관심 연구 분야 1~3 */}
-      <div ref={refs.interests} className={cx("cond-group", hasError("interests") && "has-error")}>
-        <div className="field-label">관심 연구 분야 <small>필수 · 직접 입력 가능 · 최대 3개</small></div>
-        <div className="chip-grid">
-          {UNIVERSAL_INTEREST_TAGS.map((t) => {
-            const on = c.interests.includes(t);
-            return (
-              <button key={t} type="button" className={CHIP(on)} disabled={!on && interestsFull} onClick={() => toggleInterest(t)} aria-pressed={on}>
-                {t}
-              </button>
-            );
+  const renderInterests = () => (
+    <section className="research-step-body" aria-labelledby="research-step-heading">
+      <div className={cx("cond-group", "research-focus-group", hasError("interests") && "has-error")}>
+        <div className="field-label">관심 연구 분야 <small>필수 · 최대 3개</small></div>
+        <div className="chip-grid research-interest-grid">
+          {UNIVERSAL_INTEREST_TAGS.map((interest) => {
+            const selected = c.interests.includes(interest);
+            return <button key={interest} type="button" className={CHIP(selected)} disabled={!selected && interestsFull} onClick={() => { toggleInterest(interest); setErrors([]); }} aria-pressed={selected}>{interest}</button>;
           })}
           {customInterests.map((interest) => (
-            <button
-              key={interest}
-              type="button"
-              className={CHIP(true)}
-              onClick={() => toggleInterest(interest)}
-              aria-pressed={true}
-              aria-label={`${interest} 관심 분야 해제`}
-            >
-              {interest} ×
-            </button>
+            <button key={interest} type="button" className={CHIP(true)} onClick={() => toggleInterest(interest)} aria-pressed={true}>{interest} ×</button>
           ))}
         </div>
-        <label htmlFor="custom-interest-input" className="field-help">목록에 없는 관심 분야 직접 입력</label>
-        <input
-          id="custom-interest-input"
-          className="input"
-          type="text"
-          value={customInterest}
-          maxLength={60}
-          disabled={interestsFull}
-          placeholder="예) 우주산업, 고전문학, 스포츠과학"
-          onChange={(event) => {
-            setCustomInterest(event.target.value);
-            setInterestInputError(null);
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter") return;
-            event.preventDefault();
-            onAddInterest();
-          }}
-        />
-        <button
-          type="button"
-          className="choice-chip"
-          disabled={interestsFull || !customInterest.trim()}
-          onClick={onAddInterest}
-        >
-          입력한 관심 분야 추가
-        </button>
+        <div className="research-custom-interest">
+          <input
+            id="custom-interest-input"
+            className="input"
+            type="text"
+            value={customInterest}
+            maxLength={60}
+            disabled={interestsFull}
+            placeholder="목록에 없다면 직접 입력"
+            onChange={(event) => { setCustomInterest(event.target.value); setInterestInputError(null); }}
+            onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); onAddInterest(); } }}
+          />
+          <button type="button" className="choice-chip" disabled={interestsFull || !customInterest.trim()} onClick={onAddInterest}>추가</button>
+        </div>
         {interestInputError && <p className="field-error" role="alert">{interestInputError}</p>}
         {interestsFull && <p className="cond-hint">최대 3개를 골랐어요. 바꾸려면 하나를 해제하세요.</p>}
         {hasError("interests") && <p className="field-error">관심 분야를 1개 이상 골라 주세요.</p>}
       </div>
+    </section>
+  );
 
-      {/* 관련 경험 수준 */}
-      <div ref={refs.experience} className={cx("cond-group", hasError("experience") && "has-error")}>
-        <div className="field-label">관련 경험 수준 <small>필수</small></div>
+  const renderReadiness = () => (
+    <section className="research-step-body research-two-column" aria-labelledby="research-step-heading">
+      <div className={cx("cond-group", hasError("experience") && "has-error")}>
+        <div className="field-label">관련 경험 수준 <small>필수 · 1개</small></div>
         <div className="option-list">
-          {EXPERIENCE_LEVELS.map((e) => (
-            <button key={e} type="button" className={c.experience === e ? "is-selected" : ""} onClick={() => setExperience(e)} aria-pressed={c.experience === e}>
-              <span>{e}</span>
-            </button>
+          {EXPERIENCE_LEVELS.map((experience) => (
+            <button key={experience} type="button" className={c.experience === experience ? "is-selected" : ""} onClick={() => { setExperience(experience); setErrors((current) => current.filter((key) => key !== "experience")); }} aria-pressed={c.experience === experience}><span>{experience}</span></button>
           ))}
         </div>
         {hasError("experience") && <p className="field-error">경험 수준을 골라 주세요.</p>}
       </div>
 
-      {/* 사용할 수 있는 방법·도구 1~2 */}
-      <div ref={refs.methods} className={cx("cond-group", hasError("methods") && "has-error")}>
+      <div className={cx("cond-group", hasError("methods") && "has-error")}>
         <div className="field-label">사용할 수 있는 방법·도구 <small>필수 · 최대 2개</small></div>
         <div className="chip-grid">
-          {METHOD_TAGS.map((t) => {
-            const on = c.methods.includes(t);
-            return (
-              <button key={t} type="button" className={CHIP(on)} disabled={!on && methodsFull} onClick={() => toggleMethod(t)} aria-pressed={on}>
-                {t}
-              </button>
-            );
+          {METHOD_TAGS.map((method) => {
+            const selected = c.methods.includes(method);
+            return <button key={method} type="button" className={CHIP(selected)} disabled={!selected && methodsFull} onClick={() => { toggleMethod(method); setErrors([]); }} aria-pressed={selected}>{method}</button>;
           })}
         </div>
         {methodsFull && <p className="cond-hint">최대 2개를 골랐어요. 바꾸려면 하나를 해제하세요.</p>}
         {hasError("methods") && <p className="field-error">방법·도구를 1개 이상 골라 주세요.</p>}
       </div>
+    </section>
+  );
 
-      {/* 준비 가능 기간 */}
-      <div ref={refs.period} className={cx("cond-group", hasError("period") && "has-error")}>
-        <div className="field-label">준비 가능 기간 <small>필수</small></div>
+  const renderFeasibility = () => (
+    <section className="research-step-body research-two-column" aria-labelledby="research-step-heading">
+      <div className={cx("cond-group", hasError("period") && "has-error")}>
+        <div className="field-label">준비 가능 기간 <small>필수 · 1개</small></div>
         <div className="segmented" style={{ "--segments": 3 } as React.CSSProperties}>
-          {PERIODS.map((p) => (
-            <button key={p.label} type="button" className={c.period === p.label ? "is-selected" : ""} onClick={() => setPeriod(p.label)} aria-pressed={c.period === p.label}>
-              {p.label}
-            </button>
+          {PERIODS.map((period) => (
+            <button key={period.label} type="button" className={c.period === period.label ? "is-selected" : ""} onClick={() => { setPeriod(period.label); setErrors((current) => current.filter((key) => key !== "period")); }} aria-pressed={c.period === period.label}>{period.label}</button>
           ))}
         </div>
         {hasError("period") && <p className="field-error">준비 가능 기간을 골라 주세요.</p>}
       </div>
 
-      {/* 데이터 접근 상황 */}
-      <div ref={refs.dataAccess} className={cx("cond-group", hasError("dataAccess") && "has-error")}>
-        <div className="field-label">데이터 접근 상황 <small>필수</small></div>
+      <div className={cx("cond-group", hasError("dataAccess") && "has-error")}>
+        <div className="field-label">자료 접근 상황 <small>필수 · 1개</small></div>
         <div className="option-list">
-          {DATA_ACCESS.map((d) => (
-            <button key={d} type="button" className={c.dataAccess === d ? "is-selected" : ""} onClick={() => setDataAccess(d)} aria-pressed={c.dataAccess === d}>
-              <span>{d}</span>
-            </button>
+          {DATA_ACCESS.map((access) => (
+            <button key={access} type="button" className={c.dataAccess === access ? "is-selected" : ""} onClick={() => { setDataAccess(access); setErrors((current) => current.filter((key) => key !== "dataAccess")); }} aria-pressed={c.dataAccess === access}><span>{access}</span></button>
           ))}
         </div>
-        {hasError("dataAccess") && <p className="field-error">데이터 접근 상황을 골라 주세요.</p>}
+        {hasError("dataAccess") && <p className="field-error">자료 접근 상황을 골라 주세요.</p>}
       </div>
 
-      {/* 피하고 싶은 주제·방식 (선택) */}
-      <div className="cond-group">
+      <div className="cond-group research-avoid-group">
         <div className="field-label">피하고 싶은 방식 <small>선택</small></div>
         <div className="chip-grid">
-          {AVOID_TAGS.map((t) => (
-            <button key={t} type="button" className={CHIP(c.avoid.includes(t))} onClick={() => toggleAvoid(t)} aria-pressed={c.avoid.includes(t)}>
-              {t}
-            </button>
+          {AVOID_TAGS.map((avoid) => (
+            <button key={avoid} type="button" className={CHIP(c.avoid.includes(avoid))} onClick={() => toggleAvoid(avoid)} aria-pressed={c.avoid.includes(avoid)}>{avoid}</button>
           ))}
         </div>
       </div>
+    </section>
+  );
 
-      {errors.length > 0 && (
-        <div className="cond-error-banner" role="alert">
-          <CircleAlert size={18} /> 추천을 받으려면 표시된 조건을 모두 선택해 주세요.
+  const reviewRows: Array<{ label: string; value: string; step: ResearchStep }> = [
+    { label: "탐색 방향", value: IDEA_MODES.find((mode) => mode.id === ideaMode)?.label ?? "확인 필요", step: "direction" },
+    { label: "학교·전공", value: [c.school, c.majorArea, c.major].filter(Boolean).join(" · ") || "확인 필요", step: "major" },
+    { label: "관심 분야", value: c.interests.join(" · ") || "확인 필요", step: "interests" },
+    { label: "경험·도구", value: [c.experience, ...c.methods].filter(Boolean).join(" · ") || "확인 필요", step: "readiness" },
+    { label: "기간·자료", value: [c.period, c.dataAccess].filter(Boolean).join(" · ") || "확인 필요", step: "feasibility" },
+  ];
+
+  const renderReview = () => (
+    <section className="research-step-body" aria-labelledby="research-step-heading">
+      <div className="research-review-list">
+        {reviewRows.map((row) => (
+          <div key={row.label}>
+            <strong>{row.label}</strong>
+            <span className={row.value === "확인 필요" ? "is-missing" : ""}>{row.value}</span>
+            <button type="button" onClick={() => moveTo(row.step)}>수정 <ArrowRight size={15} /></button>
+          </div>
+        ))}
+      </div>
+      <div className="research-inline-note research-inline-note--trust">
+        <ShieldCheck size={19} />
+        <p>확인한 정보와 AI 제안을 나눠 보여드려 비교하면서 선택할 수 있어요.</p>
+      </div>
+      {errors.length > 0 && <div className="cond-error-banner" role="alert"><CircleAlert size={18} /> 비어 있는 필수 조건을 먼저 확인해 주세요.</div>}
+    </section>
+  );
+
+  const renderCurrentStep = () => {
+    if (activeStep === "direction") return renderDirection();
+    if (activeStep === "major") return renderMajor();
+    if (activeStep === "interests") return renderInterests();
+    if (activeStep === "readiness") return renderReadiness();
+    if (activeStep === "feasibility") return renderFeasibility();
+    return renderReview();
+  };
+
+  return (
+    <AppShell
+      showHeader={false}
+      className="research-screen research-step-screen"
+      bottomNav={<ServiceBottomNav />}
+      stickyAction={(
+        <div className="research-step-actions" data-service-help="research-actions">
+          <SecondaryButton onClick={goBack}><ArrowLeft size={18} /> {activeIndex === 0 ? "시작 화면" : "이전"}</SecondaryButton>
+          <span>{activeIndex + 1} / {RESEARCH_STEPS.length}</span>
+          {activeStep === "review" ? (
+            <PrimaryButton onClick={onSubmit}>AI 공동설계 시작 <ArrowRight size={18} /></PrimaryButton>
+          ) : (
+            <PrimaryButton onClick={goNext}>다음 <ArrowRight size={18} /></PrimaryButton>
+          )}
         </div>
       )}
+    >
+      <header className="research-workspace-header">
+        <Link href={returnHref} className="research-back-link" aria-label={returnLabel}><ArrowLeft size={19} /> 돌아가기</Link>
+        <Image src={guideCharacter.questFlag} alt="" width={52} height={50} priority unoptimized />
+      </header>
 
-      <p className="research-foot"><Compass size={14} /> 공식 근거가 없는 정보는 ‘확인 필요’로 남기며, 현재 입력과 선택은 이 브라우저에 저장해요.</p>
+      <div className="research-progress-head" data-service-help="research-progress">
+        <div className="research-progress-copy">
+          <span>{completedCount} / 5 조건 확인</span>
+          <Link href="/research/tutorial?source=full"><Route size={15} /> 단계별 설계로 돌아가기</Link>
+        </div>
+        <div className="research-progress-track" aria-label={`프로젝트 조건 ${completedCount}개 확인됨`} role="progressbar" aria-valuemin={0} aria-valuemax={5} aria-valuenow={completedCount}>
+          <span style={{ width: `${(completedCount / 5) * 100}%` }} />
+        </div>
+        <nav className="research-stepper" aria-label="프로젝트 설계 단계">
+          {RESEARCH_STEPS.map((step, index) => {
+            const current = step.id === activeStep;
+            const completed = isStepComplete(step.id);
+            return (
+              <button key={step.id} type="button" className={cx(current && "is-current", completed && "is-complete")} aria-current={current ? "step" : undefined} onClick={() => moveTo(step.id)}>
+                <span>{completed ? <Check size={13} strokeWidth={3} /> : index + 1}</span>{step.label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      <div data-service-help="research-question">
+        <div className="research-step-heading">
+          <h1 id="research-step-heading" ref={headingRef} tabIndex={-1}>{activeCopy.title}</h1>
+          <p>{activeCopy.description}</p>
+        </div>
+
+        {renderCurrentStep()}
+      </div>
+
+      <p className="research-foot"><Compass size={14} /> 현재 입력은 이 브라우저에 자동 저장돼요.</p>
     </AppShell>
   );
 }

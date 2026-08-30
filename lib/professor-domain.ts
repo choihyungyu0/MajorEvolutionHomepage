@@ -7,12 +7,25 @@ export type ProfessorDataStatus =
 
 export type ProfessorMatchRole = "TOPIC" | "METHOD" | "CONTEXT";
 export type ProfessorMatchStrength = "DIRECT" | "RELATED" | "LIMITED";
-export const PROFESSOR_MATCH_POLICY = "OFFICIAL_EVIDENCE_RULES_V3" as const;
+export const PROFESSOR_MATCH_POLICY = "OFFICIAL_EVIDENCE_RULES_V4" as const;
 export const SUPPORTED_PROFESSOR_UNIVERSITY = "단국대학교" as const;
+
+export type ProfessorMatchedAcademicAffiliation = {
+  type: "PRIMARY" | "SECONDARY";
+  /** 학생이 직접 선택한 구분입니다. 예: 주전공, 부전공, 복수전공. */
+  label: string;
+  college: string;
+  major: string;
+  /** 교수 공식 프로필의 다중 소속 중 실제로 일치한 학과명입니다. */
+  officialDepartment: string;
+};
 
 export type ProfessorMatchDecisionBasis = {
   matchedConcepts: string[];
+  /** 주전공 또는 입력한 부·복수전공과 공식 프로필 소속이 일치하는지 나타냅니다. */
   departmentMatchesMajor: boolean;
+  /** 어떤 학업 소속과 연결됐는지 피칭 화면에서 그대로 설명하기 위한 근거입니다. */
+  matchedAcademicAffiliation?: ProfessorMatchedAcademicAffiliation;
   roleMatches: {
     topic: boolean;
     method: boolean;
@@ -100,6 +113,15 @@ export type ProfessorPaperSelection = {
   kciId: string | null;
   officialProfileUrl: string;
   selectedAt: string;
+  confirmedPublicPaper?: {
+    officialPaperId: string;
+    title: string;
+    publishedDate: string | null;
+    doi: string | null;
+    sourceUrl: string | null;
+    license: string | null;
+    confirmedAt: string;
+  } | null;
 };
 
 export type ProfessorMatch = {
@@ -111,6 +133,8 @@ export type ProfessorMatch = {
   matchedTerms: string[];
   doesNotEstablish: string[];
   decisionBasis: ProfessorMatchDecisionBasis;
+  /** 선택한 프로젝트 맥락을 기준으로 AI가 정리한 멘토 적합 이유. 공식 후보 안에서만 생성합니다. */
+  mentorFitReason?: string;
 };
 
 export type ProfessorMatchTopic = {
@@ -157,6 +181,8 @@ export type ProfessorMatchResponse = {
   scopeStatus: "SAMPLE" | "PARTIAL" | "COMPLETE";
   coverageGaps: ProfessorCoverageGap[];
   note: string;
+  rankingSource: "ai-reranked" | "official-rules";
+  rankingModel: string | null;
 };
 
 export type ProfessorKnockKitDraft = {

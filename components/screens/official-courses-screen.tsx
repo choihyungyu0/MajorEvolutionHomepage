@@ -15,6 +15,7 @@ import {
   SectionHeading,
   Tag,
 } from "@/components/app/primitives";
+import { professorDetailQuery } from "@/lib/navigation-flow";
 import type { OfficialProfessor } from "@/lib/professor-domain";
 
 /**
@@ -35,19 +36,28 @@ function portalOrigin(url: string): string | null {
   }
 }
 
-export function OfficialCoursesScreen({ professor }: { professor: OfficialProfessor }) {
+export function OfficialCoursesScreen({
+  professor,
+  from,
+  journey,
+}: {
+  professor: OfficialProfessor;
+  from?: string;
+  journey?: string;
+}) {
   const [semester, setSemester] = useState(SEMESTERS[0]);
   const portal = portalOrigin(professor.officialProfileUrl);
   const collectedAt = new Date(professor.collectedAt).toLocaleDateString("ko-KR");
+  const detailHref = `/professors/${professor.id}${professorDetailQuery(from, journey)}`;
 
   return (
     <AppShell
       title="공식 강의정보"
-      backHref={`/professors/${professor.id}`}
+      backHref={detailHref}
       className="courses-screen"
     >
       <nav className="courses-breadcrumb" aria-label="현재 위치">
-        <Link href={`/professors/${professor.id}`}>교수님 상세</Link>
+        <Link href={detailHref}>교수님 상세</Link>
         <span aria-hidden="true">›</span>
         <strong>공식 강의정보</strong>
       </nav>
@@ -93,7 +103,7 @@ export function OfficialCoursesScreen({ professor }: { professor: OfficialProfes
           <h2>아직 강의 데이터를 연결하지 않았어요</h2>
           <p>
             현재 수집한 공식 프로필에는 연구분야와 논문만 있고 강의명·시간·강의실 항목이 없습니다.
-            없는 값을 추정해 채우지 않습니다. 아래 공식 시스템에서 직접 확인해 주세요.
+            최신 수업 정보는 아래 대학 공식 시스템에서 이어서 확인할 수 있어요.
           </p>
         </div>
       </div>
@@ -125,7 +135,7 @@ export function OfficialCoursesScreen({ professor }: { professor: OfficialProfes
         </div>
         {portal && (
           <Link href={portal} target="_blank" rel="noopener noreferrer">
-            공식 시간표에서 확인 <ExternalLink size={15} />
+            대학 포털에서 확인 <ExternalLink size={15} />
           </Link>
         )}
       </Card>

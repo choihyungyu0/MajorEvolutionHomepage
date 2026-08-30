@@ -1,0 +1,127 @@
+.matchShell {
+  --brand-purple: #2f6edb;
+  --brand-violet-soft: #eaf2ff;
+  --service-stage-accent: #2f6edb;
+  background: #f2f7ff;
+}
+
+.matchShell :global(.screen-content) { background: transparent; }
+
+.workspace {
+  display: grid;
+  min-width: 0;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.primaryArea,
+.contextRail,
+.moreArea {
+  min-width: 0;
+}
+
+/* 공통 허브 컴포넌트의 기본 위쪽 여백은 이 화면의 grid gap이 대신합니다. */
+.contextRail > section,
+.moreArea > nav {
+  margin-top: 0;
+}
+
+.officialStatus {
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 14px 15px;
+  border: 1px solid #cbdcf4;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #f2f7ff, #ffffff);
+}
+
+.officialStatus > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.officialStatus > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.officialStatus strong {
+  color: #245db7;
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.officialStatus small {
+  color: #526a8e;
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+/* 사이드바가 먼저 나타나는 중간 PC 폭에서는 연결 요약만 안전한 2열로 압축합니다. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .contextRail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 280px);
+    align-items: start;
+    gap: 18px;
+  }
+
+  .officialStatus {
+    margin-top: 0;
+  }
+}
+
+/* 넓은 PC에서는 행동 영역과 현재 연결 맥락을 동시에 확인합니다. */
+@media (min-width: 1280px) {
+  .workspace {
+    grid-template-areas:
+      "primary rail"
+      "more rail";
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 320px);
+    align-items: start;
+    column-gap: 26px;
+    row-gap: 24px;
+  }
+
+  .primaryArea {
+    grid-area: primary;
+  }
+
+  .contextRail {
+    position: sticky;
+    top: 22px;
+    grid-area: rail;
+  }
+
+  .moreArea {
+    grid-area: more;
+  }
+
+  .contextRail > section {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .workspace {
+    gap: 20px;
+  }
+
+  .officialStatus {
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .workspace {
+    gap: 18px;
+  }
+
+  .officialStatus {
+    padding: 13px;
+  }
+}

@@ -546,7 +546,7 @@ export function ProfessorDiscoveryForm({
                 <GraduationCap size={19} />
                 <div>
                   <h3>1. 부전공·복수전공 <Tag>선택</Tag></h3>
-                  <p>주전공은 우선 근거로, 부·복수전공은 융합 가능성을 찾는 보조 신호로 사용해요.</p>
+                  <p>입력한 부·복수전공도 가까운 학과 연결 범위에 포함해요. 공식 소속과 관심 근거를 함께 확인해 첫 교수 후보를 제안합니다.</p>
                 </div>
               </div>
               <div className="chip-grid">

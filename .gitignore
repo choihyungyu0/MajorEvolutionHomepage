@@ -8,6 +8,7 @@
 
 # testing
 /coverage
+/test-results/
 
 # next.js
 /.next/
@@ -26,6 +27,13 @@
 # local AI/tooling workspaces
 .codex_tmp/
 .serena/
+.codex-logs/
+.playwright-cli/
+/tmp/
+
+# generated local QA and delivery packages
+/output/playwright/*
+/output/blog/
 
 # debug
 npm-debug.log*

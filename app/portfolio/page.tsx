@@ -1,5 +1,5 @@
-import { PortfolioScreen } from "@/components/screens/portfolio-screen";
+import { PortfolioHubScreen } from "@/components/screens/portfolio-hub-screen";
 
 export default function Page() {
-  return <PortfolioScreen />;
+  return <PortfolioHubScreen />;
 }

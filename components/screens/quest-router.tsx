@@ -15,11 +15,13 @@ import { useResearchStore } from "@/store/research-store";
  * 메일 점검은 교수와 주제가 정해져야 의미가 있으므로,
  * 맥락이 없으면 만들어내지 않고 찾다로 돌려보냅니다.
  */
-export function QuestRouterScreen() {
+export function QuestRouterScreen({
+  journeySource = null,
+}: {
+  journeySource?: "paper" | "paper-first-line" | "first-line" | null;
+}) {
   const router = useRouter();
   const hasHydrated = useResearchStore((state) => state.hasHydrated);
-  const selectedProfessorId = useResearchStore((state) => state.selectedProfessorId);
-  const matches = useResearchStore((state) => state.professorMatches);
 
   if (!hasHydrated) {
     return (
@@ -30,12 +32,10 @@ export function QuestRouterScreen() {
     );
   }
 
-  const context = selectedProfessorId && matches.some(
-    (match) => match.professor.id === selectedProfessorId,
-  ) ? getOfficialQuestContext() : null;
+  const context = getOfficialQuestContext();
 
   if (context) {
-    return <OfficialKnockKitScreen topic={context.topic} match={context.match} />;
+    return <OfficialKnockKitScreen topic={context.topic} match={context.match} journeySource={journeySource} />;
   }
 
   return (
@@ -43,7 +43,7 @@ export function QuestRouterScreen() {
       <PageHeader
         eyebrow="교수님, 말 걸어도 돼요?"
         title="먼저 연락할 교수님을 정해 주세요"
-        description="메일 점검은 선택한 교수님과 연구주제를 기준으로 이유를 설명합니다. 맥락 없이 문장을 만들지 않습니다."
+        description="선택한 교수님과 고민을 연결하면 목적에 맞는 메일 초안을 준비할 수 있어요."
       />
       <Card className="official-professor-empty">
         <SearchCheck size={28} />

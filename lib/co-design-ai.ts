@@ -1,4 +1,4 @@
-import type { IdeaMode, ConfirmedAnswer } from "@/data/co-design";
+import type { CoDesignQuestion, IdeaMode, ConfirmedAnswer } from "@/data/co-design";
 import {
   periodWeeks,
   type CheckStatus,
@@ -32,6 +32,19 @@ export type CoDesignRequest = {
   mode: IdeaMode;
   conditions: Conditions;
   answers: ConfirmedAnswer[];
+};
+
+export type CoDesignFollowUpRequest = {
+  mode: IdeaMode;
+  conditions: Conditions;
+  /** 공통 질문 세 개에 대해 사용자가 직접 확인한 답변만 전달합니다. */
+  answers: ConfirmedAnswer[];
+};
+
+export type CoDesignFollowUpResponse = {
+  questions: [CoDesignQuestion, CoDesignQuestion];
+  generatedAt: string;
+  model: string;
 };
 
 export type CoDesignResponse = {

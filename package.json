@@ -10,8 +10,13 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test": "node --test \"scripts/tests/**/*.test.mjs\"",
     "test:favorite-paper": "node --test scripts/tests/favorite-paper-flow.test.mjs",
+    "test:co-design": "node --test scripts/tests/co-design-ai-flow.test.mjs",
+    "test:navigation": "node --test scripts/tests/service-navigation-flow.test.mjs",
+    "test:ai-professor": "node --test scripts/tests/ai-professor-flow.test.mjs",
     "test:professor-discovery": "node --test scripts/tests/professor-discovery-flow.test.mjs",
+    "test:profile": "node --test scripts/tests/profile-entry-flow.test.mjs",
     "professors:crawl": "node scripts/professor-crawler/cli.mjs crawl",
     "professors:recover-dku": "node scripts/professor-crawler/recover-dku.mjs",
     "professors:recover-dku-gaps": "node scripts/professor-crawler/recover-dku-gaps.mjs",
@@ -25,6 +30,7 @@
     "professors:verify-matches": "node scripts/verify-professor-matches.mjs"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
     "pdfjs-dist": "^4.10.38",

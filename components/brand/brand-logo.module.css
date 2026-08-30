@@ -1,0 +1,86 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #071026;
+  text-decoration: none;
+}
+
+.logo > img {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+}
+
+.copy {
+  display: grid;
+  gap: 2px;
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.wordmark strong {
+  color: #7557f6;
+  font-weight: 850;
+}
+
+.wordmark em {
+  color: #127363;
+  font-style: normal;
+}
+
+.copy small {
+  color: #56647d;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+}
+
+.compact {
+  gap: 8px;
+}
+
+.compact > img {
+  width: 32px;
+  height: 32px;
+}
+
+.compact .wordmark {
+  gap: 3px;
+  font-size: 16px;
+}
+
+.inverse,
+.inverse .wordmark strong,
+.inverse .wordmark em {
+  color: #fff;
+}
+
+.inverse .copy small {
+  color: #d7e0f2;
+}
+
+@media (max-width: 520px) {
+  .logo > img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .wordmark {
+    font-size: 17px;
+  }
+
+  .copy small {
+    display: none;
+  }
+}

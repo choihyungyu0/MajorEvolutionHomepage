@@ -3,6 +3,11 @@
 import { useMemo } from "react";
 import type { ResearchTopic } from "@/data/research-mvp";
 import type { ProfessorMatch } from "@/lib/professor-domain";
+import { resolveQuestProfessorContextMatch } from "@/lib/professor-match-state";
+import {
+  createProfessorPaperQuestTopic,
+  resolveJourneyTopic,
+} from "@/lib/research-topic-context";
 import { useResearchStore } from "@/store/research-store";
 
 export type QuestContext = {
@@ -15,22 +20,38 @@ export type QuestContext = {
  *
  * 맥락이 없으면 null을 돌려주고, 화면은 문장을 지어내는 대신 앞 단계로 안내합니다.
  */
-export function useQuestContext(): QuestContext {
+export function useQuestContext({
+  includeFavoriteFallback = true,
+}: {
+  includeFavoriteFallback?: boolean;
+} = {}): QuestContext {
   const result = useResearchStore((state) => state.result);
   const selectedTopicId = useResearchStore((state) => state.selectedTopicId);
   const matches = useResearchStore((state) => state.professorMatches);
   const selectedProfessorId = useResearchStore((state) => state.selectedProfessorId);
   const favoriteProfessorIds = useResearchStore((state) => state.favoriteProfessorIds);
+  const projectMatches = useResearchStore((state) => state.projectProfessorMatches);
+  const selectedProjectProfessorId = useResearchStore((state) => state.selectedProjectProfessorId);
+  const selectedProfessorPaper = useResearchStore((state) => state.selectedProfessorPaper);
+  const professorDiscoveryTopic = useResearchStore((state) => state.professorDiscoveryTopic);
 
   return useMemo(() => {
-    let topic: ResearchTopic | null = null;
-    if (result && selectedTopicId) {
-      if (result.kind === "ok") {
-        topic = result.candidates.find((c) => c.topic.id === selectedTopicId)?.topic ?? null;
-      } else if (result.kind === "insufficient" && result.candidate.topic.id === selectedTopicId) {
-        topic = result.candidate.topic;
-      }
-    }
+    const resolved = resolveQuestProfessorContextMatch({
+      studentMatches: matches,
+      selectedStudentProfessorId: selectedProfessorId,
+      favoriteStudentProfessorIds: includeFavoriteFallback ? favoriteProfessorIds : [],
+      projectMatches,
+      selectedProjectProfessorId,
+      selectedProfessorPaper,
+    });
+    const match = resolved?.match ?? null;
+    const topic: ResearchTopic | null = resolved?.source === "paper" && selectedProfessorPaper
+      ? createProfessorPaperQuestTopic(selectedProfessorPaper)
+      : resolveJourneyTopic({
+          result,
+          selectedTopicId,
+          professorDiscoveryTopic: resolved?.source === "project" ? null : professorDiscoveryTopic,
+        });
     /*
      * 교수 맥락은 두 신호에서 옵니다.
      *
@@ -38,12 +59,19 @@ export function useQuestContext(): QuestContext {
      * 카드에서 바로 즐겨찾기만 누르면 favoriteProfessorIds에 담깁니다.
      * 논문 한입과 퀘스트 허브가 이미 즐겨찾기를 기준으로 삼으므로 여기서도 같이 봅니다.
      */
-    const match =
-      matches.find((item) => item.professor.id === selectedProfessorId)
-      ?? matches.find((item) => favoriteProfessorIds.includes(item.professor.id))
-      ?? null;
     return { topic, match };
-  }, [result, selectedTopicId, matches, selectedProfessorId, favoriteProfessorIds]);
+  }, [
+    result,
+    selectedTopicId,
+    professorDiscoveryTopic,
+    matches,
+    selectedProfessorId,
+    favoriteProfessorIds,
+    projectMatches,
+    selectedProjectProfessorId,
+    selectedProfessorPaper,
+    includeFavoriteFallback,
+  ]);
 }
 
 /**

@@ -23,6 +23,11 @@ import {
 } from "@/components/app/primitives";
 import { questIcon } from "@/lib/brand-assets";
 import { buildFirstLines, PURPOSES } from "@/lib/first-line";
+import {
+  canSaveMiniBingo,
+  canSaveMiniGlossary,
+  canSaveMiniReaction,
+} from "@/lib/quest-input-validation";
 import { evidencePhrase, useQuestContext } from "@/lib/quest-context";
 import { useQuestStore } from "@/store/quest-store";
 import { useResearchStore } from "@/store/research-store";
@@ -30,7 +35,7 @@ import { useResearchStore } from "@/store/research-store";
 /**
  * F26 교수님과 친해지기 미니도구.
  *
- * 논문을 읽고 자연스럽게 첫 질문을 준비하는 가벼운 도구 묶음입니다.
+ * 교수님과의 대화를 자연스럽게 준비하는 가벼운 도구 묶음입니다.
  * 기능명세의 다섯 도구(퀘스트 허브)와는 별개로, 목업의 네 가지를 그대로 둡니다.
  */
 
@@ -42,9 +47,6 @@ const TOOLS: Array<{ id: ToolId; name: string; description: string; icon: typeof
   { id: "bingo", name: "연구 키워드 빙고", description: "연구 주제와 관련된 키워드를 정리하고 연결해요.", icon: Grid3x3 },
   { id: "shuffle", name: "첫 질문 셔플", description: "자연스러운 첫 질문을 만들고 다듬어 보세요.", icon: Sparkles },
 ];
-
-/** 첫 질문 셔플이 붙이는 목적 태그. 문장마다 무엇을 묻는지 드러냅니다. */
-const SHUFFLE_TAGS = ["연구 초점 파악", "연구 배경 이해", "연구 확장 아이디어"];
 
 export function MiniToolsScreen() {
   const router = useRouter();
@@ -62,8 +64,11 @@ export function MiniToolsScreen() {
   const [status, setStatus] = useState("");
 
   const evidence = evidencePhrase(match);
+  const canSaveReaction = canSaveMiniReaction(reaction);
+  const canSaveGlossary = canSaveMiniGlossary(term, termMeaning);
+  const canSaveBingo = canSaveMiniBingo(keywords);
 
-  /** 셔플은 목적을 하나씩 돌려 세 문장이 서로 다른 것을 묻게 합니다. */
+  /** 셔플은 대표 목적을 하나씩 돌려 문장마다 서로 다른 대화 방향을 제안합니다. */
   const questions = useMemo(() => {
     if (!evidence) return [];
     return PURPOSES.map((purpose, index) => {
@@ -73,7 +78,7 @@ export function MiniToolsScreen() {
         evidence,
         shuffle: shuffle + index,
       });
-      return first ? { ...first, tag: SHUFFLE_TAGS[index] } : null;
+      return first ? { ...first, tag: purpose.label } : null;
     }).filter(Boolean) as Array<{ id: string; text: string; tag: string }>;
   }, [evidence, shuffle]);
 
@@ -102,7 +107,7 @@ export function MiniToolsScreen() {
   const copyAll = async () => {
     try {
       await navigator.clipboard.writeText(questions.map((q, i) => `${i + 1}. ${q.text}`).join("\n\n"));
-      setStatus("첫 질문 3개를 복사했어요. 보내기 전에 직접 읽어 보세요.");
+      setStatus(`목적별 첫 질문 ${questions.length}개를 복사했어요.`);
     } catch {
       setStatus("자동 복사에 실패했어요. 문장을 직접 선택해 복사해 주세요.");
     }
@@ -113,10 +118,10 @@ export function MiniToolsScreen() {
       <PageHeader
         eyebrow="교수님, 말 걸어도 돼요?"
         title="교수님과 친해지기 미니도구"
-        description="논문을 읽고, 자연스럽게 첫 질문을 준비해요."
+        description="진로·연구·프로젝트·멘토링 상황에 맞춰 첫 질문을 준비해요."
       />
 
-      <div className="mini-grid">
+      <div className="mini-grid" id="all-tools">
         {TOOLS.map((tool) => {
           const Icon = tool.icon;
           return (
@@ -137,7 +142,7 @@ export function MiniToolsScreen() {
       </div>
 
       {activeTool === "shuffle" && (
-        <Card className="mini-panel">
+        <Card className="mini-panel" id="shuffle">
           <header>
             <h2><Sparkles size={17} aria-hidden="true" /> 첫 질문 셔플</h2>
             <Image src={questIcon.firstLine} alt="" aria-hidden="true" width={34} height={34} unoptimized />
@@ -193,7 +198,7 @@ export function MiniToolsScreen() {
             />
           </label>
           <div className="mini-panel__actions">
-            <button type="button" className="is-primary" onClick={() => save("paper-bite", "논문 한 줄 리액션", reaction)}>
+            <button type="button" className="is-primary" disabled={!canSaveReaction} onClick={() => save("paper-bite", "논문 한 줄 리액션", reaction)}>
               <Bookmark size={15} /> 카드 저장
             </button>
           </div>
@@ -218,6 +223,7 @@ export function MiniToolsScreen() {
             <button
               type="button"
               className="is-primary"
+              disabled={!canSaveGlossary}
               onClick={() => save("paper-bite", `용어: ${term}`, termMeaning)}
             >
               <Bookmark size={15} /> 카드 저장
@@ -266,6 +272,7 @@ export function MiniToolsScreen() {
             <button
               type="button"
               className="is-primary"
+              disabled={!canSaveBingo}
               onClick={() => save("paper-bite", "연구 키워드", keywords.join(" · "))}
             >
               <Bookmark size={15} /> 카드 저장

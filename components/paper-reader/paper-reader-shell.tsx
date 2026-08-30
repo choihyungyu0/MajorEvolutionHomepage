@@ -2,25 +2,23 @@
 
 import {
   AlertTriangle,
+  ArrowLeft,
   BookOpen,
-  BotMessageSquare,
   CheckCircle2,
   Clipboard,
+  CloudDownload,
   Copy,
   ExternalLink,
-  FileImage,
   FileSearch,
-  Languages,
   Lightbulb,
   ListChecks,
   LoaderCircle,
-  PencilLine,
   RotateCcw,
   Save,
   ShieldCheck,
-  Sparkles,
   Star,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppShell,
@@ -34,37 +32,37 @@ import {
   Tag,
   TextButton,
 } from "@/components/app/primitives";
-import { SceneBanner } from "@/components/app/scene-banner";
 import { FavoriteProfessorPaperPicker } from "@/components/paper-reader/favorite-professor-paper-picker";
+import { PaperReadingSteps } from "@/components/paper-reader/paper-reading-steps";
 import { requestPaperAnalysis } from "@/lib/ai-client";
-import { brandScene } from "@/lib/brand-assets";
+import { FIRST_QUESTION_FROM_PAPER_HREF } from "@/lib/email-draft-purpose";
 import type { PaperAnalysisResult } from "@/lib/paper-analysis";
 import type { ProfessorPaperSelection } from "@/lib/professor-domain";
+import {
+  requestProfessorPaperContent,
+  type ProfessorPaperContentResponse,
+} from "@/lib/professor-paper-content-client";
 import { requestFavoriteProfessorPaperCatalog } from "@/lib/professor-paper-client";
 import { createProfessorPaperSelection } from "@/lib/professor-paper-selection";
-import {
-  PAPER_READER_CAPABILITIES,
-  type PaperReaderCapabilityId,
-} from "@/lib/paper-reader-contract";
 import { useQuestStore } from "@/store/quest-store";
 import { useResearchStore } from "@/store/research-store";
 
 const MIN_CONTENT_LENGTH = 80;
 const MAX_CONTENT_LENGTH = 12_000;
-
-const capabilityIcons: Partial<Record<PaperReaderCapabilityId, typeof BookOpen>> = {
-  original: BookOpen,
-  translation: Languages,
-  qa: BotMessageSquare,
-  figure: FileImage,
-};
-
-const FOLLOW_UP_CAPABILITIES = PAPER_READER_CAPABILITIES.filter(
-  (capability) => capability.id !== "summary",
-);
+const PAPER_BITE_WORKING_DRAFT_STORAGE_KEY = "major-evolution-paper-bite-working-draft-v1";
 
 type BiteCardKey = "problem" | "method" | "result" | "limitations" | "questions";
 type BiteDraft = Record<BiteCardKey, string>;
+type PaperBiteWorkflowStep = "select" | "card";
+
+type StoredPaperBiteWorkingDraft = {
+  version: 1;
+  title: string;
+  content: string;
+  analysis: PaperAnalysisResult;
+  draft: BiteDraft;
+  sourceConfirmed: boolean;
+};
 
 const BITE_CARD_META: ReadonlyArray<{
   key: BiteCardKey;
@@ -110,6 +108,77 @@ const BITE_CARD_META: ReadonlyArray<{
   },
 ] as const;
 
+function isStringList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isPaperAnalysisResult(value: unknown): value is PaperAnalysisResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const raw = value as Record<string, unknown>;
+  return ["title", "oneLine", "background", "question", "generatedAt", "model"]
+    .every((key) => typeof raw[key] === "string")
+    && isStringList(raw.methods)
+    && isStringList(raw.findings)
+    && isStringList(raw.limitations)
+    && isStringList(raw.nextQuestions)
+    && Array.isArray(raw.glossary)
+    && raw.glossary.every((item) => (
+      Boolean(item)
+      && typeof item === "object"
+      && !Array.isArray(item)
+      && typeof (item as Record<string, unknown>).term === "string"
+      && typeof (item as Record<string, unknown>).meaning === "string"
+    ));
+}
+
+function isBiteDraft(value: unknown): value is BiteDraft {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const raw = value as Record<string, unknown>;
+  return BITE_CARD_META.every((card) => typeof raw[card.key] === "string");
+}
+
+function readPaperBiteWorkingDraft(): StoredPaperBiteWorkingDraft | null {
+  try {
+    const stored = window.sessionStorage.getItem(PAPER_BITE_WORKING_DRAFT_STORAGE_KEY);
+    if (!stored || stored.length > 100_000) return null;
+    const parsed = JSON.parse(stored) as Partial<StoredPaperBiteWorkingDraft>;
+    if (
+      parsed.version !== 1
+      || typeof parsed.title !== "string"
+      || typeof parsed.content !== "string"
+      || typeof parsed.sourceConfirmed !== "boolean"
+      || !isPaperAnalysisResult(parsed.analysis)
+      || !isBiteDraft(parsed.draft)
+    ) return null;
+    return {
+      version: 1,
+      title: parsed.title.slice(0, 180),
+      content: parsed.content.slice(0, MAX_CONTENT_LENGTH),
+      analysis: parsed.analysis,
+      draft: parsed.draft,
+      sourceConfirmed: parsed.sourceConfirmed,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePaperBiteWorkingDraft(value: StoredPaperBiteWorkingDraft): void {
+  try {
+    window.sessionStorage.setItem(PAPER_BITE_WORKING_DRAFT_STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // The explicit exit guard remains active when browser storage is unavailable.
+  }
+}
+
+function clearPaperBiteWorkingDraft(): void {
+  try {
+    window.sessionStorage.removeItem(PAPER_BITE_WORKING_DRAFT_STORAGE_KEY);
+  } catch {
+    // A stale session-only draft is safer than deleting unrelated user data.
+  }
+}
+
 const TEXT_SCOPE_EVIDENCE = {
   label: "사용자가 붙여 넣은 텍스트 범위 · 페이지 정보 없음",
   page: null,
@@ -152,7 +221,7 @@ function SelectedPaperBanner({
           {selection.publishedDate ?? "발행일 미기재"}
         </p>
         <small>
-          제목과 출처만 자동 입력했습니다. 초록·본문은 같은 논문인지 확인한 뒤 직접 붙여 넣어 주세요.
+          공식 교수 데이터의 논문입니다. 공개 초록 또는 허용된 오픈 라이선스 PDF가 있으면 자동으로 가져옵니다.
         </small>
         <div className="selected-professor-paper__actions">
           <a
@@ -170,11 +239,96 @@ function SelectedPaperBanner({
   );
 }
 
-export function PaperReaderShell({
-  openFavoritePickerOnLoad = false,
+function PaperContentLookupBanner({
+  status,
+  result,
+  error,
+  onRetry,
+  onAcceptCandidate,
 }: {
-  openFavoritePickerOnLoad?: boolean;
+  status: "idle" | "loading" | "found" | "candidate" | "unavailable" | "error";
+  result: ProfessorPaperContentResponse | null;
+  error: string;
+  onRetry: () => void;
+  onAcceptCandidate: () => void;
 }) {
+  if (status === "idle") return null;
+  const foundFromPdf = result?.status === "found" && result.contentSourceType === "pdf_text";
+  const title = status === "loading"
+    ? "등록된 논문의 공개 초록·PDF를 찾고 있어요"
+    : status === "candidate"
+      ? "관련 공개 논문 후보를 찾았어요"
+    : status === "found"
+      ? foundFromPdf
+        ? "오픈 라이선스 PDF에서 텍스트를 가져왔어요"
+        : "공개 초록을 자동으로 불러왔어요"
+      : "자동으로 가져올 공개 원문을 찾지 못했어요";
+  const description = status === "loading"
+    ? "DOI를 먼저 확인하고, 없으면 제목과 발행일이 같은 논문만 검색합니다."
+    : result?.message || error || "직접 입력하거나 잠시 후 다시 시도해 주세요.";
+  const Icon = status === "loading"
+    ? LoaderCircle
+    : status === "found" ? CloudDownload : status === "candidate" ? FileSearch : AlertTriangle;
+
+  return (
+    <div
+      className={`paper-content-lookup is-${status}`}
+      role={status === "error" ? "alert" : "status"}
+      aria-live="polite"
+    >
+      <span className="paper-content-lookup__icon">
+        <Icon size={19} className={status === "loading" ? "spin" : undefined} aria-hidden="true" />
+      </span>
+      <div>
+        <strong>{title}</strong>
+        <p>{description}</p>
+        {status === "candidate" && result?.matchedTitle ? (
+          <div className="paper-content-candidate">
+            <strong>{result.matchedTitle}</strong>
+            <small>
+              {result.matchedPublishedDate ?? "발행일 미기재"}
+              {result.matchedDoi ? ` · DOI ${result.matchedDoi}` : ""}
+            </small>
+            <em>현재 선택한 항목과 제목 또는 연도가 달라 아직 자동 입력하지 않았어요.</em>
+          </div>
+        ) : null}
+        {status === "found" && result ? (
+          <small>
+            {result.provider === "openalex" ? "OpenAlex" : "Crossref"}
+            {result.license ? ` · ${result.license.toUpperCase()}` : ""}
+            {result.pageCount ? ` · ${result.pageCount}쪽 확인` : ""}
+          </small>
+        ) : null}
+      </div>
+      <div className="paper-content-lookup__actions">
+        {result?.sourceUrl ? (
+          <a href={result.sourceUrl} target="_blank" rel="noopener noreferrer">
+            출처 확인 <ExternalLink size={13} aria-hidden="true" />
+          </a>
+        ) : null}
+        {(status === "unavailable" || status === "error") ? (
+          <button type="button" onClick={onRetry}>
+            <RotateCcw size={14} aria-hidden="true" /> 다시 찾기
+          </button>
+        ) : null}
+        {status === "candidate" ? (
+          <button type="button" className="is-primary" onClick={onAcceptCandidate}>
+            <CheckCircle2 size={14} aria-hidden="true" /> 확인하고 불러오기
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export function PaperReaderShell({
+  startFromFavorites = false,
+  initialStep = startFromFavorites ? "select" : "card",
+}: {
+  startFromFavorites?: boolean;
+  initialStep?: PaperBiteWorkflowStep;
+}) {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [analysis, setAnalysis] = useState<PaperAnalysisResult | null>(null);
@@ -184,17 +338,86 @@ export function PaperReaderShell({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [workflowStep, setWorkflowStep] = useState<PaperBiteWorkflowStep>(initialStep);
   const [sourceConfirmed, setSourceConfirmed] = useState(false);
   const [paperValidationStatus, setPaperValidationStatus] = useState<
     "idle" | "validating" | "verified" | "error"
   >("idle");
   const [paperValidationError, setPaperValidationError] = useState("");
   const [paperValidationRetryKey, setPaperValidationRetryKey] = useState(0);
+  const [paperContentStatus, setPaperContentStatus] = useState<
+    "idle" | "loading" | "found" | "candidate" | "unavailable" | "error"
+  >("idle");
+  const [paperContentResult, setPaperContentResult] = useState<ProfessorPaperContentResponse | null>(null);
+  const [paperContentError, setPaperContentError] = useState("");
+  const [paperContentRetryKey, setPaperContentRetryKey] = useState(0);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
-  const autoOpenHandledRef = useRef(false);
   const verifiedPaperKeyRef = useRef<string | null>(null);
   const analysisAbortControllerRef = useRef<AbortController | null>(null);
+  const paperContentAbortControllerRef = useRef<AbortController | null>(null);
+  const restoredWorkingDraftRef = useRef(false);
+  const restoredWorkingDraftValueRef = useRef(false);
+  const hasUnsavedDraft = Boolean(analysis && draft && !isSaved);
+
+  const confirmDiscardUnsavedDraft = () => (
+    !hasUnsavedDraft
+    || window.confirm("저장하지 않은 논문 카드 수정 내용이 있어요. 저장하지 않고 이동할까요?")
+  );
+
+  const openPaperPicker = () => {
+    if (!confirmDiscardUnsavedDraft()) return;
+    setIsPickerOpen(true);
+  };
+
+  const discardAndNavigate = (href: string) => {
+    if (!confirmDiscardUnsavedDraft()) return;
+    clearPaperBiteWorkingDraft();
+    router.replace(href);
+  };
+
+  useEffect(() => {
+    if (restoredWorkingDraftRef.current) return;
+    restoredWorkingDraftRef.current = true;
+    const restored = readPaperBiteWorkingDraft();
+    if (!restored) return;
+    restoredWorkingDraftValueRef.current = true;
+    setTitle(restored.title);
+    setContent(restored.content);
+    setAnalysis(restored.analysis);
+    setDraft(restored.draft);
+    setSourceConfirmed(restored.sourceConfirmed);
+    setWorkflowStep("card");
+    setFeedback("저장하지 않은 논문 카드 수정 내용을 복원했어요.");
+  }, []);
+
+  useEffect(() => {
+    if (!hasUnsavedDraft || !analysis || !draft) return;
+    writePaperBiteWorkingDraft({
+      version: 1,
+      title,
+      content,
+      analysis,
+      draft,
+      sourceConfirmed,
+    });
+  }, [analysis, content, draft, hasUnsavedDraft, sourceConfirmed, title]);
+
+  useEffect(() => {
+    if (!hasUnsavedDraft) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [hasUnsavedDraft]);
+
+  const moveWorkflowStep = (nextStep: PaperBiteWorkflowStep) => {
+    setWorkflowStep(nextStep);
+    const sourceQuery = startFromFavorites ? "&source=favorites" : "";
+    router.replace(`/paper/reader?mode=bite${sourceQuery}&step=${nextStep}`, { scroll: false });
+  };
 
   const hasQuestHydrated = useQuestStore((state) => state.hasHydrated);
   const savePaperBundle = useQuestStore((state) => state.savePaperBundle);
@@ -205,6 +428,13 @@ export function PaperReaderShell({
   const removeFavoriteProfessors = useResearchStore((state) => state.removeFavoriteProfessors);
   const selectedProfessorPaper = useResearchStore((state) => state.selectedProfessorPaper);
   const selectProfessorPaper = useResearchStore((state) => state.selectProfessorPaper);
+  const connectedProfessorIds = useMemo(
+    () => Array.from(new Set([
+      ...(selectedProfessorId ? [selectedProfessorId] : []),
+      ...favoriteProfessorIds,
+    ])),
+    [favoriteProfessorIds, selectedProfessorId],
+  );
 
   useEffect(() => {
     const selectionKey = selectedProfessorPaper
@@ -245,6 +475,7 @@ export function PaperReaderShell({
         selectProfessorPaper({
           ...verifiedSelection,
           selectedAt: storedSelection.selectedAt,
+          confirmedPublicPaper: storedSelection.confirmedPublicPaper ?? null,
         });
       })
       .catch((validationError) => {
@@ -289,35 +520,114 @@ export function PaperReaderShell({
     title,
   ]);
 
-  useEffect(() => {
-    if (
-      openFavoritePickerOnLoad
-      && hasResearchHydrated
-      && !autoOpenHandledRef.current
-    ) {
-      autoOpenHandledRef.current = true;
-      setIsPickerOpen(true);
-    }
-  }, [hasResearchHydrated, openFavoritePickerOnLoad]);
+  useEffect(() => () => {
+    analysisAbortControllerRef.current?.abort();
+    paperContentAbortControllerRef.current?.abort();
+  }, []);
 
-  useEffect(() => () => analysisAbortControllerRef.current?.abort(), []);
+  useEffect(() => {
+    if (!restoredWorkingDraftValueRef.current) setWorkflowStep(initialStep);
+  }, [initialStep]);
 
   const verifiedProfessorPaper = paperValidationStatus === "verified"
     ? selectedProfessorPaper
     : null;
+
+  useEffect(() => {
+    if (analysis && draft) {
+      paperContentAbortControllerRef.current?.abort();
+      paperContentAbortControllerRef.current = null;
+      setPaperContentStatus("idle");
+      setPaperContentResult(null);
+      setPaperContentError("");
+      return;
+    }
+    if (!verifiedProfessorPaper || workflowStep !== "card") {
+      paperContentAbortControllerRef.current?.abort();
+      paperContentAbortControllerRef.current = null;
+      setPaperContentStatus("idle");
+      setPaperContentResult(null);
+      setPaperContentError("");
+      return;
+    }
+
+    paperContentAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    paperContentAbortControllerRef.current = controller;
+    setPaperContentStatus("loading");
+    setPaperContentResult(null);
+    setPaperContentError("");
+
+    void requestProfessorPaperContent({
+      professorId: verifiedProfessorPaper.professorId,
+      paperId: verifiedProfessorPaper.paperId,
+    }, { signal: controller.signal })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setPaperContentResult(result);
+        setPaperContentStatus(result.status);
+        if (result.status === "found" && result.content) {
+          setContent(result.content.slice(0, MAX_CONTENT_LENGTH));
+          setSourceConfirmed(true);
+          setError("");
+        } else {
+          setSourceConfirmed(false);
+        }
+      })
+      .catch((lookupError) => {
+        if (lookupError instanceof DOMException && lookupError.name === "AbortError") return;
+        setPaperContentStatus("error");
+        setPaperContentResult(null);
+        setPaperContentError(
+          lookupError instanceof Error
+            ? lookupError.message
+            : "공개 초록과 PDF를 자동으로 찾지 못했습니다.",
+        );
+        setSourceConfirmed(false);
+      })
+      .finally(() => {
+        if (paperContentAbortControllerRef.current === controller) {
+          paperContentAbortControllerRef.current = null;
+        }
+      });
+
+    return () => controller.abort();
+  }, [
+    analysis,
+    draft,
+    paperContentRetryKey,
+    verifiedProfessorPaper?.paperId,
+    verifiedProfessorPaper?.professorId,
+    workflowStep,
+  ]);
   const isPaperSelectionBlocked = Boolean(
     selectedProfessorPaper && !verifiedProfessorPaper,
   );
   const normalizedLength = content.trim().length;
   const isReady = normalizedLength >= MIN_CONTENT_LENGTH;
-  const displayTitle = verifiedProfessorPaper?.title || analysis?.title || title.trim() || "제목 미입력 논문";
-  const evidence = useMemo(() => verifiedProfessorPaper
-    ? {
-        label: "분석 근거: 사용자가 붙여 넣은 텍스트 범위(페이지 없음) · 서지 확인: 대학 공식 프로필",
+  const displayTitle = paperContentResult?.status === "found" && paperContentResult.matchedTitle
+    ? paperContentResult.matchedTitle
+    : verifiedProfessorPaper?.title || analysis?.title || title.trim() || "제목 미입력 논문";
+  const evidence = useMemo(() => {
+    if (!verifiedProfessorPaper) return TEXT_SCOPE_EVIDENCE;
+    if (paperContentResult?.status === "found") {
+      const sourceLabel = paperContentResult.contentSourceType === "pdf_text"
+        ? `${paperContentResult.license?.toUpperCase() ?? "오픈"} 공개 PDF에서 자동 추출한 텍스트`
+        : "공개 학술 메타데이터에서 자동 불러온 초록";
+      return {
+        label: paperContentResult.matchedBy === "related-title"
+          ? `분석 근거: 사용자가 확인한 관련 공개 논문의 ${sourceLabel} · 출발 서지: 대학 공식 프로필`
+          : `분석 근거: ${sourceLabel} · 서지 확인: 대학 공식 프로필`,
         page: null,
-        href: verifiedProfessorPaper.officialProfileUrl,
-      }
-    : TEXT_SCOPE_EVIDENCE, [verifiedProfessorPaper]);
+        href: paperContentResult.sourceUrl ?? verifiedProfessorPaper.officialProfileUrl,
+      };
+    }
+    return {
+      label: "분석 근거: 사용자가 확인하고 입력한 초록·본문 범위(페이지 없음) · 서지 확인: 대학 공식 프로필",
+      page: null,
+      href: verifiedProfessorPaper.officialProfileUrl,
+    };
+  }, [paperContentResult, verifiedProfessorPaper]);
   const fullCopy = useMemo(() => {
     if (!analysis || !draft) return "";
     return [
@@ -406,6 +716,7 @@ export function PaperReaderShell({
           body: draft[card.key].trim() || "아직 작성된 내용이 없어요.",
         })),
       });
+      clearPaperBiteWorkingDraft();
       setIsSaved(true);
       setFeedback("교수님 퀘스트에 3분 준비 카드 5장을 저장했어요. 같은 논문은 최신 내용으로 갱신됩니다.");
     } catch {
@@ -419,6 +730,8 @@ export function PaperReaderShell({
   const clearWorkingState = () => {
     analysisAbortControllerRef.current?.abort();
     analysisAbortControllerRef.current = null;
+    paperContentAbortControllerRef.current?.abort();
+    paperContentAbortControllerRef.current = null;
     setIsLoading(false);
     setContent("");
     setAnalysis(null);
@@ -427,6 +740,44 @@ export function PaperReaderShell({
     setFeedback("");
     setIsSaved(false);
     setSourceConfirmed(false);
+    setPaperContentStatus("idle");
+    setPaperContentResult(null);
+    setPaperContentError("");
+    clearPaperBiteWorkingDraft();
+  };
+
+  const acceptRelatedCandidate = () => {
+    if (
+      paperContentResult?.status !== "candidate"
+      || !paperContentResult.content
+      || !paperContentResult.matchedTitle
+    ) return;
+    setPaperContentResult({
+      ...paperContentResult,
+      status: "found",
+      message: "관련 공개 논문의 제목·연도·DOI를 확인해 초록을 불러왔습니다.",
+    });
+    setPaperContentStatus("found");
+    if (verifiedProfessorPaper && paperContentResult.relatedOfficialPaper) {
+      selectProfessorPaper({
+        ...verifiedProfessorPaper,
+        confirmedPublicPaper: {
+          officialPaperId: paperContentResult.relatedOfficialPaper.id,
+          title: paperContentResult.matchedTitle,
+          publishedDate: paperContentResult.matchedPublishedDate,
+          doi: paperContentResult.matchedDoi,
+          sourceUrl: paperContentResult.sourceUrl,
+          license: paperContentResult.license,
+          confirmedAt: new Date().toISOString(),
+        },
+      });
+    }
+    setTitle(paperContentResult.matchedTitle.slice(0, 180));
+    setContent(paperContentResult.content.slice(0, MAX_CONTENT_LENGTH));
+    setSourceConfirmed(true);
+    setError("");
+    setFeedback("관련 공개 논문을 확인해 초록을 입력했습니다.");
+    window.requestAnimationFrame(() => contentRef.current?.focus());
   };
 
   const choosePaper = (selection: ProfessorPaperSelection) => {
@@ -437,6 +788,7 @@ export function PaperReaderShell({
     setTitle(selection.title);
     clearWorkingState();
     setIsPickerOpen(false);
+    moveWorkflowStep("card");
     window.requestAnimationFrame(() => contentRef.current?.focus());
   };
 
@@ -448,17 +800,19 @@ export function PaperReaderShell({
     setTitle("");
     clearWorkingState();
     setIsPickerOpen(false);
+    moveWorkflowStep("card");
     window.requestAnimationFrame(() => titleRef.current?.focus());
   };
 
   const clearPaperSelection = () => {
+    if (!confirmDiscardUnsavedDraft()) return;
     verifiedPaperKeyRef.current = null;
     setPaperValidationStatus("idle");
     setPaperValidationError("");
     selectProfessorPaper(null);
     setTitle("");
     clearWorkingState();
-    window.requestAnimationFrame(() => titleRef.current?.focus());
+    moveWorkflowStep("select");
   };
 
   const clearInput = () => {
@@ -473,7 +827,7 @@ export function PaperReaderShell({
   const paperPicker = (
     <FavoriteProfessorPaperPicker
       open={isPickerOpen}
-      favoriteProfessorIds={favoriteProfessorIds}
+      favoriteProfessorIds={connectedProfessorIds}
       initialProfessorId={verifiedProfessorPaper?.professorId ?? selectedProfessorId}
       onClose={() => setIsPickerOpen(false)}
       onManualEntry={useManualEntry}
@@ -484,17 +838,18 @@ export function PaperReaderShell({
 
   if (analysis && draft) {
     return (
-      <AppShell title="Q01 논문 한입" backHref="/quest" className="paper-bite-screen">
+      <AppShell title="Q01 논문 한입" onBack={() => discardAndNavigate("/quest")} className="paper-bite-screen">
         <PageHeader
           eyebrow="교수님 퀘스트 · 만나기 전"
           title={displayTitle}
           description={analysis.oneLine}
         />
+        <PaperReadingSteps current={2} navigationLocked={hasUnsavedDraft} />
 
         {verifiedProfessorPaper && (
           <SelectedPaperBanner
             selection={verifiedProfessorPaper}
-            onChange={() => setIsPickerOpen(true)}
+            onChange={openPaperPicker}
             onClear={clearPaperSelection}
           />
         )}
@@ -511,7 +866,7 @@ export function PaperReaderShell({
 
         <SectionHeading
           title="교수님께 가져갈 논문 한입"
-          description="AI 초안을 그대로 믿지 말고 원문과 대조한 뒤, 내 말로 고쳐 저장하세요."
+          description="원문과 함께 보며 핵심을 내 말로 다듬어 저장하세요."
         />
 
         <div className="paper-bite-grid">
@@ -554,13 +909,13 @@ export function PaperReaderShell({
             <h2>근거 범위</h2>
             <p>{evidence.label}</p>
             <small>
-              인용·제출·교수님 면담 전에는 반드시 실제 원문의 문장과 페이지를 직접 확인하세요.
+              원문 문장과 페이지를 함께 적어두면 인용·제출·면담 준비에 활용할 수 있어요.
             </small>
           </div>
         </Card>
 
         <div className="paper-bite-actions">
-          <SecondaryButton type="button" onClick={() => setIsPickerOpen(true)}>
+          <SecondaryButton type="button" onClick={openPaperPicker}>
             <RotateCcw size={17} aria-hidden="true" /> 다른 논문
           </SecondaryButton>
           <SecondaryButton type="button" onClick={() => void copyText(fullCopy, "카드 5장을 모두 복사했어요.")}>
@@ -591,7 +946,7 @@ export function PaperReaderShell({
           </p>
         )}
 
-        <FollowUpModules />
+        <PaperPdfNextStep ready={isSaved} />
         {paperPicker}
       </AppShell>
     );
@@ -599,39 +954,14 @@ export function PaperReaderShell({
 
   return (
     <AppShell title="Q01 논문 한입" backHref="/quest" className="paper-bite-screen">
-      <SceneBanner
-        scene={brandScene.paperBite}
-        alt="교수님의 논문을 읽고 질문을 정리하는 장면"
+      <PageHeader
         eyebrow="교수님 퀘스트 · 만나기 전"
-        title="논문을 읽고 온 학생의 3분 준비 카드"
-        description="즐겨찾은 교수님의 공식 논문을 고르고, 초록이나 본문을 문제·방법·결과·한계·질문 카드로 정리해요."
-        priority
+        title={workflowStep === "select" ? "읽을 논문 한 편을 고르세요" : "초록이나 본문을 3분 카드로 정리해요"}
+        description={workflowStep === "select"
+          ? "관심 교수님의 공식 논문 목록에서 준비할 한 편만 선택해요."
+          : "선택한 논문의 초록이나 본문을 붙여 넣으면 문제·방법·결과·한계·질문으로 나눠드려요."}
       />
-
-      <StatusBanner icon={Sparkles} title="원문을 대신하지 않는 읽기 보조 도구" tone="lavender">
-        현재 MVP는 텍스트만 분석합니다. AI가 만든 내용은 원문과 대조하고, 내 말로 수정한 뒤 사용하세요.
-      </StatusBanner>
-
-      <Card className="paper-favorite-entry">
-        <div>
-          <Star size={20} fill="currentColor" aria-hidden="true" />
-          <span>
-            <strong>즐겨찾는 교수님의 논문으로 시작</strong>
-            <small>
-              {hasResearchHydrated
-                ? `즐겨찾는 교수님 ${favoriteProfessorIds.length}명`
-                : "즐겨찾기를 불러오는 중"}
-            </small>
-          </span>
-        </div>
-        <SecondaryButton
-          type="button"
-          disabled={!hasResearchHydrated || isLoading}
-          onClick={() => setIsPickerOpen(true)}
-        >
-          <BookOpen size={17} aria-hidden="true" /> 교수님·논문 선택
-        </SecondaryButton>
-      </Card>
+      <PaperReadingSteps current={workflowStep === "select" ? 1 : 2} />
 
       {paperValidationStatus === "validating" && (
         <StatusBanner icon={LoaderCircle} title="저장된 논문을 공식 데이터로 다시 확인하는 중" tone="lavender">
@@ -659,136 +989,227 @@ export function PaperReaderShell({
         </Card>
       )}
 
-      {verifiedProfessorPaper && (
-        <SelectedPaperBanner
-          selection={verifiedProfessorPaper}
-          onChange={() => setIsPickerOpen(true)}
-          onClear={clearPaperSelection}
-        />
-      )}
+      {workflowStep === "select" ? (
+        <>
+          <Card className="paper-favorite-entry paper-bite-stage-card">
+            <div>
+              <Star size={20} fill="currentColor" aria-hidden="true" />
+              <span>
+                <strong>관심 교수님의 공식 논문 목록</strong>
+                <small>
+                  {hasResearchHydrated
+                    ? `연결·저장한 교수님 ${connectedProfessorIds.length}명에서 찾아요.`
+                    : "교수님 목록을 불러오는 중이에요."}
+                </small>
+              </span>
+            </div>
+            {verifiedProfessorPaper ? (
+              <SecondaryButton
+                type="button"
+                disabled={!hasResearchHydrated || isLoading}
+                onClick={() => setIsPickerOpen(true)}
+              >
+                <BookOpen size={17} aria-hidden="true" /> 다른 논문 선택
+              </SecondaryButton>
+            ) : (
+              <PrimaryButton
+                type="button"
+                disabled={!hasResearchHydrated || isLoading}
+                onClick={() => setIsPickerOpen(true)}
+              >
+                <BookOpen size={17} aria-hidden="true" /> 논문 1개 선택하기
+              </PrimaryButton>
+            )}
+          </Card>
 
-      <Card className="paper-input-card paper-bite-input">
-        <label className="field-group" htmlFor="paper-title">
-          <span className="field-label">
-            논문 제목 <small>{verifiedProfessorPaper ? "공식 정보로 고정" : "선택"}</small>
-          </span>
-          <input
-            ref={titleRef}
-            id="paper-title"
-            className="input"
-            value={title}
-            onChange={(event) => setTitle(event.target.value.slice(0, 180))}
-            readOnly={Boolean(verifiedProfessorPaper)}
-            disabled={isPaperSelectionBlocked || isLoading}
-            placeholder="예: 대학생의 진로 불안과 멘토링 효과"
-          />
-        </label>
-        <label className="field-group" htmlFor="paper-content">
-          <span className="field-label">초록 또는 본문</span>
-          <textarea
-            ref={contentRef}
-            id="paper-content"
-            className="textarea paper-input"
-            value={content}
-            onChange={(event) => {
-              setContent(event.target.value.slice(0, MAX_CONTENT_LENGTH));
-              setSourceConfirmed(false);
-            }}
-            disabled={isPaperSelectionBlocked || isLoading}
-            placeholder={verifiedProfessorPaper
-              ? "선택한 논문의 초록이나 본문 일부를 직접 붙여 넣어 주세요."
-              : "분석할 논문 초록이나 본문 일부를 붙여 넣어 주세요."}
-          />
-        </label>
-        {verifiedProfessorPaper && (
-          <label className="paper-source-confirm">
-            <input
-              type="checkbox"
-              checked={sourceConfirmed}
-              onChange={(event) => setSourceConfirmed(event.target.checked)}
+          {verifiedProfessorPaper ? (
+            <>
+              <SelectedPaperBanner
+                selection={verifiedProfessorPaper}
+                onChange={() => setIsPickerOpen(true)}
+                onClear={clearPaperSelection}
+              />
+              <div className="paper-bite-stage-actions">
+                <PrimaryButton type="button" onClick={() => moveWorkflowStep("card")}>
+                  이 논문으로 3분 카드 만들기
+                </PrimaryButton>
+              </div>
+            </>
+          ) : null}
+
+          <div className="paper-bite-manual-entry">
+            <TextButton type="button" onClick={useManualEntry}>
+              목록에 없는 논문은 제목·본문을 직접 입력할게요
+            </TextButton>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="paper-bite-step-back">
+            <TextButton type="button" onClick={() => moveWorkflowStep("select")}>
+              <ArrowLeft size={16} aria-hidden="true" /> 논문 선택으로
+            </TextButton>
+          </div>
+
+          {verifiedProfessorPaper && (
+            <SelectedPaperBanner
+              selection={verifiedProfessorPaper}
+              onChange={() => setIsPickerOpen(true)}
+              onClear={clearPaperSelection}
             />
-            <span>붙여 넣은 텍스트가 선택한 논문의 초록 또는 본문임을 확인했습니다.</span>
-          </label>
-        )}
-        <div className="paper-input-meta">
-          <span className={isReady ? "is-ready" : ""}>
-            {content.length.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}자
-          </span>
-          <small>최소 {MIN_CONTENT_LENGTH}자</small>
-        </div>
-        {error && <p className="field-error" role="alert">{error}</p>}
-        <PrimaryButton
-          type="button"
-          onClick={analyze}
-          disabled={
-            isLoading
-            || isPaperSelectionBlocked
-            || !isReady
-            || Boolean(verifiedProfessorPaper && !sourceConfirmed)
-          }
-        >
-          {isLoading
-            ? <><LoaderCircle size={18} className="spin" aria-hidden="true" /> 논문 한입 만드는 중</>
-            : <><FileSearch size={18} aria-hidden="true" /> 3분 카드 만들기</>}
-        </PrimaryButton>
-      </Card>
+          )}
 
-      <div className="paper-privacy">
-        <ShieldCheck size={17} aria-hidden="true" />
-        <p>
-          입력 내용은 분석 요청을 위해 OpenAI API로 전송됩니다. 미공개 논문, 개인정보,
-          연구실 내부 자료는 붙여 넣지 마세요.
-        </p>
-      </div>
+          <Card className="paper-input-card paper-bite-input">
+            <label className="field-group" htmlFor="paper-title">
+              <span className="field-label">
+                논문 제목 <small>
+                  {paperContentResult?.status === "found" && paperContentResult.matchedBy === "related-title"
+                    ? "확인한 관련 공개 논문"
+                    : verifiedProfessorPaper ? "공식 정보로 고정" : "직접 입력"}
+                </small>
+              </span>
+              <input
+                ref={titleRef}
+                id="paper-title"
+                className="input"
+                value={title}
+                onChange={(event) => setTitle(event.target.value.slice(0, 180))}
+                readOnly={Boolean(verifiedProfessorPaper)}
+                disabled={isPaperSelectionBlocked || isLoading}
+                placeholder="예: 대학생의 진로 불안과 멘토링 효과"
+              />
+            </label>
+            {verifiedProfessorPaper ? (
+              <PaperContentLookupBanner
+                status={paperContentStatus}
+                result={paperContentResult}
+                error={paperContentError}
+                onRetry={() => setPaperContentRetryKey((current) => current + 1)}
+                onAcceptCandidate={acceptRelatedCandidate}
+              />
+            ) : null}
+            <label className="field-group" htmlFor="paper-content">
+              <span className="field-label">
+                초록 또는 본문
+                <small>
+                  {paperContentResult?.status === "found"
+                    ? paperContentResult.contentSourceType === "pdf_text"
+                      ? "공개 PDF 자동 입력"
+                      : "공개 초록 자동 입력"
+                    : verifiedProfessorPaper
+                      ? "자동 조회 후 직접 입력 가능"
+                      : "직접 입력"}
+                </small>
+              </span>
+              <textarea
+                ref={contentRef}
+                id="paper-content"
+                className="textarea paper-input"
+                value={content}
+                onChange={(event) => {
+                  setContent(event.target.value.slice(0, MAX_CONTENT_LENGTH));
+                  if (paperContentResult?.status !== "found") {
+                    setSourceConfirmed(false);
+                  }
+                }}
+                disabled={isPaperSelectionBlocked || isLoading || paperContentStatus === "loading"}
+                placeholder={verifiedProfessorPaper
+                  ? "공개 초록이나 허용된 PDF가 없으면 논문 내용을 직접 붙여 넣어 주세요."
+                  : "분석할 논문 초록이나 본문 일부를 붙여 넣어 주세요."}
+              />
+            </label>
+            {verifiedProfessorPaper && !sourceConfirmed && (
+              <label className="paper-source-confirm">
+                <input
+                  type="checkbox"
+                  checked={sourceConfirmed}
+                  onChange={(event) => setSourceConfirmed(event.target.checked)}
+                />
+                <span>현재 텍스트가 선택한 논문의 초록 또는 본문임을 확인했습니다.</span>
+              </label>
+            )}
+            <div className="paper-input-meta">
+              <span className={isReady ? "is-ready" : ""}>
+                {content.length.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}자
+              </span>
+              <small>최소 {MIN_CONTENT_LENGTH}자</small>
+            </div>
+            {error && <p className="field-error" role="alert">{error}</p>}
+            <PrimaryButton
+              type="button"
+              onClick={analyze}
+              disabled={
+                isLoading
+                || paperContentStatus === "loading"
+                || isPaperSelectionBlocked
+                || !isReady
+                || Boolean(verifiedProfessorPaper && !sourceConfirmed)
+              }
+            >
+              {isLoading
+                ? <><LoaderCircle size={18} className="spin" aria-hidden="true" /> 논문 한입 만드는 중</>
+                : <><FileSearch size={18} aria-hidden="true" /> 3분 카드 만들기</>}
+            </PrimaryButton>
+          </Card>
 
-      {content && !isLoading && (
-        <div className="context-actions">
-          <TextButton type="button" onClick={clearInput}>
-            <RotateCcw size={16} aria-hidden="true" /> 입력 지우기
-          </TextButton>
-        </div>
+          <div className="paper-privacy">
+            <ShieldCheck size={17} aria-hidden="true" />
+            <p>
+              자동으로 가져온 공개 초록·PDF 텍스트와 직접 입력한 내용은 분석 요청을 위해
+              OpenAI API로 전송됩니다. PDF 원본은 저장하지 않으며, 미공개 논문·개인정보·연구실 내부 자료는 넣지 마세요.
+            </p>
+          </div>
+
+          {content && !isLoading && (
+            <div className="context-actions">
+              <TextButton type="button" onClick={clearInput}>
+                <RotateCcw size={16} aria-hidden="true" /> 입력 지우기
+              </TextButton>
+            </div>
+          )}
+        </>
       )}
 
-      <FollowUpModules />
       {paperPicker}
     </AppShell>
   );
 }
 
-function FollowUpModules() {
+function PaperPdfNextStep({ ready }: { ready: boolean }) {
   return (
-    <section className="paper-bite-follow-up" aria-labelledby="paper-follow-up-title">
-      <SectionHeading
-        title="PDF 6탭 리더로 더 깊게 읽기"
-        description="3분 준비 카드와 별도로, PDF 원문·번역·요약·질문·그림·메모 기능도 같은 서비스에서 사용할 수 있어요."
-      />
-      <h2 className="sr-only" id="paper-follow-up-title">PDF 논문 리더 기능</h2>
-      <div className="paper-reader-capabilities">
-        {FOLLOW_UP_CAPABILITIES.map((capability) => {
-          const Icon = capabilityIcons[capability.id] ?? BookOpen;
-          return (
-            <article key={capability.id}>
-              <span><Icon size={20} aria-hidden="true" /></span>
-              <div>
-                <h3>{capability.label}</h3>
-                <p>{capability.description}</p>
-              </div>
-              <small>PDF 리더 제공</small>
-            </article>
-          );
-        })}
+    <section className="paper-bite-pdf-next" aria-labelledby="paper-pdf-next-title">
+      <div className="paper-bite-pdf-next__copy">
+        <span><BookOpen size={20} aria-hidden="true" /></span>
+        <div>
+          <small>다음 준비 선택</small>
+          <h2 id="paper-pdf-next-title">첫 질문을 고르거나 PDF를 더 읽어보세요</h2>
+          <p>논문 읽기는 선택입니다. 바로 첫 질문을 준비하거나, PDF 원문을 더 읽은 뒤 이어갈 수 있어요.</p>
+        </div>
       </div>
-      <div className="paper-reader-actions">
-        <LinkButton href="/paper/reader">
-          <BookOpen size={17} aria-hidden="true" /> PDF 6탭 리더 열기
-        </LinkButton>
+      <div className="paper-bite-next-actions">
+        {ready ? (
+          <>
+            <LinkButton href={FIRST_QUESTION_FROM_PAPER_HREF}>
+              4단계 · 목적별 첫 질문 고르기
+            </LinkButton>
+            <LinkButton href="/paper/reader?mode=pdf&from=card" secondary>
+              PDF 해설 더 보기 · 선택
+            </LinkButton>
+          </>
+        ) : (
+          <>
+            <PrimaryButton type="button" disabled>
+              첫 질문은 카드 저장 후 이용
+            </PrimaryButton>
+            <SecondaryButton type="button" disabled>
+              PDF 해설은 카드 저장 후 이용
+            </SecondaryButton>
+          </>
+        )}
       </div>
-      <div className="paper-reader-safety">
-        <PencilLine size={18} aria-hidden="true" />
-        <p>
-          PDF 파일은 브라우저에서 열고, AI 요청에는 현재 확인 중인 페이지 텍스트만 전송합니다.
-        </p>
-      </div>
+      <small className="paper-bite-pdf-next__note">
+        PDF를 사용하지 않아도 진로·연구·프로젝트·멘토링 목적의 첫 질문과 메일을 작성할 수 있어요.
+      </small>
     </section>
   );
 }

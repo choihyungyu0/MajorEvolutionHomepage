@@ -66,7 +66,14 @@ export function InstallPrompt() {
 
     let timer = 0;
     if (localStorage.getItem(DISMISS_KEY) !== "1") {
-      timer = window.setTimeout(() => setVisible(true), 700);
+      timer = window.setTimeout(() => {
+        // 첫 서비스 진입에서는 메뉴 가이드를 먼저 마치고, 설치 안내는 다음 방문에 제공합니다.
+        if (
+          document.documentElement.hasAttribute("data-service-nav-guide-open")
+          || document.documentElement.hasAttribute("data-service-help-open")
+        ) return;
+        setVisible(true);
+      }, 700);
     }
 
     return () => {

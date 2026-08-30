@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowRight,
   BookOpen,
   Bookmark,
   CircleAlert,
   CircleCheck,
+  CloudDownload,
   Download,
   FileImage,
   FileText,
@@ -22,9 +24,13 @@ import {
   AppShell,
   Card,
   ChoiceChip,
+  LinkButton,
   PrimaryButton,
+  SecondaryButton,
   Tag,
 } from "@/components/app/primitives";
+import { PaperReadingSteps } from "@/components/paper-reader/paper-reading-steps";
+import { FIRST_QUESTION_FROM_PAPER_HREF } from "@/lib/email-draft-purpose";
 import {
   extractPdfText,
   PdfReadError,
@@ -33,8 +39,10 @@ import {
   type RenderedPage,
 } from "@/lib/pdf-text";
 import { requestPaperAssistStream, type PaperReaderAssist } from "@/lib/paper-reader-client";
+import { requestProfessorPaperPdf } from "@/lib/professor-paper-pdf-client";
 import { useQuestContext } from "@/lib/quest-context";
 import { useQuestStore, type SavedQuestCard } from "@/store/quest-store";
+import { useResearchStore } from "@/store/research-store";
 
 /**
  * 논문 리더 (F14~F19).
@@ -59,16 +67,24 @@ type NoteKind = (typeof NOTE_KINDS)[number];
 
 type QaTurn = { question: string; assist: PaperReaderAssist };
 
-export function PaperReader() {
+export function PaperReader({ backHref = "/quest" }: { backHref?: string }) {
   const { topic, match } = useQuestContext();
   const saveCard = useQuestStore((state) => state.saveCard);
   const deleteCard = useQuestStore((state) => state.deleteCard);
   const cards = useQuestStore((state) => state.cards);
+  const selectedProfessorPaper = useResearchStore((state) => state.selectedProfessorPaper);
+  const emailNextAction = (
+    <LinkButton href={FIRST_QUESTION_FROM_PAPER_HREF}>
+      4단계 · 목적별 첫 질문 고르기 <ArrowRight size={17} aria-hidden="true" />
+    </LinkButton>
+  );
 
   const fileInput = useRef<HTMLInputElement>(null);
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [publicPdfLoading, setPublicPdfLoading] = useState(false);
+  const [publicPdfSourceUrl, setPublicPdfSourceUrl] = useState<string | null>(null);
 
   const [tab, setTab] = useState<TabId>("original");
   const [pageNo, setPageNo] = useState(1);
@@ -98,13 +114,14 @@ export function PaperReader() {
     ? notes
     : notes.filter((note) => note.title.startsWith(noteFilter));
 
-  const openFile = async (file: File) => {
+  const openFile = async (file: File, sourceUrl: string | null = null) => {
     setLoading(true);
     setLoadError(null);
     setTranslation(null); setSummary(null); setFigure(null); setSimplified(null); setQaTurns([]);
     try {
       const parsed = await extractPdfText(file);
       setDoc(parsed);
+      setPublicPdfSourceUrl(sourceUrl);
       setPageNo(1);
       setSelected(null);
     } catch (error) {
@@ -114,6 +131,26 @@ export function PaperReader() {
         : "PDF를 읽지 못했습니다. 다른 파일로 시도해 주세요.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openPublicPdf = async () => {
+    if (!selectedProfessorPaper) return;
+    setPublicPdfLoading(true);
+    setLoadError(null);
+    try {
+      const result = await requestProfessorPaperPdf({
+        professorId: selectedProfessorPaper.professorId,
+        paperId: selectedProfessorPaper.paperId,
+        relatedPaperId: selectedProfessorPaper.confirmedPublicPaper?.officialPaperId ?? null,
+      });
+      await openFile(result.file, result.sourceUrl || null);
+    } catch (error) {
+      setLoadError(error instanceof Error
+        ? error.message
+        : "공개 PDF를 자동으로 열지 못했습니다. 직접 업로드해 주세요.");
+    } finally {
+      setPublicPdfLoading(false);
     }
   };
 
@@ -158,9 +195,10 @@ export function PaperReader() {
       tool: "paper-bite",
       title: `${kind} · ${doc.fileName}`,
       body: body.trim(),
-      evidence: { label: doc.fileName, page: evidencePage, href: null },
-      professorId: match?.professor.id ?? null,
+      evidence: { label: doc.fileName, page: evidencePage, href: publicPdfSourceUrl },
+      professorId: selectedProfessorPaper?.professorId ?? match?.professor.id ?? null,
       topicId: topic?.id ?? null,
+      paperId: selectedProfessorPaper?.paperId ?? null,
     });
   };
 
@@ -201,14 +239,30 @@ export function PaperReader() {
   // ── 업로드 전 ───────────────────────────────────────────────
   if (!doc) {
     return (
-      <AppShell title="논문 리더" backHref="/quest" className="reader-screen">
+      <AppShell
+        title="논문 리더"
+        backHref={backHref}
+        className="reader-screen"
+        stickyAction={emailNextAction}
+      >
+        <PaperReadingSteps current={3} />
         <Card className="reader-drop">
           <Upload size={30} aria-hidden="true" />
-          <h1>논문 PDF를 올려 주세요</h1>
+          <h1>PDF를 넣고 논문을 해설·요약해요</h1>
           <p>
-            파일은 이 브라우저에서만 열립니다. 서버로 올리지 않고, AI에는 지금 보고 있는
-            페이지 내용만 보냅니다.
+            파일은 이 브라우저에서 열고, AI에는 현재 확인 중인 페이지와 앞뒤 페이지 내용만 보냅니다.
           </p>
+          {selectedProfessorPaper ? (
+            <div className="reader-selected-paper">
+              <small>앞에서 선택한 논문</small>
+              <strong>{selectedProfessorPaper.title}</strong>
+              <span>
+                {selectedProfessorPaper.confirmedPublicPaper
+                  ? `확인한 공개 논문 · ${selectedProfessorPaper.confirmedPublicPaper.title}`
+                  : `${selectedProfessorPaper.professorName} 교수 · 공개 PDF가 확인되면 자동으로 열 수 있어요.`}
+              </span>
+            </div>
+          ) : null}
           <input
             ref={fileInput}
             type="file"
@@ -216,12 +270,30 @@ export function PaperReader() {
             hidden
             onChange={(event) => {
               const file = event.target.files?.[0];
-              if (file) void openFile(file);
+              if (file) void openFile(file, null);
             }}
           />
-          <PrimaryButton onClick={() => fileInput.current?.click()} disabled={loading}>
-            {loading ? <><LoaderCircle className="spin" size={17} /> 읽는 중…</> : <><Upload size={17} /> PDF 선택</>}
-          </PrimaryButton>
+          {selectedProfessorPaper ? (
+            <div className="reader-drop__actions">
+              <PrimaryButton onClick={() => void openPublicPdf()} disabled={loading || publicPdfLoading}>
+                {publicPdfLoading
+                  ? <><LoaderCircle className="spin" size={17} /> 공개 PDF 확인 중…</>
+                  : <><CloudDownload size={17} /> 공개 PDF 자동 열기</>}
+              </PrimaryButton>
+              <SecondaryButton onClick={() => fileInput.current?.click()} disabled={loading || publicPdfLoading}>
+                {loading
+                  ? <><LoaderCircle className="spin" size={17} /> PDF 읽는 중…</>
+                  : <><Upload size={17} /> PDF 직접 선택</>}
+              </SecondaryButton>
+              <small>공개 라이선스·10MB 이하·검증된 PDF만 자동으로 열며 파일은 저장하지 않아요.</small>
+            </div>
+          ) : (
+            <PrimaryButton onClick={() => fileInput.current?.click()} disabled={loading}>
+              {loading
+                ? <><LoaderCircle className="spin" size={17} /> PDF 읽는 중…</>
+                : <><Upload size={17} /> PDF 넣고 페이지별 해설·요약 시작</>}
+            </PrimaryButton>
+          )}
           {loadError && (
             <p className="reader-drop__error" role="alert"><CircleAlert size={15} /> {loadError}</p>
           )}
@@ -232,15 +304,27 @@ export function PaperReader() {
 
   // ── 리더 ────────────────────────────────────────────────────
   return (
-    <AppShell title="논문 리더" backHref="/quest" className="reader-screen">
+    <AppShell
+      title="논문 리더"
+      backHref={backHref}
+      className="reader-screen"
+      stickyAction={emailNextAction}
+    >
+      <PaperReadingSteps current={3} />
       <div className="reader-file">
         <FileText size={20} aria-hidden="true" />
         <div>
           <strong>{doc.fileName}</strong>
           <small>읽기 완료 · PDF {doc.pageCount}p</small>
+          {publicPdfSourceUrl ? (
+            <a href={publicPdfSourceUrl} target="_blank" rel="noopener noreferrer">공개 원문 출처</a>
+          ) : null}
         </div>
         <span className="reader-file__status"><CircleCheck size={15} /> 텍스트 추출 완료</span>
-        <button type="button" aria-label="다른 파일 열기" onClick={() => setDoc(null)}>
+        <button type="button" aria-label="다른 파일 열기" onClick={() => {
+          setDoc(null);
+          setPublicPdfSourceUrl(null);
+        }}>
           <X size={17} />
         </button>
       </div>
@@ -361,7 +445,7 @@ export function PaperReader() {
             ) : (
               <p className="reader-empty">왼쪽에서 문장을 누르면 여기에서 이어서 볼 수 있어요.</p>
             )}
-            <p className="reader-note">AI 결과는 참고 정보입니다. 정확한 해석은 원문을 확인하세요.</p>
+            <p className="reader-note">선택한 문장과 AI 설명을 나란히 보며 필요한 내용을 메모할 수 있어요.</p>
           </aside>
         </div>
       )}

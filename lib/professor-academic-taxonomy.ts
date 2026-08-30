@@ -21,7 +21,7 @@ function clean(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
-function comparableDepartment(value: string): string {
+export function comparableDepartmentName(value: string): string {
   return clean(value)
     .replace(/\s+/g, "")
     .replace(/학과$/u, "학")
@@ -81,12 +81,12 @@ export function findAcademicSelection(
   taxonomy: ProfessorAcademicTaxonomy,
   major: string,
 ): { college: string; department: string } | null {
-  const comparable = comparableDepartment(major);
+  const comparable = comparableDepartmentName(major);
   if (!comparable) return null;
 
   const matches = taxonomy.colleges.flatMap((college) =>
     college.departments
-      .filter((department) => comparableDepartment(department) === comparable)
+      .filter((department) => comparableDepartmentName(department) === comparable)
       .map((department) => ({ college: college.name, department })),
   );
   return matches.length === 1 ? matches[0] : null;
