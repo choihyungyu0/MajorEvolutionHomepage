@@ -11,6 +11,10 @@ const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "../..");
 const runtimeDirectory = fs.mkdtempSync(path.join(testDirectory, ".journey-theme-runtime-"));
 const sourcePath = path.join(repositoryRoot, "lib/journey-stage-theme.ts");
+const heroStyleSource = fs.readFileSync(
+  path.join(repositoryRoot, "components/app/journey-stage-hero.module.css"),
+  "utf8",
+);
 
 let themeModule = null;
 if (fs.existsSync(sourcePath)) {
@@ -42,4 +46,29 @@ test("모든 단계 테마는 밝은 히어로에서 읽을 수 있는 전경색
     assert.match(theme.foreground, /^#[0-9a-f]{6}$/i);
     assert.match(theme.fallbackBackground, /^#[0-9a-f]{6}$/i);
   }
+});
+
+function channel(value) {
+  const normalized = value / 255;
+  return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+}
+
+function luminance(hex) {
+  return 0.2126 * channel(Number.parseInt(hex.slice(1, 3), 16))
+    + 0.7152 * channel(Number.parseInt(hex.slice(3, 5), 16))
+    + 0.0722 * channel(Number.parseInt(hex.slice(5, 7), 16));
+}
+
+function contrast(foreground, background) {
+  const light = Math.max(luminance(foreground), luminance(background));
+  const dark = Math.min(luminance(foreground), luminance(background));
+  return (light + 0.05) / (dark + 0.05);
+}
+
+test("어두운 매칭 히어로의 작은 단계 라벨은 WCAG AA 대비를 확보한다", () => {
+  assert.match(
+    heroStyleSource,
+    /\.hero\[data-journey-stage="match"\] \.eyebrow \{[\s\S]*color: #fff;[\s\S]*background: #26345e;/,
+  );
+  assert.ok(contrast("#ffffff", "#26345e") >= 4.5);
 });

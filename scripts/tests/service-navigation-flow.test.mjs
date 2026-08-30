@@ -505,13 +505,12 @@ test("탭 활성 규칙은 빠른 시작과 하위 화면의 실제 여정 맥�
   assert.match(navigationConfigSource, /pathname\.startsWith\("\/portfolio"\)/);
 });
 
-test("교수 매칭 튜토리얼은 최초 한 번만 탭 본문에서 보여주고 이후 교수 홈으로 진입한다", () => {
-  assert.match(navigationSource, /href: "\/home\?professor=quick"/);
-  assert.match(navigationSource, /useProfessorTabHref/);
-  assert.match(navigationSource, /hasCompletedProfessorTutorial/);
-  assert.match(navigationSource, /profileHasProfessorSetup/);
-  assert.match(navigationSource, /hasProfessorJourney/);
-  assert.match(navigationSource, /canOpenProfessorHome \? "\/professors" : "\/home\?professor=quick"/);
+test("교수 매칭 탭은 전용 홈을 열고 기본 설정은 홈의 주 행동으로 시작한다", () => {
+  assert.match(navigationSource, /href: "\/professors", section: "\/professors"/);
+  assert.doesNotMatch(navigationSource, /useProfessorTabHref/);
+  assert.doesNotMatch(navigationSource, /href: "\/home\?professor=quick"/);
+  assert.match(professorHubSource, /cta: "기본 설정하기"/);
+  assert.match(professorHubSource, /href: "\/tutorial"/);
   assert.match(professorTutorialSource, /completeProfessorTutorial\(\);/);
   assert.match(homeSource, /searchParams\.get\("professor"\) === "quick"/);
   assert.match(homeSource, /professorMatchStatus === "success"/);

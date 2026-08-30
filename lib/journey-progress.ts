@@ -64,6 +64,12 @@ function uniquePaperItems(cards: JourneyCard[]): number {
   return seen.size;
 }
 
+export function getBeforePreparationDoneCount(
+  before: { paper: number; question: number; email: number },
+): number {
+  return Number(before.paper > 0) + Number(before.question > 0) + Number(before.email > 0);
+}
+
 /**
  * 이메일 목적·논문·첫질문 옵션을 바꿔도 한 여정의 이메일 준비는 하나로 셉니다.
  * 초기 `topic:professor` 키와 첫질문 옵션이 없던 이전 새 키도 함께 읽습니다.

@@ -1,11 +1,59 @@
 .matchShell {
-  --brand-purple: #2f6edb;
-  --brand-violet-soft: #eaf2ff;
-  --service-stage-accent: #2f6edb;
-  background: #f2f7ff;
+  --brand-purple: #6253dc;
+  --brand-violet-soft: #eeebff;
+  --service-stage-accent: #6253dc;
+  background:
+    radial-gradient(circle at 12% 0%, rgb(115 98 239 / 11%), transparent 28%),
+    linear-gradient(180deg, #f6f5ff 0%, #f2f6ff 54%, #f7f9fd 100%);
 }
 
 .matchShell :global(.screen-content) { background: transparent; }
+
+.matchHero {
+  border-color: rgb(130 111 255 / 28%);
+  background: #07132f;
+  box-shadow: 0 24px 56px rgb(14 28 69 / 22%);
+}
+
+.matchHero::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: linear-gradient(90deg, rgb(4 14 42 / 96%) 0%, rgb(4 14 42 / 82%) 45%, rgb(4 14 42 / 20%) 82%, transparent 100%);
+  content: "";
+}
+
+.matchHero h1,
+.matchHero p {
+  color: #fff;
+  text-shadow: 0 2px 14px rgb(0 0 0 / 24%);
+}
+
+.matchHero p { color: #dce5f7; }
+
+.matchHero img {
+  object-position: 68% center;
+  filter: saturate(0.84) contrast(1.04);
+}
+
+.heroPrimaryAction,
+.heroSecondaryAction {
+  min-height: 48px !important;
+  border-radius: 13px !important;
+}
+
+.heroPrimaryAction {
+  border-color: transparent !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, #7059ee, #5c49d6) !important;
+  box-shadow: 0 12px 26px rgb(53 40 153 / 28%);
+}
+
+.heroSecondaryAction {
+  color: #f4f6ff !important;
+  background: rgb(255 255 255 / 12%) !important;
+  backdrop-filter: blur(10px);
+}
 
 .workspace {
   display: grid;
@@ -14,26 +62,162 @@
   margin-top: 24px;
 }
 
-.primaryArea,
-.contextRail,
-.moreArea {
+.connectionArea,
+.progressPanel,
+.contextRail {
   min-width: 0;
 }
 
-/* 공통 허브 컴포넌트의 기본 위쪽 여백은 이 화면의 grid gap이 대신합니다. */
-.contextRail > section,
-.moreArea > nav {
+.connectionArea > section,
+.contextRail nav {
   margin-top: 0;
+}
+
+.progressPanel {
+  padding: 23px 24px 25px;
+  border: 1px solid #dbe1f0;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #fff 0%, #f9f8ff 72%, #f0f9ff 100%);
+  box-shadow: 0 14px 34px rgb(36 51 89 / 8%);
+}
+
+.progressHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.progressHeader > div { min-width: 0; }
+
+.progressHeader small {
+  color: #7059ee;
+  font-size: 10px;
+  font-weight: 820;
+}
+
+.progressHeader h2 {
+  margin-top: 4px;
+  color: #111d3f;
+  font-size: 20px;
+  font-weight: 840;
+  letter-spacing: -0.03em;
+}
+
+.progressHeader > strong {
+  color: #6253dc;
+  font-size: 13px;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+.progressTrack {
+  height: 8px;
+  margin-top: 17px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e9edf5;
+}
+
+.progressTrack > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7460ee, #42cbb2);
+  transition: width 220ms ease;
+}
+
+.progressSteps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progressSteps li {
+  display: grid;
+  min-width: 0;
+  min-height: 104px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  padding: 14px 12px;
+  border: 1px solid #e0e5ee;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.progressSteps li > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 10px;
+  color: #7f899e;
+  background: #f1f4f8;
+}
+
+.progressSteps li > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.progressSteps small {
+  color: #8a93a6;
+  font-size: 9px;
+  font-weight: 760;
+}
+
+.progressSteps strong {
+  color: #1d2948;
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.progressSteps em {
+  color: #7a8499;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.progressSteps .progressStepDone {
+  border-color: rgb(43 179 150 / 32%);
+  background: #f3fcf9;
+}
+
+.progressSteps .progressStepDone > span {
+  color: #168a72;
+  background: #dcf7ef;
+}
+
+.progressSteps .progressStepCurrent {
+  border-color: rgb(112 89 238 / 48%);
+  background: #f5f2ff;
+  box-shadow: inset 0 0 0 1px rgb(112 89 238 / 8%);
+}
+
+.progressSteps .progressStepCurrent > span {
+  color: #6253dc;
+  background: #e9e4ff;
 }
 
 .officialStatus {
   align-items: flex-start;
-  margin-top: 14px;
+  margin-top: 0;
   padding: 14px 15px;
   border: 1px solid #cbdcf4;
   border-radius: 14px;
   background: linear-gradient(145deg, #f2f7ff, #ffffff);
 }
+
+.contextRail nav { margin-top: 14px; }
 
 .officialStatus > svg {
   flex: 0 0 auto;
@@ -72,23 +256,25 @@
   .officialStatus {
     margin-top: 0;
   }
+
+  .contextRail nav { margin-top: 0; }
 }
 
 /* 넓은 PC에서는 행동 영역과 현재 연결 맥락을 동시에 확인합니다. */
 @media (min-width: 1280px) {
   .workspace {
     grid-template-areas:
-      "primary rail"
-      "more rail";
+      "connection rail"
+      "progress rail";
     grid-template-columns: minmax(0, 1fr) minmax(300px, 320px);
     align-items: start;
     column-gap: 26px;
     row-gap: 24px;
   }
 
-  .primaryArea {
-    grid-area: primary;
-  }
+  .connectionArea { grid-area: connection; }
+
+  .progressPanel { grid-area: progress; }
 
   .contextRail {
     position: sticky;
@@ -96,14 +282,6 @@
     grid-area: rail;
   }
 
-  .moreArea {
-    grid-area: more;
-  }
-
-  .contextRail > section {
-    padding-right: 18px;
-    padding-left: 18px;
-  }
 }
 
 @media (max-width: 1023px) {
@@ -112,7 +290,33 @@
   }
 
   .officialStatus {
-    margin-top: 12px;
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .matchHero::after {
+    background: linear-gradient(90deg, rgb(4 14 42 / 95%) 0%, rgb(4 14 42 / 76%) 72%, rgb(4 14 42 / 32%) 100%);
+  }
+
+  .matchHero img { object-position: 62% center; }
+
+  .progressSteps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .progressPanel { padding: 20px 17px; }
+
+  .progressHeader { align-items: center; }
+
+  .progressSteps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .progressSteps li {
+    min-height: 76px;
+    align-items: center;
   }
 }
 
@@ -124,4 +328,7 @@
   .officialStatus {
     padding: 13px;
   }
+
+  .heroPrimaryAction,
+  .heroSecondaryAction { width: 100%; }
 }

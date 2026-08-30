@@ -55,6 +55,11 @@
   background: rgb(255 255 255 / 64%);
 }
 
+.hero[data-journey-stage="match"] .eyebrow {
+  color: #fff;
+  background: #26345e;
+}
+
 .content h1 {
   max-width: 620px;
   color: var(--journey-stage-foreground);
