@@ -507,6 +507,25 @@ export function migrateResearchState(
           professorRejectedIds: [],
         }
       : {}),
+    /*
+     * v10은 짧은 단일어보다 여러 공식 주제 근거를 우선하는 V8 정책으로 바뀌었습니다.
+     * 이전 피칭만 비우고 사용자가 입력한 교수 찾기 맥락과 성장 기록은 보존합니다.
+     */
+    ...(persistedVersion < 10 ? {
+      professorMatches: [],
+      professorCoverage: null,
+      professorMatchStatus: "idle" as const,
+      professorMatchError: null,
+      professorMatchTopicId: null,
+      professorRejectedIds: [],
+      selectedProfessorId: null,
+      projectProfessorMatches: [],
+      projectProfessorCoverage: null,
+      projectProfessorMatchStatus: "idle" as const,
+      projectProfessorMatchError: null,
+      projectProfessorMatchTopicId: null,
+      selectedProjectProfessorId: null,
+    } : {}),
   };
 }
 
@@ -1085,7 +1104,7 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
     }),
 }), {
   name: "major-evolution-research-v1",
-  version: 9,
+  version: 10,
   migrate: migrateResearchState,
   storage: createJSONStorage(() => localStorage),
   skipHydration: true,

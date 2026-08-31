@@ -376,6 +376,10 @@ function unique(values: string[]): string[] {
   return [...new Set(values)];
 }
 
+function longestTermLength(terms: string[]): number {
+  return terms.reduce((longest, term) => Math.max(longest, term.length), 0);
+}
+
 /** 짧은 영문·숫자 용어의 단어 경계 정규식. 같은 용어를 다시 컴파일하지 않으려고 모아 둡니다. */
 const boundaryPatterns = new Map<string, RegExp>();
 
@@ -527,6 +531,11 @@ type EvaluatedProfessor = {
   match: ProfessorMatch;
   hasRelevantEvidence: boolean;
   roleEvidenceCounts: Record<ProfessorMatchRole, number>;
+  inputConceptEvidenceCounts: Record<ProfessorMatchRole, number>;
+  inputConceptFieldEvidenceCounts: Record<ProfessorMatchRole, number>;
+  inputConceptPublicationEvidenceCounts: Record<ProfessorMatchRole, number>;
+  titleConceptFieldWeights: Record<ProfessorMatchRole, number>;
+  titleConceptPublicationWeights: Record<ProfessorMatchRole, number>;
   explicitRoleEvidenceTerms: Record<ProfessorMatchRole, string[]>;
   explicitFieldRoleEvidenceTerms: Record<ProfessorMatchRole, string[]>;
   explicitPublicationRoleEvidenceTerms: Record<ProfessorMatchRole, string[]>;
@@ -594,6 +603,11 @@ function compareEvaluatedProfessors(
  * 예전에는 이걸 교수 1,051명마다 다시 만들었습니다. 주제 문장을 다시 정규화하고,
  * 12개 개념의 주제 용어를 교수 수만큼 되풀이해 훑느라 요청당 2초 넘게 썼습니다.
  */
+type ActiveMatchingConcept = (typeof normalizedConcepts)[number] & {
+  inputTerms: string[];
+  titleInputTerms: string[];
+};
+
 type TopicMatchContext = {
   evidenceTopicTerms: string[];
   specificRoleTerms: Record<"TOPIC" | "METHOD", string[]>;
@@ -604,7 +618,7 @@ type TopicMatchContext = {
    * 주제 쪽에서 이미 걸린 개념만 남깁니다.
    * 주제에 걸리지 않은 개념은 어떤 교수와도 이어질 수 없으므로 교수마다 다시 볼 이유가 없습니다.
    */
-  activeConcepts: typeof normalizedConcepts;
+  activeConcepts: ActiveMatchingConcept[];
 };
 
 function buildTopicMatchContext(topic: ProfessorMatchTopic): TopicMatchContext {
@@ -612,6 +626,7 @@ function buildTopicMatchContext(topic: ProfessorMatchTopic): TopicMatchContext {
   // 취업 고민, 학년, 만남 방식 같은 학생 맥락은 면담 질문을 개인화하되
   // 교수의 연구분야와 직접 일치하는 근거로 간주하지 않습니다.
   const roleEvidence = buildProfessorRoleEvidenceText(topic);
+  const titleEvidenceText = normalize(topic.title);
   const evidenceText = normalize(
     `${roleEvidence.topic} ${roleEvidence.method} ${roleEvidence.context}`,
   );
@@ -655,8 +670,15 @@ function buildTopicMatchContext(topic: ProfessorMatchTopic): TopicMatchContext {
       METHOD: specificInputTerms(roleEvidence.method),
     },
     academicAffiliations,
-    activeConcepts: normalizedConcepts.filter((concept) =>
-      concept.topicTerms.some((term) => normalizedContains(evidenceText, term))),
+    activeConcepts: normalizedConcepts
+      .map((concept) => ({
+        ...concept,
+        inputTerms: concept.topicTerms.filter((term) =>
+          normalizedContains(evidenceText, term)),
+        titleInputTerms: concept.topicTerms.filter((term) =>
+          normalizedContains(titleEvidenceText, term)),
+      }))
+      .filter((concept) => concept.inputTerms.length > 0),
   };
 }
 
@@ -702,12 +724,19 @@ function evaluateProfessor(
       const publicationHits = concept.evidenceTerms
         .filter((term) => normalizedContains(professorPublicationEvidence, term.normalized))
         .map((term) => term.raw);
+      const inputFieldHits = concept.inputTerms.filter((term) =>
+        normalizedContains(professorFieldEvidence, term));
+      const inputPublicationHits = concept.inputTerms.filter((term) =>
+        normalizedContains(professorPublicationEvidence, term));
       const evidenceHits = unique([...fieldHits, ...publicationHits]);
       return {
         label: concept.label,
         role: concept.role,
         fieldHits,
         publicationHits,
+        inputFieldHits,
+        inputPublicationHits,
+        titleInputTerms: concept.titleInputTerms,
         evidenceHits,
       };
     })
@@ -720,8 +749,24 @@ function evaluateProfessor(
     METHOD: new Set<string>(),
     CONTEXT: new Set<string>(),
   };
+  const inputConceptFieldEvidenceTerms: Record<ProfessorMatchRole, Set<string>> = {
+    TOPIC: new Set<string>(),
+    METHOD: new Set<string>(),
+    CONTEXT: new Set<string>(),
+  };
+  const inputConceptPublicationEvidenceTerms: Record<ProfessorMatchRole, Set<string>> = {
+    TOPIC: new Set<string>(),
+    METHOD: new Set<string>(),
+    CONTEXT: new Set<string>(),
+  };
   for (const concept of conceptMatches) {
     for (const term of concept.evidenceHits) roleEvidenceTerms[concept.role].add(term);
+    for (const term of concept.inputFieldHits) {
+      inputConceptFieldEvidenceTerms[concept.role].add(term);
+    }
+    for (const term of concept.inputPublicationHits) {
+      inputConceptPublicationEvidenceTerms[concept.role].add(term);
+    }
   }
   const researchFieldRoles = new Set<ProfessorMatchRole>(
     conceptMatches
@@ -776,7 +821,9 @@ function evaluateProfessor(
     const explicitTerms = explicitRoleEvidenceTerms[role];
     const best = conceptMatches
       .filter((concept) => concept.role === preferredRole)
-      .sort((left, right) => right.evidenceHits.length - left.evidenceHits.length)[0]
+      .sort((left, right) =>
+        longestTermLength(right.titleInputTerms) - longestTermLength(left.titleInputTerms)
+        || right.evidenceHits.length - left.evidenceHits.length)[0]
       ?? conceptMatches[0];
     if (explicitTerms.length > 0) {
       matchedTerms.push(...explicitTerms.slice(0, 3));
@@ -856,6 +903,58 @@ function evaluateProfessor(
       METHOD: roleEvidenceTerms.METHOD.size,
       CONTEXT: roleEvidenceTerms.CONTEXT.size,
     },
+    inputConceptEvidenceCounts: {
+      TOPIC: new Set([
+        ...inputConceptFieldEvidenceTerms.TOPIC,
+        ...inputConceptPublicationEvidenceTerms.TOPIC,
+      ]).size,
+      METHOD: new Set([
+        ...inputConceptFieldEvidenceTerms.METHOD,
+        ...inputConceptPublicationEvidenceTerms.METHOD,
+      ]).size,
+      CONTEXT: new Set([
+        ...inputConceptFieldEvidenceTerms.CONTEXT,
+        ...inputConceptPublicationEvidenceTerms.CONTEXT,
+      ]).size,
+    },
+    inputConceptFieldEvidenceCounts: {
+      TOPIC: inputConceptFieldEvidenceTerms.TOPIC.size,
+      METHOD: inputConceptFieldEvidenceTerms.METHOD.size,
+      CONTEXT: inputConceptFieldEvidenceTerms.CONTEXT.size,
+    },
+    inputConceptPublicationEvidenceCounts: {
+      TOPIC: inputConceptPublicationEvidenceTerms.TOPIC.size,
+      METHOD: inputConceptPublicationEvidenceTerms.METHOD.size,
+      CONTEXT: inputConceptPublicationEvidenceTerms.CONTEXT.size,
+    },
+    titleConceptFieldWeights: {
+      TOPIC: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "TOPIC" && concept.fieldHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+      METHOD: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "METHOD" && concept.fieldHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+      CONTEXT: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "CONTEXT" && concept.fieldHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+    },
+    titleConceptPublicationWeights: {
+      TOPIC: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "TOPIC" && concept.publicationHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+      METHOD: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "METHOD" && concept.publicationHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+      CONTEXT: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "CONTEXT" && concept.publicationHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+    },
     explicitRoleEvidenceTerms,
     explicitFieldRoleEvidenceTerms,
     explicitPublicationRoleEvidenceTerms,
@@ -901,16 +1000,42 @@ function compareForRole(
   right: EvaluatedProfessor,
 ): number {
   if (role === "TOPIC" || role === "METHOD") {
-    const leftTerms = left.explicitRoleEvidenceTerms[role];
-    const rightTerms = right.explicitRoleEvidenceTerms[role];
-    const countDifference = rightTerms.length - leftTerms.length;
+    /*
+     * 세 글자 이상의 고유 표현은 일반 개념보다 먼저 비교합니다.
+     * 두 글자 단일어(예: "사진")는 그 자체로 유효한 근거지만, 농식품·가격·유통처럼
+     * 여러 공식 근거가 겹치는 후보를 무조건 밀어내지 않도록 아래의 종합 근거 비교 뒤에 둡니다.
+     */
+    const leftStrongTerms = left.explicitRoleEvidenceTerms[role]
+      .filter((term) => term.length >= 3);
+    const rightStrongTerms = right.explicitRoleEvidenceTerms[role]
+      .filter((term) => term.length >= 3);
+    const countDifference = rightStrongTerms.length - leftStrongTerms.length;
     if (countDifference !== 0) return countDifference;
-    const fieldCountDifference = right.explicitFieldRoleEvidenceTerms[role].length
-      - left.explicitFieldRoleEvidenceTerms[role].length;
+    const fieldCountDifference = right.explicitFieldRoleEvidenceTerms[role]
+      .filter((term) => term.length >= 3).length
+      - left.explicitFieldRoleEvidenceTerms[role]
+        .filter((term) => term.length >= 3).length;
     if (fieldCountDifference !== 0) return fieldCountDifference;
-    const publicationCountDifference = right.explicitPublicationRoleEvidenceTerms[role].length
-      - left.explicitPublicationRoleEvidenceTerms[role].length;
+    const publicationCountDifference = right.explicitPublicationRoleEvidenceTerms[role]
+      .filter((term) => term.length >= 3).length
+      - left.explicitPublicationRoleEvidenceTerms[role]
+        .filter((term) => term.length >= 3).length;
     if (publicationCountDifference !== 0) return publicationCountDifference;
+    const titleFieldWeightDifference = right.titleConceptFieldWeights[role]
+      - left.titleConceptFieldWeights[role];
+    if (titleFieldWeightDifference !== 0) return titleFieldWeightDifference;
+    const titlePublicationWeightDifference = right.titleConceptPublicationWeights[role]
+      - left.titleConceptPublicationWeights[role];
+    if (titlePublicationWeightDifference !== 0) return titlePublicationWeightDifference;
+    const inputFieldCountDifference = right.inputConceptFieldEvidenceCounts[role]
+      - left.inputConceptFieldEvidenceCounts[role];
+    if (inputFieldCountDifference !== 0) return inputFieldCountDifference;
+    const inputPublicationCountDifference = right.inputConceptPublicationEvidenceCounts[role]
+      - left.inputConceptPublicationEvidenceCounts[role];
+    if (inputPublicationCountDifference !== 0) return inputPublicationCountDifference;
+    const inputConceptCountDifference = right.inputConceptEvidenceCounts[role]
+      - left.inputConceptEvidenceCounts[role];
+    if (inputConceptCountDifference !== 0) return inputConceptCountDifference;
   }
   if (role === "CONTEXT") {
     const leftSharesCore = left.match.decisionBasis.roleMatches.topic
@@ -944,6 +1069,17 @@ function compareForRole(
     const leftPublicationMatch = left.publicationConcepts.has(concept.label);
     const rightPublicationMatch = right.publicationConcepts.has(concept.label);
     if (leftPublicationMatch !== rightPublicationMatch) return leftPublicationMatch ? -1 : 1;
+  }
+  if (role === "TOPIC" || role === "METHOD") {
+    const exactCountDifference = right.explicitRoleEvidenceTerms[role].length
+      - left.explicitRoleEvidenceTerms[role].length;
+    if (exactCountDifference !== 0) return exactCountDifference;
+    const exactFieldCountDifference = right.explicitFieldRoleEvidenceTerms[role].length
+      - left.explicitFieldRoleEvidenceTerms[role].length;
+    if (exactFieldCountDifference !== 0) return exactFieldCountDifference;
+    const exactPublicationCountDifference = right.explicitPublicationRoleEvidenceTerms[role].length
+      - left.explicitPublicationRoleEvidenceTerms[role].length;
+    if (exactPublicationCountDifference !== 0) return exactPublicationCountDifference;
   }
   return compareDecisionBasis(left.match.decisionBasis, right.match.decisionBasis)
     || left.match.professor.id.localeCompare(right.match.professor.id);

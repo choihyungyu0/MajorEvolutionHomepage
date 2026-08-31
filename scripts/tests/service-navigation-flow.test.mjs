@@ -743,7 +743,7 @@ test("나의 성장과정은 프로젝트와 교수 연결을 현재 결과와 �
   assert.match(researchStoreSource, /growthDirectionBaseline/);
   assert.match(researchStoreSource, /growthProjectHistory:\s*appendGrowthProjectRecord/);
   assert.match(researchStoreSource, /growthProfessorHistory:\s*mergeGrowthProfessorHistoryByTopic/);
-  assert.match(researchStoreSource, /version:\s*9/);
+  assert.match(researchStoreSource, /version:\s*10/);
   assert.match(portfolioHubSource, /내 방향이 구체화된 흐름/);
   assert.match(portfolioHubSource, /프로젝트 설계 기록/);
   assert.match(portfolioHubSource, /지금까지 연결한 교수님/);

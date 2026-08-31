@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 
 const baseUrl = process.argv[2] ?? "http://127.0.0.1:3000";
-const EXPECTED_POLICY = "OFFICIAL_EVIDENCE_RULES_V7";
+const EXPECTED_POLICY = "OFFICIAL_EVIDENCE_RULES_V8";
 
 async function requestMatches(topic, excludeIds = [], university = "단국대학교") {
   const response = await fetch(`${baseUrl}/api/professors/match`, {
@@ -582,6 +582,34 @@ assert.ok(
 assert.ok(
   screenDeepTopicMatch.matchedTerms.some((term) => /농식품|식품|농산물|가격/.test(term)),
   "screen deep input explains the agricultural-market match",
+);
+const producePhotoPricePayload = await requestMatches({
+  ...deepInputBase,
+  id: "discovery:produce-photo-price",
+  title: "농산물 거래자료와 사진을 활용한 가격 예측 AI 프로젝트를 준비",
+  interests: ["AI·데이터", "경제·금융", "푸드테크", "도매시장", "식품·농업"],
+  major: "통계데이터사이언스학과",
+  college: "SW융합대학",
+  secondaryMajorType: "복수전공",
+  secondaryCollege: "공공인재대학",
+  secondaryMajor: "식품자원경제학과",
+  careerInterests: ["데이터·AI 직무", "서비스기획·PM", "연구개발·실험"],
+  careerConcerns: ["아직 잘 모르겠어요"],
+  careerGoal: "아직 탐색 중",
+  preferredSupport: "프로젝트·연구에 참여하고 싶어요",
+  experience: "파이썬 기반 데이터분석이 가능합니다.",
+});
+const producePhotoPriceTopicMatch = producePhotoPricePayload.matches.find(
+  (match) => match.role === "TOPIC",
+);
+assert.equal(
+  producePhotoPriceTopicMatch?.professor.name,
+  "양성범",
+  "a short photo term must not outrank richer official food-price evidence",
+);
+assert.ok(
+  producePhotoPriceTopicMatch.matchedTerms.some((term) => /농식품|식품|가격|유통|무역/.test(term)),
+  "produce photo-price topic exposes agricultural price or distribution evidence",
 );
 const differentMeetingPayload = await requestMatches({
   ...deepInputBase,

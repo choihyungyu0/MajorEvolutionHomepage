@@ -754,7 +754,7 @@ test("첫 교수 매칭은 입력한 학업 소속을 연결하고 전체 후보
     path.join(repositoryRoot, "components/screens/professor-discovery-form.tsx"),
     "utf8",
   );
-  assert.match(store, /version:\s*9/);
+  assert.match(store, /version:\s*10/);
   assert.match(store, /persistedVersion < 7[\s\S]*secondaryMajor/);
   assert.match(store, /selectionPolicy:\s*response\.selectionPolicy/);
   assert.match(discoveryForm, /부·복수전공도 가까운 학과 연결 범위에 포함/);
@@ -773,7 +773,7 @@ test("교수 추천 정책은 학업 소속 한 자리와 공식 근거 기반 �
     "utf8",
   );
 
-  assert.match(domain, /OFFICIAL_EVIDENCE_RULES_V7/);
+  assert.match(domain, /OFFICIAL_EVIDENCE_RULES_V8/);
   assert.match(source, /label: "경제·금융"/);
   assert.match(source, /label: "SW·보안"/);
   assert.match(source, /topicTerms: \[[\s\S]*"경제·금융"[\s\S]*"금융"/);
@@ -797,7 +797,13 @@ test("교수 추천 정책은 학업 소속 한 자리와 공식 근거 기반 �
   assert.ok(
     roleComparator.indexOf("explicitRoleEvidenceTerms")
       < roleComparator.indexOf("roleEvidenceCounts"),
-    "입력 고유어 직접 근거가 일반 개념 근거보다 먼저 비교돼야 한다",
+    "세 글자 이상의 입력 고유어 직접 근거가 일반 개념 근거보다 먼저 비교돼야 한다",
+  );
+  assert.match(roleComparator, /filter\(\(term\) => term\.length >= 3\)/);
+  assert.ok(
+    roleComparator.indexOf("roleEvidenceCounts")
+      < roleComparator.indexOf("exactCountDifference"),
+    "두 글자 단일 직접어는 여러 공식 개념 근거를 무조건 앞서면 안 된다",
   );
   assert.ok(
     source.indexOf('for (const role of ["TOPIC", "METHOD"] as const)')
