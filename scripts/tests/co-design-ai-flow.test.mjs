@@ -66,5 +66,5 @@ test("프로젝트 교수 연결만 공식 후보 안에서 AI 재정렬한다",
   assert.match(route, /!topic\.id\.startsWith\("context:"\)/);
   assert.match(route, /rerankProfessorMentors\(topic, roleCandidates\)/);
   assert.match(server, /제공된 candidateKey만 고르세요/);
-  assert.match(server, /new Set\(selected\.map\(\(match\) => match\.professor\.id\)\)\.size !== 3/);
+  assert.match(server, /completeProfessorMentorSelections\(selected, candidates\)/);
 });

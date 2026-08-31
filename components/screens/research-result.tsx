@@ -51,6 +51,10 @@ import { useResearchStore } from "@/store/research-store";
 import styles from "./research-result-hierarchy.module.css";
 
 const STATUS_TONE: Record<CheckStatus, string> = { "확인됨": "ok", "조건부": "cond", "확인 필요": "need" };
+const CANDIDATE_DIRECTION_LABEL = {
+  "안전 축소형": "핵심 분석형",
+  "차별 심화형": "융합 확장형",
+} as const;
 function StatusPill({ status }: { status: CheckStatus }) {
   const Icon = status === "확인됨" ? CircleCheck : status === "조건부" ? CircleDashed : CircleAlert;
   return (
@@ -130,7 +134,7 @@ function CandidateSummaryCard({
     <article className={cx(styles.summaryCandidate, selected && styles.summaryCandidateSelected)}>
       <header>
         <span className="cand-badge">{label}</span>
-        <Tag tone={topic.variant === "안전 축소형" ? "mint" : "violet"}>{topic.variant}</Tag>
+        <Tag tone={topic.variant === "안전 축소형" ? "mint" : "violet"}>{CANDIDATE_DIRECTION_LABEL[topic.variant]}</Tag>
         {selected ? <strong className={styles.selectedBadge}>선택됨</strong> : null}
       </header>
       <h2>{topic.title}</h2>
@@ -194,7 +198,7 @@ function CandidateCard({ cand, label, selected, onSelect }: { cand: TopicWithChe
     <article className={cx("cand-card", selected && "is-selected")}>
       <header className="cand-card__head">
         <span className="cand-badge">{label}</span>
-        <Tag tone={t.variant === "안전 축소형" ? "mint" : "violet"}>{t.variant}</Tag>
+        <Tag tone={t.variant === "안전 축소형" ? "mint" : "violet"}>{CANDIDATE_DIRECTION_LABEL[t.variant]}</Tag>
       </header>
       <h2>{t.title}</h2>
       <p className="cand-q"><strong>연구질문</strong> {t.question}</p>
@@ -344,7 +348,7 @@ function IdeaComparisonTable({
       <div className="idea-compare-head">
         <span className="cand-badge">{labels[index]}</span>
         <div>
-          <Tag tone={topic.variant === "안전 축소형" ? "mint" : "violet"}>{topic.variant}</Tag>
+          <Tag tone={topic.variant === "안전 축소형" ? "mint" : "violet"}>{CANDIDATE_DIRECTION_LABEL[topic.variant]}</Tag>
           <strong>{topic.title}</strong>
         </div>
       </div>
