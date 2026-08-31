@@ -7,7 +7,7 @@ import {
   type ProfessorAcademicTaxonomy,
 } from "@/lib/professor-academic-taxonomy";
 import { PROFESSOR_MATCH_POLICY } from "@/lib/professor-domain";
-import { buildProfessorEvidenceText } from "@/lib/professor-match-evidence";
+import { buildProfessorRoleEvidenceText } from "@/lib/professor-match-evidence";
 import type {
   OfficialProfessor,
   OfficialPublication,
@@ -100,6 +100,30 @@ const matchingConcepts: Array<{
     role: "METHOD",
   },
   {
+    label: "SW·보안",
+    topicTerms: [
+      "sw·보안",
+      "sw",
+      "소프트웨어",
+      "보안",
+      "사이버보안",
+      "정보보호",
+      "멀웨어",
+      "악성코드",
+    ],
+    evidenceTerms: [
+      "소프트웨어",
+      "보안",
+      "사이버",
+      "정보보호",
+      "멀웨어",
+      "악성코드",
+      "침입탐지",
+      "역공학",
+    ],
+    role: "TOPIC",
+  },
+  {
     label: "소비자 가치·선택",
     topicTerms: ["소비자", "지불의사", "가격 프리미엄", "선택실험", "구매", "설문"],
     evidenceTerms: [
@@ -111,6 +135,34 @@ const matchingConcepts: Array<{
       "수요",
       "마케팅",
       "선택실험",
+    ],
+    role: "TOPIC",
+  },
+  {
+    label: "경제·금융",
+    topicTerms: [
+      "경제·금융",
+      "경제",
+      "금융",
+      "금리",
+      "증권",
+      "투자",
+      "거시경제",
+      "미시경제",
+      "계량경제",
+    ],
+    evidenceTerms: [
+      "경제",
+      "경제학",
+      "금융",
+      "금리",
+      "증권",
+      "투자",
+      "계량경제",
+      "거시경제",
+      "미시경제",
+      "화폐",
+      "재정",
     ],
     role: "TOPIC",
   },
@@ -172,8 +224,14 @@ const matchingConcepts: Array<{
   },
   {
     label: "대학원·학술 탐색",
-    topicTerms: ["대학원", "연구실", "학술", "논문 준비"],
+    topicTerms: ["대학원", "연구실", "학술", "논문 준비", "수업·논문", "수업", "논문"],
     evidenceTerms: ["대학원", "연구실", "학술", "세미나", "논문"],
+    role: "CONTEXT",
+  },
+  {
+    label: "피드백·진로 대화",
+    topicTerms: ["피드백", "방향", "선택지", "진로 경험", "준비법", "조언"],
+    evidenceTerms: ["교육", "상담", "멘토링", "지도", "세미나", "진로"],
     role: "CONTEXT",
   },
   {
@@ -204,20 +262,30 @@ const genericTerms = new Set([
   "데이터",
   "기반",
   "활용",
+  "활용한",
+  "활용해",
   "관련",
   "영향",
   "효과",
   "방법",
+  "정보",
+  "실제",
   "모델",
   "설계",
   "탐색",
   "관계",
+  "지표",
   "경제",
   "학과",
   "전공",
   "국내",
   "분야",
   "과정",
+  "학생",
+  "대학생",
+  "학부",
+  "진로",
+  "직무",
   "대한",
   "어떤",
   "있는가",
@@ -225,8 +293,29 @@ const genericTerms = new Set([
   "관점에서",
   "어떻게",
   "있을까",
+  "얼마나",
+  "주는지",
+  "알아보고",
+  "싶어요",
+  "있어요",
+  "준비하고",
+  "해봤어요",
+  "들었고",
   "통해",
   "위한",
+]);
+
+const broadInterestTerms = new Set([
+  "ai",
+  "데이터",
+  "경제",
+  "금융",
+  "sw",
+  "보안",
+  "경영",
+  "마케팅",
+  "환경",
+  "esg",
 ]);
 
 function normalize(value: string): string {
@@ -240,8 +329,55 @@ function meaningfulTerms(value: string): string[] {
     .filter((term) => term.length >= 2);
 }
 
+const koreanParticles = [
+  "으로",
+  "에서",
+  "에게",
+  "까지",
+  "부터",
+  "처럼",
+  "보다",
+  "와",
+  "과",
+  "을",
+  "를",
+  "이",
+  "가",
+  "은",
+  "는",
+  "의",
+  "에",
+  "도",
+  "로",
+];
+
+function withoutKoreanParticle(term: string): string {
+  const particle = koreanParticles.find((candidate) =>
+    term.length > candidate.length + 1 && term.endsWith(candidate));
+  return particle ? term.slice(0, -particle.length) : term;
+}
+
+const conceptVocabularyTerms = new Set(
+  normalizedConcepts.flatMap((concept) => [
+    ...concept.topicTerms.flatMap(meaningfulTerms),
+    ...concept.evidenceTerms.flatMap((term) => meaningfulTerms(term.normalized)),
+  ]),
+);
+
+function specificInputTerms(value: string): string[] {
+  return unique(meaningfulTerms(value).map(withoutKoreanParticle).filter((term) =>
+    term.length >= 2
+    && !genericTerms.has(term)
+    && !broadInterestTerms.has(term)
+    && !conceptVocabularyTerms.has(term)));
+}
+
 function unique(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+function longestTermLength(terms: string[]): number {
+  return terms.reduce((longest, term) => Math.max(longest, term.length), 0);
 }
 
 /** 짧은 영문·숫자 용어의 단어 경계 정규식. 같은 용어를 다시 컴파일하지 않으려고 모아 둡니다. */
@@ -330,23 +466,30 @@ type ProfessorSearchIndex = {
   fieldEvidence: string;
   publicationEvidence: string;
   publicationTitles: string[];
-  departments: string[];
   fieldTerms: string[];
+  publicationTerms: string[];
+  departments: string[];
 };
 
 function buildSearchIndex(professor: OfficialProfessor): ProfessorSearchIndex {
   return {
-    fieldEvidence: normalize([
-      professor.department,
-      ...professor.researchFields,
-    ].join(" ")),
+    fieldEvidence: normalize(professor.researchFields.join(" ")),
     publicationEvidence: normalize(
       professor.publications.map((publication) => publication.title).join(" "),
     ),
     publicationTitles: professor.publications.map((publication) =>
       normalize(publication.title)),
+    fieldTerms: unique(
+      professor.researchFields
+        .flatMap(meaningfulTerms)
+        .map(withoutKoreanParticle),
+    ),
+    publicationTerms: unique(
+      professor.publications
+        .flatMap((publication) => meaningfulTerms(publication.title))
+        .map(withoutKoreanParticle),
+    ),
     departments: professor.departments.map(normalize),
-    fieldTerms: unique(professor.researchFields.flatMap(meaningfulTerms)),
   };
 }
 
@@ -387,6 +530,15 @@ function publicationEvidence(
 type EvaluatedProfessor = {
   match: ProfessorMatch;
   hasRelevantEvidence: boolean;
+  roleEvidenceCounts: Record<ProfessorMatchRole, number>;
+  inputConceptEvidenceCounts: Record<ProfessorMatchRole, number>;
+  inputConceptFieldEvidenceCounts: Record<ProfessorMatchRole, number>;
+  inputConceptPublicationEvidenceCounts: Record<ProfessorMatchRole, number>;
+  titleConceptFieldWeights: Record<ProfessorMatchRole, number>;
+  titleConceptPublicationWeights: Record<ProfessorMatchRole, number>;
+  explicitRoleEvidenceTerms: Record<ProfessorMatchRole, string[]>;
+  explicitFieldRoleEvidenceTerms: Record<ProfessorMatchRole, string[]>;
+  explicitPublicationRoleEvidenceTerms: Record<ProfessorMatchRole, string[]>;
   matchedConcepts: Set<string>;
   researchFieldConcepts: Set<string>;
   publicationConcepts: Set<string>;
@@ -451,26 +603,33 @@ function compareEvaluatedProfessors(
  * 예전에는 이걸 교수 1,051명마다 다시 만들었습니다. 주제 문장을 다시 정규화하고,
  * 12개 개념의 주제 용어를 교수 수만큼 되풀이해 훑느라 요청당 2초 넘게 썼습니다.
  */
+type ActiveMatchingConcept = (typeof normalizedConcepts)[number] & {
+  inputTerms: string[];
+  titleInputTerms: string[];
+};
+
 type TopicMatchContext = {
-  evidenceText: string;
-  topicTerms: string[];
   evidenceTopicTerms: string[];
+  specificRoleTerms: Record<"TOPIC" | "METHOD", string[]>;
   academicAffiliations: Array<Omit<ProfessorMatchedAcademicAffiliation, "officialDepartment"> & {
     normalizedMajor: string;
   }>;
-  normalizedMethods: string[];
   /**
    * 주제 쪽에서 이미 걸린 개념만 남깁니다.
    * 주제에 걸리지 않은 개념은 어떤 교수와도 이어질 수 없으므로 교수마다 다시 볼 이유가 없습니다.
    */
-  activeConcepts: typeof normalizedConcepts;
+  activeConcepts: ActiveMatchingConcept[];
 };
 
 function buildTopicMatchContext(topic: ProfessorMatchTopic): TopicMatchContext {
   // 공식 연구근거 대조에는 전공·연구/산업 관심·희망 직무만 사용합니다.
   // 취업 고민, 학년, 만남 방식 같은 학생 맥락은 면담 질문을 개인화하되
   // 교수의 연구분야와 직접 일치하는 근거로 간주하지 않습니다.
-  const evidenceText = normalize(buildProfessorEvidenceText(topic));
+  const roleEvidence = buildProfessorRoleEvidenceText(topic);
+  const titleEvidenceText = normalize(topic.title);
+  const evidenceText = normalize(
+    `${roleEvidence.topic} ${roleEvidence.method} ${roleEvidence.context}`,
+  );
   const topicTerms = meaningfulTerms(evidenceText);
   const primaryMajor = topic.major.trim();
   const secondaryMajor = topic.secondaryMajor?.trim() ?? "";
@@ -501,13 +660,25 @@ function buildTopicMatchContext(topic: ProfessorMatchTopic): TopicMatchContext {
     });
   }
   return {
-    evidenceText,
-    topicTerms,
-    evidenceTopicTerms: topicTerms.filter((term) => !genericTerms.has(term)),
+    evidenceTopicTerms: unique(
+      topicTerms
+        .map(withoutKoreanParticle)
+        .filter((term) => term.length >= 2 && !genericTerms.has(term)),
+    ),
+    specificRoleTerms: {
+      TOPIC: specificInputTerms(roleEvidence.topic),
+      METHOD: specificInputTerms(roleEvidence.method),
+    },
     academicAffiliations,
-    normalizedMethods: topic.methods.map((method) => normalize(method)),
-    activeConcepts: normalizedConcepts.filter((concept) =>
-      concept.topicTerms.some((term) => normalizedContains(evidenceText, term))),
+    activeConcepts: normalizedConcepts
+      .map((concept) => ({
+        ...concept,
+        inputTerms: concept.topicTerms.filter((term) =>
+          normalizedContains(evidenceText, term)),
+        titleInputTerms: concept.topicTerms.filter((term) =>
+          normalizedContains(titleEvidenceText, term)),
+      }))
+      .filter((concept) => concept.inputTerms.length > 0),
   };
 }
 
@@ -516,12 +687,33 @@ function evaluateProfessor(
   topic: ProfessorMatchTopic,
   context: TopicMatchContext,
 ): EvaluatedProfessor {
-  const { evidenceText, evidenceTopicTerms } = context;
+  const { evidenceTopicTerms } = context;
   const index = searchIndexFor(professor);
-  const fieldTerms = index.fieldTerms;
-  const directTerms = fieldTerms.filter(
-    (term) => !genericTerms.has(term) && normalizedContains(evidenceText, term),
-  );
+  const explicitFieldRoleEvidenceTerms: EvaluatedProfessor["explicitFieldRoleEvidenceTerms"] = {
+    TOPIC: context.specificRoleTerms.TOPIC.filter((term) =>
+      index.fieldTerms.includes(term)),
+    METHOD: context.specificRoleTerms.METHOD.filter((term) =>
+      index.fieldTerms.includes(term)),
+    CONTEXT: [],
+  };
+  const explicitPublicationRoleEvidenceTerms: EvaluatedProfessor["explicitPublicationRoleEvidenceTerms"] = {
+    TOPIC: context.specificRoleTerms.TOPIC.filter((term) =>
+      index.publicationTerms.includes(term)),
+    METHOD: context.specificRoleTerms.METHOD.filter((term) =>
+      index.publicationTerms.includes(term)),
+    CONTEXT: [],
+  };
+  const explicitRoleEvidenceTerms: EvaluatedProfessor["explicitRoleEvidenceTerms"] = {
+    TOPIC: unique([
+      ...explicitFieldRoleEvidenceTerms.TOPIC,
+      ...explicitPublicationRoleEvidenceTerms.TOPIC,
+    ]),
+    METHOD: unique([
+      ...explicitFieldRoleEvidenceTerms.METHOD,
+      ...explicitPublicationRoleEvidenceTerms.METHOD,
+    ]),
+    CONTEXT: [],
+  };
   const professorFieldEvidence = index.fieldEvidence;
   const professorPublicationEvidence = index.publicationEvidence;
   const conceptMatches = context.activeConcepts
@@ -532,12 +724,19 @@ function evaluateProfessor(
       const publicationHits = concept.evidenceTerms
         .filter((term) => normalizedContains(professorPublicationEvidence, term.normalized))
         .map((term) => term.raw);
+      const inputFieldHits = concept.inputTerms.filter((term) =>
+        normalizedContains(professorFieldEvidence, term));
+      const inputPublicationHits = concept.inputTerms.filter((term) =>
+        normalizedContains(professorPublicationEvidence, term));
       const evidenceHits = unique([...fieldHits, ...publicationHits]);
       return {
         label: concept.label,
         role: concept.role,
         fieldHits,
         publicationHits,
+        inputFieldHits,
+        inputPublicationHits,
+        titleInputTerms: concept.titleInputTerms,
         evidenceHits,
       };
     })
@@ -545,6 +744,30 @@ function evaluateProfessor(
   const roleMatches = new Set<ProfessorMatchRole>(
     conceptMatches.map((concept) => concept.role),
   );
+  const roleEvidenceTerms: Record<ProfessorMatchRole, Set<string>> = {
+    TOPIC: new Set<string>(),
+    METHOD: new Set<string>(),
+    CONTEXT: new Set<string>(),
+  };
+  const inputConceptFieldEvidenceTerms: Record<ProfessorMatchRole, Set<string>> = {
+    TOPIC: new Set<string>(),
+    METHOD: new Set<string>(),
+    CONTEXT: new Set<string>(),
+  };
+  const inputConceptPublicationEvidenceTerms: Record<ProfessorMatchRole, Set<string>> = {
+    TOPIC: new Set<string>(),
+    METHOD: new Set<string>(),
+    CONTEXT: new Set<string>(),
+  };
+  for (const concept of conceptMatches) {
+    for (const term of concept.evidenceHits) roleEvidenceTerms[concept.role].add(term);
+    for (const term of concept.inputFieldHits) {
+      inputConceptFieldEvidenceTerms[concept.role].add(term);
+    }
+    for (const term of concept.inputPublicationHits) {
+      inputConceptPublicationEvidenceTerms[concept.role].add(term);
+    }
+  }
   const researchFieldRoles = new Set<ProfessorMatchRole>(
     conceptMatches
       .filter((concept) => concept.fieldHits.length > 0)
@@ -555,16 +778,27 @@ function evaluateProfessor(
       .filter((concept) => concept.publicationHits.length > 0)
       .map((concept) => concept.role),
   );
-  const methodDirectTerms = directTerms.filter((term) =>
-    context.normalizedMethods.some((method) => normalizedContains(method, term)));
-  if (directTerms.length > 0) {
-    const directRole = methodDirectTerms.length > 0 ? "METHOD" : "TOPIC";
-    roleMatches.add(directRole);
-    researchFieldRoles.add(directRole);
+  for (const role of ["TOPIC", "METHOD"] as const) {
+    if (explicitFieldRoleEvidenceTerms[role].length > 0) {
+      roleMatches.add(role);
+      researchFieldRoles.add(role);
+    }
+    if (explicitPublicationRoleEvidenceTerms[role].length > 0) {
+      roleMatches.add(role);
+      publicationRoles.add(role);
+    }
+    for (const term of explicitRoleEvidenceTerms[role]) {
+      roleEvidenceTerms[role].add(term);
+    }
   }
   const hasRelevantEvidence = roleMatches.size > 0;
+  const explicitPublicationTerms = unique([
+    ...explicitPublicationRoleEvidenceTerms.TOPIC,
+    ...explicitPublicationRoleEvidenceTerms.METHOD,
+  ]);
   const publication = hasRelevantEvidence
-    ? publicationEvidence(professor, evidenceTopicTerms, index.publicationTitles)
+    ? publicationEvidence(professor, explicitPublicationTerms, index.publicationTitles)
+      ?? publicationEvidence(professor, evidenceTopicTerms, index.publicationTitles)
     : undefined;
   const matchedAcademicAffiliation = context.academicAffiliations
     .map((affiliation) => {
@@ -581,18 +815,23 @@ function evaluateProfessor(
   let reason = `현재 수집된 공식 프로필에서 이 주제와 직접 일치하는 근거는 찾지 못했습니다. 공식 프로필의 ‘${professor.researchFields[0] ?? "연구분야 미기재"}’ 관점으로 범위를 검토할 대안 후보입니다.`;
   const matchedTerms: string[] = [];
 
-  if (conceptMatches.length > 0) {
-    const preferredRole = rolePreference.find((candidateRole) =>
-      roleMatches.has(candidateRole));
-    const best = conceptMatches.find((concept) => concept.role === preferredRole)
+  if (hasRelevantEvidence) {
+    const preferredRole = rolePreference.find((candidateRole) => roleMatches.has(candidateRole));
+    role = preferredRole ?? "CONTEXT";
+    const explicitTerms = explicitRoleEvidenceTerms[role];
+    const best = conceptMatches
+      .filter((concept) => concept.role === preferredRole)
+      .sort((left, right) =>
+        longestTermLength(right.titleInputTerms) - longestTermLength(left.titleInputTerms)
+        || right.evidenceHits.length - left.evidenceHits.length)[0]
       ?? conceptMatches[0];
-    role = best.role;
-    matchedTerms.push(...best.evidenceHits.slice(0, 3));
-    reason = `공식 프로필의 ‘${best.evidenceHits.slice(0, 3).join(", ")}’ 근거가 이 주제의 ${best.label} ${role === "METHOD" ? "방법" : role === "TOPIC" ? "내용" : "맥락"}과 연결됩니다.`;
-  } else if (directTerms.length > 0) {
-    role = methodDirectTerms.length > 0 ? "METHOD" : "TOPIC";
-    matchedTerms.push(...directTerms.slice(0, 3));
-    reason = `공식 프로필 연구분야의 ‘${matchedTerms.join(", ")}’ 표현이 선택한 주제와 직접 연결됩니다.`;
+    if (explicitTerms.length > 0) {
+      matchedTerms.push(...explicitTerms.slice(0, 3));
+      reason = `공식 연구분야 또는 논문에서 확인한 ‘${matchedTerms.join(", ")}’ 표현이 입력한 ${role === "METHOD" ? "방법" : "주제"}과 직접 연결됩니다.`;
+    } else if (best) {
+      matchedTerms.push(...best.evidenceHits.slice(0, 3));
+      reason = `공식 프로필의 ‘${best.evidenceHits.slice(0, 3).join(", ")}’ 근거가 이 주제의 ${best.label} ${role === "METHOD" ? "방법" : role === "TOPIC" ? "내용" : "맥락"}과 연결됩니다.`;
+    }
   }
 
   if (publication) {
@@ -603,7 +842,9 @@ function evaluateProfessor(
         .slice(0, 2),
     );
   }
-  strength = directTerms.length > 0 || publication
+  strength = explicitRoleEvidenceTerms.TOPIC.length > 0
+    || explicitRoleEvidenceTerms.METHOD.length > 0
+    || publication
     ? "DIRECT"
     : hasRelevantEvidence
       ? "RELATED"
@@ -657,6 +898,66 @@ function evaluateProfessor(
       decisionBasis,
     },
     hasRelevantEvidence,
+    roleEvidenceCounts: {
+      TOPIC: roleEvidenceTerms.TOPIC.size,
+      METHOD: roleEvidenceTerms.METHOD.size,
+      CONTEXT: roleEvidenceTerms.CONTEXT.size,
+    },
+    inputConceptEvidenceCounts: {
+      TOPIC: new Set([
+        ...inputConceptFieldEvidenceTerms.TOPIC,
+        ...inputConceptPublicationEvidenceTerms.TOPIC,
+      ]).size,
+      METHOD: new Set([
+        ...inputConceptFieldEvidenceTerms.METHOD,
+        ...inputConceptPublicationEvidenceTerms.METHOD,
+      ]).size,
+      CONTEXT: new Set([
+        ...inputConceptFieldEvidenceTerms.CONTEXT,
+        ...inputConceptPublicationEvidenceTerms.CONTEXT,
+      ]).size,
+    },
+    inputConceptFieldEvidenceCounts: {
+      TOPIC: inputConceptFieldEvidenceTerms.TOPIC.size,
+      METHOD: inputConceptFieldEvidenceTerms.METHOD.size,
+      CONTEXT: inputConceptFieldEvidenceTerms.CONTEXT.size,
+    },
+    inputConceptPublicationEvidenceCounts: {
+      TOPIC: inputConceptPublicationEvidenceTerms.TOPIC.size,
+      METHOD: inputConceptPublicationEvidenceTerms.METHOD.size,
+      CONTEXT: inputConceptPublicationEvidenceTerms.CONTEXT.size,
+    },
+    titleConceptFieldWeights: {
+      TOPIC: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "TOPIC" && concept.fieldHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+      METHOD: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "METHOD" && concept.fieldHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+      CONTEXT: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "CONTEXT" && concept.fieldHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+    },
+    titleConceptPublicationWeights: {
+      TOPIC: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "TOPIC" && concept.publicationHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+      METHOD: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "METHOD" && concept.publicationHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+      CONTEXT: conceptMatches.reduce((total, concept) =>
+        total + (concept.role === "CONTEXT" && concept.publicationHits.length > 0
+          ? longestTermLength(concept.titleInputTerms)
+          : 0), 0),
+    },
+    explicitRoleEvidenceTerms,
+    explicitFieldRoleEvidenceTerms,
+    explicitPublicationRoleEvidenceTerms,
     matchedConcepts: new Set(conceptMatches.map((concept) => concept.label)),
     researchFieldConcepts: new Set(
       conceptMatches
@@ -698,6 +999,44 @@ function compareForRole(
   left: EvaluatedProfessor,
   right: EvaluatedProfessor,
 ): number {
+  if (role === "TOPIC" || role === "METHOD") {
+    /*
+     * 세 글자 이상의 고유 표현은 일반 개념보다 먼저 비교합니다.
+     * 두 글자 단일어(예: "사진")는 그 자체로 유효한 근거지만, 농식품·가격·유통처럼
+     * 여러 공식 근거가 겹치는 후보를 무조건 밀어내지 않도록 아래의 종합 근거 비교 뒤에 둡니다.
+     */
+    const leftStrongTerms = left.explicitRoleEvidenceTerms[role]
+      .filter((term) => term.length >= 3);
+    const rightStrongTerms = right.explicitRoleEvidenceTerms[role]
+      .filter((term) => term.length >= 3);
+    const countDifference = rightStrongTerms.length - leftStrongTerms.length;
+    if (countDifference !== 0) return countDifference;
+    const fieldCountDifference = right.explicitFieldRoleEvidenceTerms[role]
+      .filter((term) => term.length >= 3).length
+      - left.explicitFieldRoleEvidenceTerms[role]
+        .filter((term) => term.length >= 3).length;
+    if (fieldCountDifference !== 0) return fieldCountDifference;
+    const publicationCountDifference = right.explicitPublicationRoleEvidenceTerms[role]
+      .filter((term) => term.length >= 3).length
+      - left.explicitPublicationRoleEvidenceTerms[role]
+        .filter((term) => term.length >= 3).length;
+    if (publicationCountDifference !== 0) return publicationCountDifference;
+    const titleFieldWeightDifference = right.titleConceptFieldWeights[role]
+      - left.titleConceptFieldWeights[role];
+    if (titleFieldWeightDifference !== 0) return titleFieldWeightDifference;
+    const titlePublicationWeightDifference = right.titleConceptPublicationWeights[role]
+      - left.titleConceptPublicationWeights[role];
+    if (titlePublicationWeightDifference !== 0) return titlePublicationWeightDifference;
+    const inputFieldCountDifference = right.inputConceptFieldEvidenceCounts[role]
+      - left.inputConceptFieldEvidenceCounts[role];
+    if (inputFieldCountDifference !== 0) return inputFieldCountDifference;
+    const inputPublicationCountDifference = right.inputConceptPublicationEvidenceCounts[role]
+      - left.inputConceptPublicationEvidenceCounts[role];
+    if (inputPublicationCountDifference !== 0) return inputPublicationCountDifference;
+    const inputConceptCountDifference = right.inputConceptEvidenceCounts[role]
+      - left.inputConceptEvidenceCounts[role];
+    if (inputConceptCountDifference !== 0) return inputConceptCountDifference;
+  }
   if (role === "CONTEXT") {
     const leftSharesCore = left.match.decisionBasis.roleMatches.topic
       || left.match.decisionBasis.roleMatches.method;
@@ -721,6 +1060,8 @@ function compareForRole(
   if (leftHasPublicationEvidence !== rightHasPublicationEvidence) {
     return leftHasPublicationEvidence ? -1 : 1;
   }
+  const evidenceCountDifference = right.roleEvidenceCounts[role] - left.roleEvidenceCounts[role];
+  if (evidenceCountDifference !== 0) return evidenceCountDifference;
   for (const concept of conceptsForRole(role)) {
     const leftFieldMatch = left.researchFieldConcepts.has(concept.label);
     const rightFieldMatch = right.researchFieldConcepts.has(concept.label);
@@ -729,11 +1070,16 @@ function compareForRole(
     const rightPublicationMatch = right.publicationConcepts.has(concept.label);
     if (leftPublicationMatch !== rightPublicationMatch) return leftPublicationMatch ? -1 : 1;
   }
-  if (
-    left.match.decisionBasis.departmentMatchesMajor
-    !== right.match.decisionBasis.departmentMatchesMajor
-  ) {
-    return left.match.decisionBasis.departmentMatchesMajor ? -1 : 1;
+  if (role === "TOPIC" || role === "METHOD") {
+    const exactCountDifference = right.explicitRoleEvidenceTerms[role].length
+      - left.explicitRoleEvidenceTerms[role].length;
+    if (exactCountDifference !== 0) return exactCountDifference;
+    const exactFieldCountDifference = right.explicitFieldRoleEvidenceTerms[role].length
+      - left.explicitFieldRoleEvidenceTerms[role].length;
+    if (exactFieldCountDifference !== 0) return exactFieldCountDifference;
+    const exactPublicationCountDifference = right.explicitPublicationRoleEvidenceTerms[role].length
+      - left.explicitPublicationRoleEvidenceTerms[role].length;
+    if (exactPublicationCountDifference !== 0) return exactPublicationCountDifference;
   }
   return compareDecisionBasis(left.match.decisionBasis, right.match.decisionBasis)
     || left.match.professor.id.localeCompare(right.match.professor.id);
@@ -761,9 +1107,11 @@ function presentAsRole(
     : role === "METHOD"
       ? "연구 방법"
       : "확장 맥락";
-  const evidenceTerms = (
-    roleEvidenceTerms.length > 0 ? roleEvidenceTerms : candidate.match.matchedTerms
-  ).slice(0, 3);
+  const evidenceTerms = unique([
+    ...candidate.explicitRoleEvidenceTerms[role],
+    ...roleEvidenceTerms,
+    ...candidate.match.matchedTerms,
+  ]).slice(0, 3);
   if (evidenceTerms.length === 0) {
     evidenceTerms.push(
       candidate.match.professor.researchFields[0] ?? candidate.match.professor.department,
@@ -941,13 +1289,14 @@ export function matchOfficialProfessors(
   const matchByRole = new Map<ProfessorMatchRole, ProfessorMatch>();
 
   /*
-   * 첫 후보는 학생이 상대적으로 접근하기 쉬운 학업 소속 교수입니다.
-   * 주전공과, 심층분석에서 입력한 부·복수전공을 함께 확인하되
-   * 공식 소속 근거와 관심 주제 근거는 분리해서 설명합니다.
+   * 기본 입력에서는 주전공 소속을 가까운 시작점으로 둡니다.
+   * 심층 입력에서 부·복수전공을 명시했다면 모든 입력 학업 소속의 공식 교수를
+   * 함께 비교하고, 실제로 연결된 소속 구분을 카드에 그대로 표시합니다.
    */
-  const homeDepartmentCandidate = officialProfileCandidates
-    .filter((item) => item.match.decisionBasis.departmentMatchesMajor)
-    .sort((left, right) => {
+  const compareHomeDepartmentCandidate = (
+    left: EvaluatedProfessor,
+    right: EvaluatedProfessor,
+  ) => {
       if (left.hasRelevantEvidence !== right.hasRelevantEvidence) {
         return left.hasRelevantEvidence ? -1 : 1;
       }
@@ -974,63 +1323,72 @@ export function matchOfficialProfessors(
       const affiliationDifference = affiliationPriority(left) - affiliationPriority(right);
       if (affiliationDifference !== 0) return affiliationDifference;
       return compareEvaluatedProfessors(left, right);
-    })[0];
+    };
+  const academicHomeCandidates = officialProfileCandidates
+    .filter((item) => item.match.decisionBasis.departmentMatchesMajor);
+  const primaryMajorCandidates = academicHomeCandidates.filter(
+    (item) => item.match.decisionBasis.matchedAcademicAffiliation?.type === "PRIMARY",
+  );
+  const hasSecondaryAcademicAffiliation = Boolean(
+    topic.secondaryMajor?.trim()
+    && topic.secondaryMajorType
+    && topic.secondaryMajorType !== "없음",
+  );
+  const homeCandidatePool = (
+    hasSecondaryAcademicAffiliation
+      ? academicHomeCandidates
+      : primaryMajorCandidates.length > 0
+        ? primaryMajorCandidates
+        : academicHomeCandidates
+  ).sort(compareHomeDepartmentCandidate);
+  const homeCandidateIds = new Set(
+    homeCandidatePool.map((candidate) => candidate.match.professor.id),
+  );
 
+  /*
+   * 주제·방법은 학과를 제한하지 않은 전체 공식 근거 후보에서 먼저 예약합니다.
+   * 다만 주전공 연결 자리가 사라지지 않도록 home 후보가 한 명만 남았으면 그 교수는
+   * CONTEXT용으로 보존합니다. 이렇게 하면 전공 전문가가 주제·방법 최적 후보일 때도
+   * 다른 전공 교수로 강제로 밀려나지 않습니다.
+   */
+  for (const role of ["TOPIC", "METHOD"] as const) {
+    const roleKey = roleDecisionKey[role];
+    const findCandidate = (requireDirectRole: boolean) =>
+      officialCandidates
+        .filter((item) => {
+          if (usedProfessorIds.has(item.match.professor.id)) return false;
+          if (requireDirectRole && !item.match.decisionBasis.roleMatches[roleKey]) return false;
+          if (homeCandidateIds.has(item.match.professor.id)) {
+            const remainingHomeCandidates = homeCandidatePool.filter(
+              (homeCandidate) =>
+                !usedProfessorIds.has(homeCandidate.match.professor.id)
+                && homeCandidate.match.professor.id !== item.match.professor.id,
+            );
+            if (remainingHomeCandidates.length === 0) return false;
+          }
+          return true;
+        })
+        .sort((left, right) => compareForRole(role, left, right))[0];
+    const candidate = findCandidate(true) ?? findCandidate(false);
+    if (!candidate) continue;
+    usedProfessorIds.add(candidate.match.professor.id);
+    matchByRole.set(role, presentAsRole(candidate, role));
+  }
+
+  const homeDepartmentCandidate = homeCandidatePool.find(
+    (candidate) => !usedProfessorIds.has(candidate.match.professor.id),
+  );
   if (homeDepartmentCandidate) {
     usedProfessorIds.add(homeDepartmentCandidate.match.professor.id);
     matchByRole.set("CONTEXT", presentAsHomeDepartment(homeDepartmentCandidate, topic));
   } else {
     const contextCandidate = [...officialCandidates]
+      .filter((candidate) => !usedProfessorIds.has(candidate.match.professor.id))
       .sort((left, right) => compareForRole("CONTEXT", left, right))[0];
     if (contextCandidate) {
       usedProfessorIds.add(contextCandidate.match.professor.id);
       matchByRole.set("CONTEXT", presentAsRole(contextCandidate, "CONTEXT"));
     }
-  }
-
-  /*
-   * 나머지 두 후보는 입력한 주·부·복수전공 학과 밖에서 주제·방법 근거를 한 명씩 찾습니다.
-   * 역할 직접 근거를 우선하고, 가능하면 서로 다른 학과를 제안합니다.
-   */
-  const usedExternalDepartments = new Set<string>();
-  const homeCollege = normalize(
-    homeDepartmentCandidate?.match.professor.college
-      || topic.college
-      || "",
-  );
-  const externalCandidates = officialCandidates.filter(
-    (item) => !item.match.decisionBasis.departmentMatchesMajor,
-  );
-  for (const role of ["TOPIC", "METHOD"] as const) {
-    const roleKey = roleDecisionKey[role];
-    const findCandidate = (requireDirectRole: boolean, requireNewDepartment: boolean) =>
-      externalCandidates
-        .filter((item) => {
-          if (usedProfessorIds.has(item.match.professor.id)) return false;
-          if (requireDirectRole && !item.match.decisionBasis.roleMatches[roleKey]) return false;
-          const departmentKey = normalize(item.match.professor.department);
-          return !requireNewDepartment || !usedExternalDepartments.has(departmentKey);
-        })
-        .sort((left, right) => {
-          const leftSharesCollege = Boolean(
-            homeCollege
-            && normalizedContains(normalize(left.match.professor.college), homeCollege),
-          );
-          const rightSharesCollege = Boolean(
-            homeCollege
-            && normalizedContains(normalize(right.match.professor.college), homeCollege),
-          );
-          if (leftSharesCollege !== rightSharesCollege) return leftSharesCollege ? -1 : 1;
-          return compareForRole(role, left, right);
-        })[0];
-    const candidate = findCandidate(true, true)
-      ?? findCandidate(true, false)
-      ?? findCandidate(false, true)
-      ?? findCandidate(false, false);
-    if (!candidate) continue;
-    usedProfessorIds.add(candidate.match.professor.id);
-    usedExternalDepartments.add(normalize(candidate.match.professor.department));
-    matchByRole.set(role, presentAsRole(candidate, role));
   }
 
   const matches = (["CONTEXT", "TOPIC", "METHOD"] as const)
@@ -1045,7 +1403,7 @@ export function matchOfficialProfessors(
     officialRecordCount: dataset.official_record_count,
     scopeStatus: dataset.scope_status,
     coverageGaps,
-    note: `${dataset.note} 단국대학교 공식 교수 ${dataset.official_record_count.toLocaleString("ko-KR")}명 안에서 입력한 주전공·부전공·복수전공 중 공식 소속이 확인된 학과 교수 1명을 먼저 확인하고, 해당 학과 밖에서 주제 연결형·방법 연결형을 공식 근거와 안정적 교수 ID 순서로 선택합니다.`,
+    note: `${dataset.note} 단국대학교 공식 교수 ${dataset.official_record_count.toLocaleString("ko-KR")}명 안에서 ${hasSecondaryAcademicAffiliation ? "입력한 주전공과 부·복수전공" : "주전공"}의 공식 소속 교수 1명을 학업 소속 연결로 확인하고, 주제·방법 연결은 학과를 제한하지 않은 전체 후보에서 역할별 공식 근거가 가장 강한 교수를 선택합니다. 역할 직접 근거가 부족하면 다른 공식 연구 연결 근거가 있는 후보만 제한적으로 보완합니다.`,
     rankingSource: "official-rules",
     rankingModel: null,
   };

@@ -15,7 +15,10 @@
   padding-bottom: 112px;
 }
 
-.heroAction {
+.heroActions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+
+.heroAction,
+.newProjectAction {
   display: inline-flex;
   width: fit-content;
   min-height: 44px;
@@ -23,13 +26,19 @@
   justify-content: center;
   gap: 7px;
   padding: 0 17px;
+  border: 0;
   border-radius: 11px;
   color: #fff;
   background: #6847e8;
+  font: inherit;
   font-size: 12px;
   font-weight: 820;
   box-shadow: 0 10px 24px rgb(81 54 190 / 18%);
+  cursor: pointer;
 }
+
+.newProjectAction { color: #5b43d0; background: #fff; }
+.newProjectError { margin: -8px 0 0; color: #b84747; font-size: 12px; font-weight: 700; }
 
 .progressCard,
 .contextCard,
@@ -100,7 +109,8 @@
 
 @media (max-width: 700px) {
   .page { gap: 16px; padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
-  .heroAction { width: 100%; }
+  .heroActions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .heroAction, .newProjectAction { width: 100%; }
   .progressCard { padding: 16px; }
   .progressCard h2, .contextCard h2, .candidateCard h2, .nextCard h2 { font-size: 17px; }
   .stepGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

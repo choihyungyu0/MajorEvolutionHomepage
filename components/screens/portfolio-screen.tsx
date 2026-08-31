@@ -4,11 +4,9 @@ import { useMemo, useState } from "react";
 import {
   ArrowRight,
   BookOpenCheck,
-  CalendarCheck,
   Check,
   Download,
   EyeOff,
-  FileText,
   Lightbulb,
   LoaderCircle,
   Search,
@@ -32,15 +30,13 @@ import { useResearchStore } from "@/store/research-store";
  * 학생이 저장한 결과물만 증거로 씁니다. 없는 단계는 채워 넣지 않습니다.
  */
 
-type StepId = "topic" | "professor" | "paper" | "prepare" | "revision" | "actions";
+type StepId = "topic" | "professor" | "paper" | "revision";
 
 const STEP_META: Array<{ id: StepId; label: string; hint: string; icon: typeof Search }> = [
   { id: "topic", label: "주제 탐색", hint: "탐색한 주제와 고민, 질문", icon: Search },
   { id: "professor", label: "교수 근거", hint: "관심 교수와 연결된 이유", icon: User },
   { id: "paper", label: "읽은 논문", hint: "핵심 논문과 인사이트", icon: BookOpenCheck },
-  { id: "prepare", label: "면담 준비", hint: "준비한 질문과 면담 목표", icon: FileText },
   { id: "revision", label: "수정 전후", hint: "아이디어가 어떻게 발전했는지", icon: ArrowRight },
-  { id: "actions", label: "7일 행동", hint: "면담 후 7일 동안의 행동", icon: CalendarCheck },
 ];
 
 export function PortfolioBuilderScreen({ topicId = null }: { topicId?: string | null }) {
@@ -50,7 +46,6 @@ export function PortfolioBuilderScreen({ topicId = null }: { topicId?: string | 
   const selectedTopicId = useResearchStore((state) => state.selectedTopicId);
   const matches = useResearchStore((state) => state.professorMatches);
   const selectedProfessorId = useResearchStore((state) => state.selectedProfessorId);
-  const knockKitDrafts = useResearchStore((state) => state.knockKitDrafts);
   const mentorLoopEntries = useResearchStore((state) => state.mentorLoopEntries);
   const discovery = useResearchStore((state) => state.professorDiscoverySummary);
   const selectedPaper = useResearchStore((state) => state.selectedProfessorPaper);
@@ -87,7 +82,6 @@ export function PortfolioBuilderScreen({ topicId = null }: { topicId?: string | 
   const historicalProject = requestedHistoricalProject ?? growthProjectHistory.at(-1) ?? null;
   const loopKey = topic && match ? `${topic.id}:${match.professor.id}` : null;
   const loop = loopKey ? mentorLoopEntries[loopKey] : null;
-  const draft = loopKey ? knockKitDrafts[loopKey] : null;
 
   const rawProfessorName = match?.professor.name ?? historicalProfessor?.name ?? "";
   const rawProfessorTitle = match?.professor.title ?? historicalProfessor?.title ?? "교수";
@@ -155,17 +149,8 @@ export function PortfolioBuilderScreen({ topicId = null }: { topicId?: string | 
       ...cardsForTool(questCards, "paper-bite").map((card) =>
         `${card.title}: ${card.body}${card.evidence?.page ? ` (p.${card.evidence.page})` : ""}`),
     ],
-    prepare: [
-      ...(draft ? draft.questions.map((question, i) => `준비한 질문 ${i + 1}: ${question}`) : []),
-      ...cardsForTool(questCards, "first-line").map((card) => `첫마디(${card.title}): ${card.body}`),
-      ...cardsForTool(questCards, "silence-rescue").map((card) => `대비 질문(${card.title}): ${card.body}`),
-    ],
     revision: revision ? [...revision.before.map((l) => `수정 전 ${l}`), ...revision.after.map((l) => `수정 후 ${l}`)] : [],
-    actions: [
-      ...(loop ? loop.sevenDayActions.filter(Boolean).map((action, i) => `${i + 1}. ${action}`) : []),
-      ...cardsForTool(questCards, "next-seed").map((card) => `${card.title}: ${card.body}`),
-    ],
-  }), [conditions, discovery, growthDirectionBaseline, historicalProject, topic, match, historicalProfessor, professorName, selectedPaper, questCards, draft, loop, revision]);
+  }), [conditions, discovery, growthDirectionBaseline, historicalProject, topic, match, historicalProfessor, professorName, selectedPaper, questCards, revision]);
 
   if (!hasHydrated) {
     return (
@@ -200,7 +185,7 @@ export function PortfolioBuilderScreen({ topicId = null }: { topicId?: string | 
       />
 
       <div className="portfolio-progress">
-        <strong>{recordedCount} / 6 단계에 기록이 있어요</strong>
+        <strong>{recordedCount} / {STEP_META.length}단계에 기록이 있어요</strong>
         <span>비어 있는 단계는 채워 넣지 않고 그대로 비워 둡니다.</span>
       </div>
 

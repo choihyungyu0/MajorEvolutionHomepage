@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   ArrowRight,
   BookOpenCheck,
@@ -9,6 +11,7 @@ import {
   CircleAlert,
   Database,
   FlaskConical,
+  FolderPlus,
   Lightbulb,
   LoaderCircle,
   Settings2,
@@ -27,6 +30,7 @@ import { useResearchStore } from "@/store/research-store";
 import styles from "./project-design-home-screen.module.css";
 
 export function ProjectDesignHomeScreen() {
+  const router = useRouter();
   const hasHydrated = useResearchStore((state) => state.hasHydrated);
   const conditions = useResearchStore((state) => state.conditions);
   const ideaMode = useResearchStore((state) => state.ideaMode);
@@ -35,6 +39,8 @@ export function ProjectDesignHomeScreen() {
   const selectedTopicId = useResearchStore((state) => state.selectedTopicId);
   const projectProfessorMatches = useResearchStore((state) => state.projectProfessorMatches);
   const selectedProjectProfessorId = useResearchStore((state) => state.selectedProjectProfessorId);
+  const saveCurrentProjectAndStartNew = useResearchStore((state) => state.saveCurrentProjectAndStartNew);
+  const [newProjectError, setNewProjectError] = useState("");
 
   if (!hasHydrated) {
     return <div className="research-loading"><LoaderCircle className="spin" /><p>프로젝트 설계 상태를 불러오고 있어요.</p></div>;
@@ -81,6 +87,22 @@ export function ProjectDesignHomeScreen() {
     { label: "프로젝트 선택", done: progress.steps.selected, icon: Target },
   ];
 
+  const startNewProject = () => {
+    if (!selectedCandidate) return;
+    if (!window.confirm(`‘${selectedCandidate.topic.title}’ 프로젝트를 성장 기록에 남기고 새 설계를 시작할까요?`)) {
+      return;
+    }
+    try {
+      window.localStorage.removeItem("major-evolution-research-tutorial-v1");
+    } catch {
+      setNewProjectError("새 설계 초안을 준비하지 못했어요. 브라우저 저장 공간 설정을 확인해 주세요.");
+      return;
+    }
+    setNewProjectError("");
+    saveCurrentProjectAndStartNew();
+    router.push("/research/tutorial");
+  };
+
   return (
     <AppShell showHeader={false} className={styles.shell} bottomNav={<ServiceBottomNav />}>
       <div className={styles.page}>
@@ -90,8 +112,17 @@ export function ProjectDesignHomeScreen() {
           title="나만의 프로젝트를 설계해 볼까요?"
           description="전공과 관심사를 실행 가능한 질문으로 구체화하고, 근거를 비교해 하나의 프로젝트를 선택합니다."
         >
-          <Link className={styles.heroAction} href={action.href}>{action.label} <ArrowRight size={17} /></Link>
+          <div className={styles.heroActions}>
+            <Link className={styles.heroAction} href={action.href}>{action.label} <ArrowRight size={17} /></Link>
+            {selectedCandidate ? (
+              <button type="button" className={styles.newProjectAction} onClick={startNewProject}>
+                <FolderPlus size={17} aria-hidden="true" /> 현재 프로젝트 저장하고 새로 설계
+              </button>
+            ) : null}
+          </div>
         </JourneyStageHero>
+
+        {newProjectError ? <p className={styles.newProjectError} role="alert">{newProjectError}</p> : null}
 
         <section className={styles.progressCard} aria-labelledby="project-design-progress-title">
           <header>

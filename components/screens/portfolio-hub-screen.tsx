@@ -2,18 +2,17 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import {
   ArrowRight,
   BookOpenCheck,
   Bot,
-  CalendarCheck,
   CheckCircle2,
   FileText,
   FlaskConical,
   GraduationCap,
   Lightbulb,
   LoaderCircle,
-  MessageCircleQuestion,
   NotebookPen,
   Route,
   Search,
@@ -45,6 +44,20 @@ type GrowthStep = {
   done: boolean;
 };
 
+type GrowthRecordTab = "flow" | "experience" | "projects" | "professors" | "papers";
+
+const GROWTH_RECORD_TABS: Array<{
+  id: GrowthRecordTab;
+  label: string;
+  icon: LucideIcon;
+}> = [
+  { id: "flow", label: "성장 흐름", icon: Route },
+  { id: "experience", label: "쌓은 경험", icon: CheckCircle2 },
+  { id: "projects", label: "프로젝트", icon: FlaskConical },
+  { id: "professors", label: "연결 교수", icon: GraduationCap },
+  { id: "papers", label: "읽은 논문", icon: BookOpenCheck },
+];
+
 const PROFESSOR_ROLE_LABEL = {
   TOPIC: "주제 연결",
   METHOD: "방법 연결",
@@ -59,6 +72,15 @@ const PROFESSOR_SOURCE_LABEL = {
 
 function sameValues(a: string[], b: string[]) {
   return a.length === b.length && a.every((item) => b.includes(item));
+}
+
+function paperTitleFromCard(value: string) {
+  return value.replace(/^\d{2}\s+[^·]+·\s*/u, "").trim() || "읽은 논문";
+}
+
+function compactRecordText(value: string, max = 132) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized.length > max ? `${normalized.slice(0, max).trim()}…` : normalized;
 }
 
 export function PortfolioHubScreen() {
@@ -78,9 +100,10 @@ export function PortfolioHubScreen() {
   const growthProjectHistory = useResearchStore((state) => state.growthProjectHistory);
   const growthProfessorHistory = useResearchStore((state) => state.growthProfessorHistory);
   const selectedPaper = useResearchStore((state) => state.selectedProfessorPaper);
-  const knockKitDrafts = useResearchStore((state) => state.knockKitDrafts);
   const mentorLoopEntries = useResearchStore((state) => state.mentorLoopEntries);
   const cards = useQuestStore((state) => state.cards);
+  const [activeRecordTab, setActiveRecordTab] = useState<GrowthRecordTab>("flow");
+  const [showAllRecords, setShowAllRecords] = useState(false);
 
   if (!hasResearchHydrated || !hasQuestHydrated || !hasAiHydrated) {
     return (
@@ -94,31 +117,17 @@ export function PortfolioHubScreen() {
   const hasTopic = Boolean(result || conditions.major || discovery?.major || growthProjectHistory.length);
   const hasProfessor = Boolean(selectedProfessorId || matches.length || growthProfessorHistory.length);
   const hasPaper = Boolean(selectedPaper || cardsForTool(cards, "paper-bite").length);
-  const hasPreparation = Boolean(
-    Object.keys(knockKitDrafts).length
-    || cardsForTool(cards, "first-line").length
-    || cardsForTool(cards, "silence-rescue").length,
-  );
   const hasRevision = Object.keys(mentorLoopEntries).length > 0;
-  const hasActions = Boolean(
-    Object.keys(mentorLoopEntries).length
-    || cardsForTool(cards, "next-seed").length,
-  );
 
   const steps: GrowthStep[] = [
     { id: "topic", label: "주제 탐색", description: "관심 주제와 고민을 정리했어요.", href: "/research", icon: Search, done: hasTopic },
     { id: "professor", label: "교수 근거", description: "교수의 연구와 연결 근거를 확인했어요.", href: "/professors", icon: UserRound, done: hasProfessor },
     { id: "paper", label: "읽은 논문", description: "교수님의 연구를 한입 카드로 남겨보세요.", href: "/paper/reader?mode=bite&source=favorites", icon: BookOpenCheck, done: hasPaper },
-    { id: "prepare", label: "면담 준비", description: "첫 질문과 연락 초안을 준비해 보세요.", href: "/quest", icon: MessageCircleQuestion, done: hasPreparation },
     { id: "revision", label: "수정 전후", description: "받은 조언으로 달라진 점을 남겨보세요.", href: "/mentor-loop", icon: Lightbulb, done: hasRevision },
-    { id: "actions", label: "7일 행동", description: "이번 주에 실행할 행동을 기록해 보세요.", href: "/mentor-loop", icon: CalendarCheck, done: hasActions },
   ];
 
   const recordedCount = steps.filter((step) => step.done).length;
   const nextIndex = steps.findIndex((step) => !step.done);
-  const safeNextIndex = nextIndex === -1 ? steps.length - 1 : nextIndex;
-  const start = Math.max(0, Math.min(safeNextIndex - 2, steps.length - 3));
-  const visibleSteps = steps.slice(start, start + 3);
   const next = nextIndex === -1
     ? {
         icon: NotebookPen,
@@ -165,16 +174,35 @@ export function PortfolioHubScreen() {
     : latestProject && currentInterests.length
       ? `${currentInterests.join(" · ")} 관심을 ‘${latestProject.title}’ 프로젝트로 구체화했어요.`
       : "저장되는 기록이 쌓이면 처음 고민과 지금의 방향을 비교해 보여드려요.";
-  const visibleProjects = [...growthProjectHistory].reverse().slice(0, 3);
-  const visibleProfessors = [...growthProfessorHistory].reverse().slice(0, 6);
+  const recordedSteps = steps.filter((step) => step.done);
+  const orderedProjects = [...growthProjectHistory].reverse();
+  const orderedProfessors = [...growthProfessorHistory].reverse();
+  const paperCards = cardsForTool(cards, "paper-bite");
+  const paperBundleMap = new Map<string, typeof paperCards>();
+  for (const card of paperCards) {
+    const key = card.bundleId || card.paperId || card.id;
+    const bundle = paperBundleMap.get(key) ?? [];
+    bundle.push(card);
+    paperBundleMap.set(key, bundle);
+  }
+  const paperRecords = [...paperBundleMap.entries()]
+    .map(([id, bundle]) => {
+      const sorted = [...bundle].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      const representative = sorted[0];
+      return {
+        id,
+        title: paperTitleFromCard(representative.title),
+        description: compactRecordText(representative.body),
+        cardCount: bundle.length,
+        updatedAt: representative.updatedAt,
+      };
+    })
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   const currentResultTopicIds = result?.kind === "ok"
     ? result.candidates.map((candidate) => candidate.topic.id)
     : result?.kind === "insufficient"
       ? [result.candidate.topic.id]
       : [];
-  const hasValidCurrentResult = Boolean(
-    selectedTopicId && currentResultTopicIds.includes(selectedTopicId),
-  );
   const conversationCount = aiMessages.filter((message) => message.role === "user").length;
   const conversationBranchCount = aiMessages.filter((message) => message.branchParentMessageId).length;
   const latestConversationReflection = [...aiMessages]
@@ -184,6 +212,28 @@ export function PortfolioHubScreen() {
     ?? latestConversationReflection?.title
     ?? [...aiMessages].reverse().find((message) => message.role === "user")?.content
     ?? "첫 고민을 말하면 생각 지도가 시작돼요";
+  const recordCountByTab: Record<GrowthRecordTab, number> = {
+    flow: recordedCount,
+    experience: recordedSteps.length,
+    projects: orderedProjects.length,
+    professors: orderedProfessors.length,
+    papers: paperRecords.length,
+  };
+  const activeRecordCount = recordCountByTab[activeRecordTab];
+  const visibleRecordedSteps = showAllRecords ? recordedSteps : recordedSteps.slice(0, 3);
+  const visibleProjects = showAllRecords ? orderedProjects : orderedProjects.slice(0, 3);
+  const visibleProfessors = showAllRecords ? orderedProfessors : orderedProfessors.slice(0, 3);
+  const visiblePapers = showAllRecords ? paperRecords : paperRecords.slice(0, 3);
+  const recordListTrailing = activeRecordTab === "flow" ? null : (
+    <div className={growthStyles.recordListTrailing}>
+      <span>{activeRecordCount}개 기록</span>
+      {activeRecordCount > 3 ? (
+        <button type="button" onClick={() => setShowAllRecords((current) => !current)}>
+          {showAllRecords ? "최근 3개" : "전체 보기"} <ArrowRight size={14} aria-hidden="true" />
+        </button>
+      ) : null}
+    </div>
+  );
 
   return (
     <AppShell
@@ -199,7 +249,7 @@ export function PortfolioHubScreen() {
             <p>처음 남긴 고민부터 프로젝트 설계, 교수 연결, 다음 행동까지 내가 이 서비스에서 쌓은 경험을 한곳에서 확인해요.</p>
           </header>
           <dl className={growthStyles.growthOverviewStats} aria-label="성장 기록 전체 요약">
-            <div><dt>기록 단계</dt><dd>{recordedCount}<span>/ 6</span></dd></div>
+            <div><dt>기록 단계</dt><dd>{recordedCount}<span>/ {steps.length}</span></dd></div>
             <div><dt>프로젝트</dt><dd>{growthProjectHistory.length}<span>개</span></dd></div>
             <div><dt>교수 연결</dt><dd>{growthProfessorHistory.length}<span>명</span></dd></div>
             <div><dt>다음 기록</dt><dd className={growthStyles.growthOverviewNext}>{next.title}</dd></div>
@@ -296,145 +346,138 @@ export function PortfolioHubScreen() {
           </Link>
         </section>
 
-        <section
-          className={growthStyles.storySection}
-          aria-labelledby="growth-story-title"
-          data-service-help="growth-story"
-        >
-          <header className={growthStyles.storyHeading}>
-            <div>
-              <h2 id="growth-story-title">내 방향이 구체화된 흐름</h2>
-              <p>{changeSummary}</p>
-            </div>
-            <span>{coDesignAnswers.length ? `AI와 확인한 답변 ${coDesignAnswers.length}개` : "기록을 쌓는 중"}</span>
-          </header>
-          <ol className={growthStyles.storyPath}>
-            <li>
-              <span className={growthStyles.storyIcon}><Route size={20} aria-hidden="true" /></span>
-              <div><small>처음 남긴 고민</small><strong>{startingPoint}</strong></div>
-            </li>
-            <ArrowRight className={growthStyles.storyArrow} size={20} aria-hidden="true" />
-            <li>
-              <span className={growthStyles.storyIcon}><FlaskConical size={20} aria-hidden="true" /></span>
-              <div><small>프로젝트로 구체화</small><strong>{currentDirection}</strong></div>
-            </li>
-            <ArrowRight className={growthStyles.storyArrow} size={20} aria-hidden="true" />
-            <li>
-              <span className={growthStyles.storyIcon}><Sprout size={20} aria-hidden="true" /></span>
-              <div><small>지금 이어가는 행동</small><strong>{currentAction}</strong></div>
-            </li>
-          </ol>
-          <div className={growthStyles.mobileStorySummary}>
-            <div>
-              <small>처음 고민</small>
-              <strong>{startingPoint}</strong>
-            </div>
-            <ArrowRight size={18} aria-hidden="true" />
-            <div>
-              <small>지금의 방향</small>
-              <strong>{currentDirection}</strong>
-            </div>
-          </div>
-          <Link href="/portfolio/builder" className={growthStyles.mobileStoryAction}>
-            전체 성장 흐름 보기 <ArrowRight size={16} aria-hidden="true" />
-          </Link>
-          <p className={growthStyles.storyNote}>선택하고 저장한 기록을 시간 순서대로 모아 성장 흐름을 보여줘요.</p>
-        </section>
-
-        <div className={growthStyles.mobileCompactList}>
-          <HubList
-            title="이 서비스를 통해 쌓은 경험"
-            trailing={(
-              <>
-                <span className={growthStyles.desktopListCount}>{recordedCount} / 6 단계 기록</span>
-                <Link href="/portfolio/builder" className={growthStyles.mobileListAction}>
-                  전체 보기 <ArrowRight size={14} aria-hidden="true" />
-                </Link>
-              </>
-            )}
-          >
-            {visibleSteps.map((step) => {
-              const Icon = step.done ? CheckCircle2 : step.icon;
-              const isCurrent = !step.done && steps.findIndex((item) => !item.done) === steps.indexOf(step);
+        <section className={growthStyles.recordExplorer} aria-label="성장 기록 분류 보기">
+          <nav className={growthStyles.recordTabs} aria-label="성장 기록 분류" role="tablist" aria-orientation="vertical">
+            {GROWTH_RECORD_TABS.map((tab) => {
+              const Icon = tab.icon;
+              const active = tab.id === activeRecordTab;
               return (
-                <HubRow
-                  key={step.id}
-                  icon={Icon}
-                  title={step.done ? step.label : isCurrent ? "아직 비어 있는 기록" : step.label}
-                  description={step.description}
-                  status={step.done ? "기록 있음" : isCurrent ? "다음 단계" : "시작 전"}
-                  href={step.done ? "/portfolio/builder" : step.href}
-                  tone={step.done ? "mint" : isCurrent ? "violet" : "neutral"}
-                />
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  data-active={active}
+                  onClick={() => {
+                    setActiveRecordTab(tab.id);
+                    setShowAllRecords(false);
+                  }}
+                >
+                  <Icon size={17} aria-hidden="true" />
+                  <span>{tab.label}</span>
+                  <strong>{recordCountByTab[tab.id]}</strong>
+                </button>
               );
             })}
-          </HubList>
-        </div>
+          </nav>
 
-        {visibleProjects.length > 0 ? (
-          <div className={growthStyles.mobileCompactList}>
-            <HubList
-              title="프로젝트 설계 기록"
-              trailing={(
-                <>
-                  <span className={growthStyles.desktopListCount}>{growthProjectHistory.length}개 프로젝트</span>
-                  <Link href={hasValidCurrentResult ? "/result" : "/portfolio/builder"} className={growthStyles.mobileListAction}>
-                    {hasValidCurrentResult ? "현재 결과" : "전체 기록"} <ArrowRight size={14} aria-hidden="true" />
-                  </Link>
-                </>
-              )}
-            >
-              {visibleProjects.map((project) => (
-                <HubRow
-                  key={project.topicId}
-                  icon={FlaskConical}
-                  title={project.title}
-                  description={project.question}
-                  status={project.topicId === selectedTopicId ? "현재 프로젝트" : "이전 선택"}
-                  href={growthProjectRecordHref({
-                    recordTopicId: project.topicId,
-                    selectedTopicId,
-                    currentResultTopicIds,
-                  })}
-                  tone={project.topicId === selectedTopicId ? "violet" : "neutral"}
-                />
-              ))}
-            </HubList>
+          <div className={growthStyles.recordPanel}>
+            {activeRecordTab === "flow" ? (
+              <section
+                className={growthStyles.storySection}
+                aria-labelledby="growth-story-title"
+                data-service-help="growth-story"
+              >
+                <header className={growthStyles.storyHeading}>
+                  <div>
+                    <h2 id="growth-story-title">내 방향이 구체화된 흐름</h2>
+                    <p>{changeSummary}</p>
+                  </div>
+                  <span>{coDesignAnswers.length ? `AI와 확인한 답변 ${coDesignAnswers.length}개` : "기록을 쌓는 중"}</span>
+                </header>
+                <ol className={growthStyles.storyPath}>
+                  <li>
+                    <span className={growthStyles.storyIcon}><Route size={20} aria-hidden="true" /></span>
+                    <div><small>처음 남긴 고민</small><strong>{startingPoint}</strong></div>
+                  </li>
+                  <ArrowRight className={growthStyles.storyArrow} size={20} aria-hidden="true" />
+                  <li>
+                    <span className={growthStyles.storyIcon}><FlaskConical size={20} aria-hidden="true" /></span>
+                    <div><small>프로젝트로 구체화</small><strong>{currentDirection}</strong></div>
+                  </li>
+                  <ArrowRight className={growthStyles.storyArrow} size={20} aria-hidden="true" />
+                  <li>
+                    <span className={growthStyles.storyIcon}><Sprout size={20} aria-hidden="true" /></span>
+                    <div><small>지금 이어가는 행동</small><strong>{currentAction}</strong></div>
+                  </li>
+                </ol>
+                <div className={growthStyles.mobileStorySummary}>
+                  <div><small>처음 고민</small><strong>{startingPoint}</strong></div>
+                  <ArrowRight size={18} aria-hidden="true" />
+                  <div><small>지금의 방향</small><strong>{currentDirection}</strong></div>
+                </div>
+                <Link href="/portfolio/builder" className={growthStyles.mobileStoryAction}>
+                  포트폴리오로 정리하기 <ArrowRight size={16} aria-hidden="true" />
+                </Link>
+                <p className={growthStyles.storyNote}>선택하고 저장한 기록을 시간 순서대로 모아 성장 흐름을 보여줘요.</p>
+              </section>
+            ) : null}
+
+            {activeRecordTab === "experience" ? (
+              <HubList title="이 서비스를 통해 쌓은 경험" trailing={recordListTrailing}>
+                {visibleRecordedSteps.length ? visibleRecordedSteps.map((step) => (
+                  <HubRow key={step.id} icon={CheckCircle2} title={step.label} description={step.description} status="기록 있음" href="/portfolio/builder" tone="mint" />
+                )) : (
+                  <div className={growthStyles.recordEmpty}><p>아직 쌓인 경험 기록이 없어요.</p><Link href="/research">프로젝트부터 시작하기</Link></div>
+                )}
+              </HubList>
+            ) : null}
+
+            {activeRecordTab === "projects" ? (
+              <HubList title="프로젝트 설계 기록" trailing={recordListTrailing}>
+                {visibleProjects.length ? visibleProjects.map((project) => (
+                  <HubRow
+                    key={project.topicId}
+                    icon={FlaskConical}
+                    title={project.title}
+                    description={project.question}
+                    status={project.topicId === selectedTopicId ? "현재 프로젝트" : "저장한 프로젝트"}
+                    href={growthProjectRecordHref({ recordTopicId: project.topicId, selectedTopicId, currentResultTopicIds })}
+                    tone={project.topicId === selectedTopicId ? "violet" : "neutral"}
+                  />
+                )) : (
+                  <div className={growthStyles.recordEmpty}><p>저장한 프로젝트가 아직 없어요.</p><Link href="/research">프로젝트 설계하기</Link></div>
+                )}
+              </HubList>
+            ) : null}
+
+            {activeRecordTab === "professors" ? (
+              <HubList title="지금까지 연결한 교수님" trailing={recordListTrailing}>
+                {visibleProfessors.length ? visibleProfessors.map((record) => (
+                  <HubRow
+                    key={`${record.source}-${record.professorId}`}
+                    icon={GraduationCap}
+                    title={`${record.name} ${record.title}`}
+                    description={`${record.department || record.college} · ${record.reason}`}
+                    status={`${PROFESSOR_SOURCE_LABEL[record.source]} · ${PROFESSOR_ROLE_LABEL[record.role]}${record.selectedAt ? " · 선택" : ""}`}
+                    href={record.source === "project" ? `/professors/${record.professorId}?from=portfolio&journey=project` : `/professors/${record.professorId}?from=portfolio`}
+                    tone={record.selectedAt ? "mint" : record.source === "project" ? "violet" : "neutral"}
+                  />
+                )) : (
+                  <div className={growthStyles.recordEmpty}><p>연결한 교수님이 아직 없어요.</p><Link href="/professors">교수님 찾기</Link></div>
+                )}
+              </HubList>
+            ) : null}
+
+            {activeRecordTab === "papers" ? (
+              <HubList title="내가 읽은 논문" trailing={recordListTrailing}>
+                {visiblePapers.length ? visiblePapers.map((paper) => (
+                  <HubRow
+                    key={paper.id}
+                    icon={BookOpenCheck}
+                    title={paper.title}
+                    description={paper.description}
+                    status={`${paper.cardCount}장 카드 · ${new Date(paper.updatedAt).toLocaleDateString("ko-KR")}`}
+                    href="/quest/saved"
+                    tone="mint"
+                  />
+                )) : (
+                  <div className={growthStyles.recordEmpty}><p>저장한 논문 한입 카드가 아직 없어요.</p><Link href="/paper/reader?mode=bite&source=favorites">논문 읽기 시작</Link></div>
+                )}
+              </HubList>
+            ) : null}
           </div>
-        ) : null}
-
-        {visibleProfessors.length > 0 ? (
-          <div className={growthStyles.mobileCompactList}>
-            <HubList
-              title="지금까지 연결한 교수님"
-              trailing={(
-                <>
-                  <span className={growthStyles.desktopListCount}>{growthProfessorHistory.length}명 기록</span>
-                  <Link href="/portfolio/builder" className={growthStyles.mobileListAction}>
-                    연결 기록 <ArrowRight size={14} aria-hidden="true" />
-                  </Link>
-                </>
-              )}
-            >
-              {visibleProfessors.map((record) => (
-                <HubRow
-                  key={`${record.source}-${record.professorId}`}
-                  icon={GraduationCap}
-                  title={`${record.name} ${record.title}`}
-                  description={`${record.department || record.college} · ${record.reason}`}
-                  status={record.selectedAt
-                    ? "선택한 교수"
-                    : `${PROFESSOR_SOURCE_LABEL[record.source]} · ${PROFESSOR_ROLE_LABEL[record.role]}`}
-                  href={record.source === "project"
-                    ? `/professors/${record.professorId}?from=portfolio&journey=project`
-                    : `/professors/${record.professorId}?from=portfolio`}
-                  tone={record.selectedAt ? "mint" : record.source === "project" ? "violet" : "neutral"}
-                />
-              ))}
-            </HubList>
-          </div>
-        ) : null}
-
+        </section>
         <HubUtilityLinks>
           <HubUtilityLink icon={FileText} href="/portfolio/builder">포트폴리오 만들기</HubUtilityLink>
         </HubUtilityLinks>

@@ -185,8 +185,31 @@ test("교수 매칭 튜토리얼은 최소 설정 뒤 확인 화면으로 이어
     path.join(repositoryRoot, "components/tutorial/professor-tutorial-screen.tsx"),
     "utf8",
   );
+  const directFormSource = fs.readFileSync(
+    path.join(repositoryRoot, "components/screens/official-professor-screens.tsx"),
+    "utf8",
+  );
 
   assert.match(source, /const SETUP_STEPS = \["academic", "interests"\] as const;/);
+  assert.equal("PRESENTATION_PROFESSOR_DEFAULTS" in discoveryModule, false);
+  assert.doesNotMatch(source, /PRESENTATION_PROFESSOR_DEFAULTS/);
+  assert.doesNotMatch(directFormSource, /PRESENTATION_PROFESSOR_DEFAULTS/);
+  const blankTutorialContextPattern = /\{\s*\.\.\.EMPTY_PROFESSOR_DISCOVERY_CONTEXT,\s*university: taxonomy\.university,\s*interests: \[\],\s*careerInterests: \[\],\s*careerConcerns: \[\],\s*\}/g;
+  assert.equal(
+    source.match(blankTutorialContextPattern)?.length,
+    2,
+    "튜토리얼 최초 진입과 재시작 모두 단과대·주전공·관심 분야가 비어 있어야 한다",
+  );
+  assert.match(
+    directFormSource,
+    /\{\s*\.\.\.EMPTY_PROFESSOR_DISCOVERY_CONTEXT,\s*interests: \[\],\s*careerInterests: \[\],\s*careerConcerns: \[\],\s*\}/,
+  );
+  assert.match(source, /major-evolution-professor-tutorial-v2/);
+  assert.doesNotMatch(source, /major-evolution-professor-tutorial-v7/);
+  assert.doesNotMatch(source, /college:\s*["']SW융합대학["']/);
+  assert.doesNotMatch(source, /major:\s*["']통계데이터사이언스학과["']/);
+  assert.doesNotMatch(directFormSource, /college:\s*["']SW융합대학["']/);
+  assert.doesNotMatch(directFormSource, /major:\s*["']통계데이터사이언스학과["']/);
   assert.match(source, /title: "이제 교수님을 찾으러 가볼까요\?"/);
   assert.match(source, />교수님 찾기 <ArrowRight/);
   assert.match(source, /const profileState = useProfileStore\.getState\(\);/);
@@ -228,6 +251,7 @@ test("진로 고민과 만남 맥락은 공식 연구근거 검색문에 섞지 
   };
   const topic = discoveryModule.discoveryContextToMatchTopic(context, null);
   const text = evidenceModule.buildProfessorEvidenceText(topic);
+  const roleText = evidenceModule.buildProfessorRoleEvidenceText(topic);
 
   assert.match(text, /경제학과/);
   assert.match(text, /소프트웨어학과/);
@@ -246,6 +270,14 @@ test("진로 고민과 만남 맥락은 공식 연구근거 검색문에 섞지 
     /전공 관점에서 어떻게 탐색할 수 있을까/,
     "찾다 폼의 자동 생성 질문은 공식 연구근거 검색문에서 제외해야 한다",
   );
+  assert.match(roleText.topic, /AI·데이터/);
+  assert.match(roleText.method, /^$/);
+  assert.match(roleText.context, /데이터·AI 직무/);
+  assert.match(roleText.context, /진로 경험과 준비법/);
+  assert.match(roleText.context, /통계 수업과 설문 프로젝트 경험/);
+  assert.doesNotMatch(roleText.topic, /경제학과|소프트웨어학과/);
+  assert.doesNotMatch(roleText.method, /경제학과|소프트웨어학과/);
+  assert.doesNotMatch(roleText.context, /오피스아워|포트폴리오가 부족해요/);
 });
 
 test("기본·심층 맥락은 세 개의 면담 질문으로 변환된다", () => {
@@ -286,6 +318,81 @@ test("기본·심층 맥락은 세 개의 면담 질문으로 변환된다", () 
   }, "[redacted-phone] : 고효율 무선 전력 장치")[0];
   assert.doesNotMatch(redactedQuestion, /redacted/);
   assert.match(redactedQuestion, /고효율 무선 전력 장치/);
+});
+
+test("심층분석 전환은 현재 관심 분야와 직접 입력 초안을 한 번에 확정한다", () => {
+  const context = {
+    ...discoveryModule.EMPTY_PROFESSOR_DISCOVERY_CONTEXT,
+    university: "단국대학교",
+    college: "공공인재대학",
+    major: "식품자원경제학과",
+    studentStage: "진로를 다시 탐색하는 중",
+    goal: "대학원·연구실 탐색",
+    interests: ["AI·데이터", "SW·보안", "경제·금융", "식품·농업"],
+    careerConcerns: ["인턴·프로젝트 경험", "취업과 대학원 사이"],
+  };
+  const prepared = discoveryModule.prepareProfessorDiscoveryDeepTransition(
+    context,
+    "  농산물 가격예측  ",
+  );
+
+  assert.equal(prepared.error, null);
+  assert.deepEqual(prepared.context.interests, [
+    "AI·데이터",
+    "SW·보안",
+    "경제·금융",
+    "식품·농업",
+    "농산물 가격예측",
+  ]);
+  assert.deepEqual(context.interests, ["AI·데이터", "SW·보안", "경제·금융", "식품·농업"]);
+  assert.deepEqual(
+    discoveryModule.discoveryContextToMatchTopic(prepared.context, null).interests,
+    prepared.context.interests,
+  );
+
+  const duplicate = discoveryModule.prepareProfessorDiscoveryDeepTransition(
+    prepared.context,
+    "식품·농업",
+  );
+  assert.equal(duplicate.error, null);
+  assert.deepEqual(duplicate.context.interests, prepared.context.interests);
+
+  const overflow = discoveryModule.prepareProfessorDiscoveryDeepTransition(
+    prepared.context,
+    "환경·ESG",
+  );
+  assert.match(overflow.error, /최대 5개/);
+  assert.deepEqual(overflow.context.interests, prepared.context.interests);
+});
+
+test("심층분석과 기본분석 복귀는 동일한 관심 분야 context를 사용한다", () => {
+  const source = fs.readFileSync(
+    path.join(repositoryRoot, "components/screens/professor-discovery-form.tsx"),
+    "utf8",
+  );
+  const continueBlock = source.slice(
+    source.indexOf("  const continueToDeepAnalysis = () => {"),
+    source.indexOf("\n\n  return ("),
+  );
+  assert.match(continueBlock, /prepareProfessorDiscoveryDeepTransition\(context, customInterest\)/);
+  assert.match(continueBlock, /interests: \[\.\.\.prepared\.context\.interests\]/);
+  assert.ok(
+    continueBlock.indexOf("changeContext") < continueBlock.indexOf("setStep(2)"),
+    "최신 관심 분야를 부모 context에 반영한 뒤 심층 단계로 이동해야 한다",
+  );
+
+  const deepBlock = source.slice(
+    source.indexOf('<div className="professor-discovery-step" data-step="deep">'),
+    source.indexOf("{(stepError || inputError)"),
+  );
+  assert.match(deepBlock, /aria-label="심층분석에 반영된 관심 분야"/);
+  assert.match(deepBlock, /context\.interests\.map/);
+  const backButton = deepBlock.slice(
+    deepBlock.indexOf('className="discovery-back-button"'),
+    deepBlock.indexOf("<PrimaryButton onClick={submit}"),
+  );
+  assert.match(backButton, /onClick=\{\(\) => setStep\(1\)\}/);
+  assert.doesNotMatch(backButton, /changeContext|onContextChange|interests:/);
 });
 
 test("새로고침용 매칭 요청에서 교수 찾기 맥락을 복원한다", () => {
@@ -608,7 +715,7 @@ test("새 연구주제로 전환하면 프로젝트 자문 추천만 초기화�
   );
 });
 
-test("첫 교수 매칭은 주전공·부전공·복수전공 중 한 명 뒤에 외부 주제·방법 후보를 둔다", () => {
+test("첫 교수 매칭은 입력한 학업 소속을 연결하고 전체 후보에서 주제·방법 근거를 비교한다", () => {
   const matcher = fs.readFileSync(
     path.join(repositoryRoot, "lib/professor-data.server.ts"),
     "utf8",
@@ -618,8 +725,11 @@ test("첫 교수 매칭은 주전공·부전공·복수전공 중 한 명 뒤에
     "utf8",
   );
 
-  assert.match(matcher, /departmentMatchesMajor\)\s*\.sort/);
-  assert.match(matcher, /!item\.match\.decisionBasis\.departmentMatchesMajor/);
+  assert.match(matcher, /const academicHomeCandidates = officialProfileCandidates/);
+  assert.match(matcher, /const primaryMajorCandidates = academicHomeCandidates\.filter/);
+  assert.match(matcher, /const hasSecondaryAcademicAffiliation = Boolean/);
+  assert.match(matcher, /hasSecondaryAcademicAffiliation[\s\S]*\? academicHomeCandidates/);
+  assert.doesNotMatch(matcher, /!item\.match\.decisionBasis\.departmentMatchesMajor/);
   assert.match(matcher, /academicAffiliations/);
   assert.match(matcher, /topic\.secondaryMajor/);
   assert.match(matcher, /matchedAcademicAffiliation/);
@@ -628,7 +738,7 @@ test("첫 교수 매칭은 주전공·부전공·복수전공 중 한 명 뒤에
   assert.match(matcher, /affiliation\?\.label === "복수전공"/);
   assert.match(matcher, /affiliation\?\.label === "부전공"/);
   assert.match(matcher, /\["CONTEXT", "TOPIC", "METHOD"\]/);
-  assert.match(matcher, /homeCollege/);
+  assert.doesNotMatch(matcher, /homeCollege|leftSharesCollege|rightSharesCollege|usedExternalDepartments|externalCandidates/);
   assert.match(route, /journey: isProjectMentorRequest \? "project" : "student"/);
   assert.match(
     matcher,
@@ -644,10 +754,65 @@ test("첫 교수 매칭은 주전공·부전공·복수전공 중 한 명 뒤에
     path.join(repositoryRoot, "components/screens/professor-discovery-form.tsx"),
     "utf8",
   );
-  assert.match(store, /version:\s*9/);
+  assert.match(store, /version:\s*10/);
   assert.match(store, /persistedVersion < 7[\s\S]*secondaryMajor/);
   assert.match(store, /selectionPolicy:\s*response\.selectionPolicy/);
   assert.match(discoveryForm, /부·복수전공도 가까운 학과 연결 범위에 포함/);
+  assert.match(discoveryForm, /onClick=\{continueToDeepAnalysis\}/);
+  assert.match(discoveryForm, /prepareProfessorDiscoveryDeepTransition\(context, customInterest\)/);
+  assert.match(discoveryForm, /심층분석에 반영된 관심 분야/);
+});
+
+test("교수 추천 정책은 학업 소속 한 자리와 공식 근거 기반 주제·방법 자리를 분리한다", () => {
+  const source = fs.readFileSync(
+    path.join(repositoryRoot, "lib/professor-data.server.ts"),
+    "utf8",
+  );
+  const domain = fs.readFileSync(
+    path.join(repositoryRoot, "lib/professor-domain.ts"),
+    "utf8",
+  );
+
+  assert.match(domain, /OFFICIAL_EVIDENCE_RULES_V8/);
+  assert.match(source, /label: "경제·금융"/);
+  assert.match(source, /label: "SW·보안"/);
+  assert.match(source, /topicTerms: \[[\s\S]*"경제·금융"[\s\S]*"금융"/);
+  assert.match(source, /specificRoleTerms/);
+  assert.match(source, /buildProfessorRoleEvidenceText/);
+  assert.match(source, /roleEvidence\.context/);
+  assert.match(source, /label: "피드백·진로 대화"/);
+  assert.match(source, /const findCandidate = \(requireDirectRole: boolean\) =>[\s\S]*officialCandidates/);
+  assert.match(source, /if \(requireDirectRole && !item\.match\.decisionBasis\.roleMatches\[roleKey\]\) return false/);
+  assert.match(source, /right\.roleEvidenceCounts\[role\] - left\.roleEvidenceCounts\[role\]/);
+  assert.doesNotMatch(source, /leftSharesCollege|rightSharesCollege/);
+  const roleComparator = source.slice(
+    source.indexOf("function compareForRole"),
+    source.indexOf("function presentAsRole"),
+  );
+  assert.equal(
+    (roleComparator.match(/departmentMatchesMajor/g) ?? []).length,
+    3,
+    "주전공 일치 여부는 CONTEXT 비교에서만 사용해야 한다",
+  );
+  assert.ok(
+    roleComparator.indexOf("explicitRoleEvidenceTerms")
+      < roleComparator.indexOf("roleEvidenceCounts"),
+    "세 글자 이상의 입력 고유어 직접 근거가 일반 개념 근거보다 먼저 비교돼야 한다",
+  );
+  assert.match(roleComparator, /filter\(\(term\) => term\.length >= 3\)/);
+  assert.ok(
+    roleComparator.indexOf("roleEvidenceCounts")
+      < roleComparator.indexOf("exactCountDifference"),
+    "두 글자 단일 직접어는 여러 공식 개념 근거를 무조건 앞서면 안 된다",
+  );
+  assert.ok(
+    source.indexOf('for (const role of ["TOPIC", "METHOD"] as const)')
+      < source.indexOf("const homeDepartmentCandidate = homeCandidatePool.find"),
+    "주제·방법 최적 후보를 예약한 뒤 남은 학업 소속 교수를 연결해야 한다",
+  );
+  assert.match(source, /입력한 주전공과 부·복수전공/);
+  assert.match(source, /주제·방법 연결은 학과를 제한하지 않은 전체 후보에서 역할별 공식 근거가 가장 강한 교수/);
+  assert.match(source, /다른 공식 연구 연결 근거가 있는 후보만 제한적으로 보완/);
 });
 
 test("전공 아이디어 튜토리얼은 최종 확인 전 로컬 초안만 쓰고 한 번에 공동설계를 시작한다", () => {

@@ -137,6 +137,27 @@ test("선택 메타데이터는 교수와 논문의 공식 ID를 함께 보존�
   assert.equal(selection.officialProfileUrl, "https://example.edu/professor");
 });
 
+test("영문 논문도 한글 카드로 만들고 결과에서 다시 번역할 수 있다", () => {
+  const serverSource = fs.readFileSync(
+    path.join(repositoryRoot, "lib/openai-server.ts"),
+    "utf8",
+  );
+  const readerSource = fs.readFileSync(
+    path.join(repositoryRoot, "components/paper-reader/paper-reader-shell.tsx"),
+    "utf8",
+  );
+
+  assert.match(
+    serverSource,
+    /최종 JSON의 모든 설명과 질문은 반드시 자연스러운 한국어로 작성하세요/,
+  );
+  assert.match(serverSource, /영문 문장을 그대로 출력하지 말고/);
+  assert.match(readerSource, /onClick=\{\(\) => void analyze\("translate"\)\}/);
+  assert.match(readerSource, /한글로 번역 중/);
+  assert.match(readerSource, /> 한글로 번역</);
+  assert.match(readerSource, /카드 5장을 자연스러운 한글로 다시 만들었어요/);
+});
+
 test("DOI가 있는 공식 논문은 공개 초록을 순서대로 복원한다", async () => {
   const requests = [];
   const result = await contentLookupModule.lookupPublicPaperContent({

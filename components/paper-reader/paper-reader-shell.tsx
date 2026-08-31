@@ -10,6 +10,7 @@ import {
   Copy,
   ExternalLink,
   FileSearch,
+  Languages,
   Lightbulb,
   ListChecks,
   LoaderCircle,
@@ -641,7 +642,7 @@ export function PaperReaderShell({
     ].filter(Boolean).join("\n\n");
   }, [analysis, displayTitle, draft, evidence.label, verifiedProfessorPaper]);
 
-  const analyze = async () => {
+  const analyze = async (mode: "initial" | "translate" = "initial") => {
     const normalized = content.trim();
     if (normalized.length < MIN_CONTENT_LENGTH) {
       setError(`논문 초록이나 본문 일부를 ${MIN_CONTENT_LENGTH}자 이상 입력해 주세요.`);
@@ -667,13 +668,16 @@ export function PaperReaderShell({
       if (controller.signal.aborted) return;
       setAnalysis(nextAnalysis);
       setDraft(createBiteDraft(nextAnalysis));
+      if (mode === "translate") {
+        setFeedback("카드 5장을 자연스러운 한글로 다시 만들었어요.");
+      }
     } catch (requestError) {
       if (requestError instanceof DOMException && requestError.name === "AbortError") return;
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "논문 분석을 완료하지 못했습니다.",
-      );
+      const message = requestError instanceof Error
+        ? requestError.message
+        : "논문 분석을 완료하지 못했습니다.";
+      if (mode === "translate") setFeedback(message);
+      else setError(message);
     } finally {
       if (analysisAbortControllerRef.current === controller) {
         analysisAbortControllerRef.current = null;
@@ -867,6 +871,17 @@ export function PaperReaderShell({
         <SectionHeading
           title="교수님께 가져갈 논문 한입"
           description="원문과 함께 보며 핵심을 내 말로 다듬어 저장하세요."
+          action={(
+            <SecondaryButton
+              type="button"
+              onClick={() => void analyze("translate")}
+              disabled={isLoading}
+            >
+              {isLoading
+                ? <><LoaderCircle size={17} className="spin" aria-hidden="true" /> 한글로 번역 중</>
+                : <><Languages size={17} aria-hidden="true" /> 한글로 번역</>}
+            </SecondaryButton>
+          )}
         />
 
         <div className="paper-bite-grid">
@@ -1137,7 +1152,7 @@ export function PaperReaderShell({
             {error && <p className="field-error" role="alert">{error}</p>}
             <PrimaryButton
               type="button"
-              onClick={analyze}
+              onClick={() => void analyze()}
               disabled={
                 isLoading
                 || paperContentStatus === "loading"

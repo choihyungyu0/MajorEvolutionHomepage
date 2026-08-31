@@ -62,14 +62,22 @@ test("OpenAI 키는 서버 경로에서만 사용하고 오류에도 학생 메�
   assert.match(route, /FRIENDLY_ERROR_MESSAGES\[serviceError\.code\]/);
 });
 
-test("AI 교수님은 사용자가 실제로 선택한 교수만 연결 맥락으로 사용한다", () => {
+test("AI 교수님은 교수 매칭과 프로젝트에서 실제 선택한 교수를 각각 맥락으로 사용한다", () => {
   const contextBlock = screen.slice(
     screen.indexOf("const context = useMemo"),
     screen.indexOf("const lastMessage ="),
   );
-  assert.match(contextBlock, /find\(\(item\) => item\.selectedAt\)/);
+  assert.match(contextBlock, /professorMatches\.find\(\(item\) => item\.professor\.id === selectedProfessorId\)/);
+  assert.match(contextBlock, /projectProfessorMatches\.find\(\(item\) => item\.professor\.id === selectedProjectProfessorId\)/);
+  assert.match(contextBlock, /item\.selectedAt && item\.source === "student"/);
+  assert.match(contextBlock, /item\.selectedAt && item\.source === "project"/);
   assert.doesNotMatch(contextBlock, /professors\.at\(-1\)/);
+  assert.match(screen, /교수 매칭 연결/);
+  assert.match(screen, /프로젝트 교수 연결/);
   assert.match(screen, /아직 선택한 교수 없음/);
+  assert.match(screen, /아직 선택한 프로젝트 교수 없음/);
+  assert.match(server, /projectProfessor: context\.projectProfessor/);
+  assert.match(server, /교수 매칭 연결 교수와 프로젝트 연결 교수는 서로 다른 경로의 맥락/);
 });
 
 test("AI 교수님은 대학생에게 핵심, 두 선택지, 질문 순서로 짧게 답한다", () => {

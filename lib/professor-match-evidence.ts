@@ -1,5 +1,37 @@
 import type { ProfessorMatchTopic } from "@/lib/professor-domain";
 
+export type ProfessorRoleEvidenceText = {
+  topic: string;
+  method: string;
+  context: string;
+};
+
+/**
+ * 주제·방법의 직접 입력과 대화 목적의 보조 입력을 역할별로 분리합니다.
+ * 전공은 학업 소속 자리에서만 사용하고, TOPIC·METHOD의 내용 적합도에는 섞지 않습니다.
+ * 만날 상황은 교수의 가능 여부 근거가 아니므로 여기에도 넣지 않습니다.
+ */
+export function buildProfessorRoleEvidenceText(
+  topic: ProfessorMatchTopic,
+): ProfessorRoleEvidenceText {
+  const explicitResearchQuestion = topic.id.startsWith("discovery:")
+    ? ""
+    : topic.question;
+  return {
+    topic: [
+      topic.title,
+      explicitResearchQuestion,
+      ...topic.interests,
+    ].filter(Boolean).join(" "),
+    method: [topic.methodDetail, ...topic.methods].filter(Boolean).join(" "),
+    context: [
+      ...(topic.careerInterests ?? []),
+      topic.preferredSupport,
+      topic.experience,
+    ].filter(Boolean).join(" "),
+  };
+}
+
 /**
  * 교수의 공식 연구분야·논문과 직접 대조할 입력만 반환합니다.
  * 진로 고민·학년·만남 방식·자유 맥락은 면담 질문 개인화에만 사용합니다.
