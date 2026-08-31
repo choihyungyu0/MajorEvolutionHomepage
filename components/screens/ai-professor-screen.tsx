@@ -107,6 +107,10 @@ export function AiProfessorScreen() {
   const directionBaseline = useResearchStore((state) => state.growthDirectionBaseline);
   const projects = useResearchStore((state) => state.growthProjectHistory);
   const professors = useResearchStore((state) => state.growthProfessorHistory);
+  const professorMatches = useResearchStore((state) => state.professorMatches);
+  const selectedProfessorId = useResearchStore((state) => state.selectedProfessorId);
+  const projectProfessorMatches = useResearchStore((state) => state.projectProfessorMatches);
+  const selectedProjectProfessorId = useResearchStore((state) => state.selectedProjectProfessorId);
 
   const hasAiHydrated = useAiProfessorStore((state) => state.hasHydrated);
   const messages = useAiProfessorStore((state) => state.messages);
@@ -139,8 +143,19 @@ export function AiProfessorScreen() {
 
   const context = useMemo<GrowthProfessorContext>(() => {
     const latestProject = projects.at(-1) ?? null;
-    const latestProfessor = [...professors].reverse().find((item) => item.selectedAt)
-      ?? null;
+    const professorHistory = [...professors].reverse();
+    const selectedProfessorMatch = selectedProfessorId
+      ? professorMatches.find((item) => item.professor.id === selectedProfessorId) ?? null
+      : null;
+    const selectedProjectProfessorMatch = selectedProjectProfessorId
+      ? projectProfessorMatches.find((item) => item.professor.id === selectedProjectProfessorId) ?? null
+      : null;
+    const latestProfessor = professorHistory.find(
+      (item) => item.selectedAt && item.source === "student",
+    ) ?? null;
+    const latestProjectProfessor = professorHistory.find(
+      (item) => item.selectedAt && item.source === "project",
+    ) ?? null;
     return {
       major: conditions.major || discovery?.major || directionBaseline?.major || "전공 미입력",
       interests: conditions.interests.length
@@ -156,13 +171,45 @@ export function AiProfessorScreen() {
         question: latestProject.question,
         firstAction: "다음 행동을 대화로 구체화하는 중",
       } : null,
-      professor: latestProfessor ? {
-        name: latestProfessor.name,
-        department: latestProfessor.department || latestProfessor.college,
-        reason: latestProfessor.reason,
-      } : null,
+      professor: selectedProfessorMatch
+        ? {
+            name: selectedProfessorMatch.professor.name,
+            department: selectedProfessorMatch.professor.department,
+            reason: selectedProfessorMatch.reason,
+          }
+        : latestProfessor
+          ? {
+              name: latestProfessor.name,
+              department: latestProfessor.department || latestProfessor.college,
+              reason: latestProfessor.reason,
+            }
+          : null,
+      projectProfessor: selectedProjectProfessorMatch
+        ? {
+            name: selectedProjectProfessorMatch.professor.name,
+            department: selectedProjectProfessorMatch.professor.department,
+            reason: selectedProjectProfessorMatch.mentorFitReason
+              || selectedProjectProfessorMatch.reason,
+          }
+        : latestProjectProfessor
+          ? {
+              name: latestProjectProfessor.name,
+              department: latestProjectProfessor.department || latestProjectProfessor.college,
+              reason: latestProjectProfessor.reason,
+            }
+          : null,
     };
-  }, [conditions, directionBaseline, discovery, professors, projects]);
+  }, [
+    conditions,
+    directionBaseline,
+    discovery,
+    professorMatches,
+    professors,
+    projectProfessorMatches,
+    projects,
+    selectedProfessorId,
+    selectedProjectProfessorId,
+  ]);
 
   const lastMessage = messages.at(-1) ?? null;
   const lastAssistantMessage = lastMessage?.role === "assistant" ? lastMessage : null;
@@ -511,9 +558,10 @@ export function AiProfessorScreen() {
                 <div><dt>전공</dt><dd>{context.major}</dd></div>
                 <div><dt>관심</dt><dd>{context.interests.length ? context.interests.join(" · ") : "대화로 찾아가는 중"}</dd></div>
                 <div><dt>프로젝트</dt><dd>{context.project?.title ?? "아직 선택한 프로젝트 없음"}</dd></div>
-                <div><dt>연결 교수</dt><dd>{context.professor ? `${context.professor.name} 교수` : "아직 선택한 교수 없음"}</dd></div>
+                <div><dt>교수 매칭 연결</dt><dd>{context.professor ? `${context.professor.name} 교수 · ${context.professor.department}` : "아직 선택한 교수 없음"}</dd></div>
+                <div><dt>프로젝트 교수 연결</dt><dd>{context.projectProfessor ? `${context.projectProfessor.name} 교수 · ${context.projectProfessor.department}` : "아직 선택한 프로젝트 교수 없음"}</dd></div>
               </dl>
-              <p>저장한 전공·관심·프로젝트·교수 정보를 대화 맥락으로 함께 볼 수 있어요.</p>
+              <p>저장한 전공·관심·프로젝트와 두 경로의 교수 연결 정보를 대화 맥락으로 함께 볼 수 있어요.</p>
             </section>
 
             <section className={styles.noteSection}>

@@ -767,15 +767,28 @@ test("성장 허브는 AI 교수님을 핵심 경험으로, 다음 기록은 보
   assert.match(serviceHubStyleSource, /@media \(max-width: 640px\)[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(portfolioHubSource, /id: "topic"[\s\S]*href: "\/research"/);
   assert.match(portfolioHubSource, /id: "professor"[\s\S]*href: "\/professors"/);
+  assert.doesNotMatch(portfolioHubSource, /id: "prepare"|id: "actions"/);
 });
 
-test("모바일 성장 허브는 대표 변화와 최근 대화 지도만 먼저 보여준다", () => {
+test("성장 허브는 왼쪽 분류 탭에서 흐름·경험·프로젝트·교수·논문 기록을 전환한다", () => {
+  assert.doesNotMatch(portfolioHubStyleSource, /^\+/m);
   assert.match(portfolioHubSource, /latestMapSummary/);
   assert.match(portfolioHubSource, /aiProfessorMapPreview/);
   assert.match(portfolioHubSource, /mobileStorySummary/);
-  assert.match(portfolioHubSource, /mobileCompactList/);
+  assert.match(portfolioHubSource, /type GrowthRecordTab = "flow" \| "experience" \| "projects" \| "professors" \| "papers"/);
+  assert.match(portfolioHubSource, /성장 흐름/);
+  assert.match(portfolioHubSource, /쌓은 경험/);
+  assert.match(portfolioHubSource, /연결 교수/);
+  assert.match(portfolioHubSource, /내가 읽은 논문/);
+  assert.match(portfolioHubSource, /recordedSteps\.slice\(0, 3\)/);
+  assert.match(portfolioHubSource, /orderedProjects\.slice\(0, 3\)/);
+  assert.match(portfolioHubSource, /orderedProfessors\.slice\(0, 3\)/);
+  assert.match(portfolioHubSource, /paperRecords\.slice\(0, 3\)/);
+  assert.match(portfolioHubSource, /showAllRecords \? "최근 3개" : "전체 보기"/);
+  assert.match(portfolioHubSource, /paperBundleMap/);
+  assert.match(portfolioHubStyleSource, /\.recordExplorer[\s\S]*grid-template-columns: 190px minmax\(0, 1fr\)/);
+  assert.match(portfolioHubStyleSource, /@media \(max-width: 700px\)[\s\S]*\.recordTabs[\s\S]*grid-auto-flow: column/);
   assert.match(portfolioHubStyleSource, /@media \(max-width: 1023px\)[\s\S]*\.storyPath \{[\s\S]*display: none;/);
-  assert.match(portfolioHubStyleSource, /\.mobileCompactList > section > div:last-child > a:nth-child\(n \+ 2\)/);
   assert.match(portfolioHubStyleSource, /calc\(112px \+ env\(safe-area-inset-bottom\)\)/);
 });
 

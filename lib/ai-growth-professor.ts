@@ -1,3 +1,9 @@
+export type GrowthProfessorConnection = {
+  name: string;
+  department: string;
+  reason: string;
+};
+
 export type GrowthProfessorContext = {
   major: string;
   interests: string[];
@@ -7,11 +13,8 @@ export type GrowthProfessorContext = {
     question: string;
     firstAction: string;
   } | null;
-  professor: {
-    name: string;
-    department: string;
-    reason: string;
-  } | null;
+  professor: GrowthProfessorConnection | null;
+  projectProfessor: GrowthProfessorConnection | null;
 };
 export type GrowthProfessorMessage = {
   role: "user" | "assistant";

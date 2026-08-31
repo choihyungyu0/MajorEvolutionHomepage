@@ -5098,9 +5098,10 @@ strong {
   .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mini-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-  /* 포트폴리오는 타임라인 · 단계 상세 · 미리보기 3단입니다. */
+  /* 중간 화면에서는 단계와 상세를 우선하고, 미리보기는 아래 넓은 영역으로 보냅니다. */
   .portfolio-screen.app-viewport { max-width: 1200px; }
-  .pf-layout { grid-template-columns: 258px minmax(0, 1fr) 288px; align-items: start; gap: 16px; }
+  .pf-layout { grid-template-columns: 230px minmax(0, 1fr); align-items: start; gap: 16px; }
+  .pf-preview-panel { grid-column: 1 / -1; }
   .pf-compare { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
 
   .courses-screen.app-viewport { max-width: 980px; }
@@ -5117,6 +5118,8 @@ strong {
 }
 
 @media (min-width: 1280px) {
+  .pf-layout { grid-template-columns: 248px minmax(0, 1fr) 292px; }
+  .pf-preview-panel { grid-column: auto; }
   .match-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 

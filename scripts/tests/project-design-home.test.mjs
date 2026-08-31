@@ -27,12 +27,24 @@ const projectHomeSource = readFileSync(
   new URL("../../components/screens/project-design-home-screen.tsx", import.meta.url),
   "utf8",
 );
+const researchStoreSource = readFileSync(
+  new URL("../../store/research-store.ts", import.meta.url),
+  "utf8",
+);
 const conditionsPageSource = readFileSync(
   new URL("../../app/research/conditions/page.tsx", import.meta.url),
   "utf8",
 );
 const conditionsScreenSource = readFileSync(
   new URL("../../components/screens/research-condition.tsx", import.meta.url),
+  "utf8",
+);
+const portfolioBuilderSource = readFileSync(
+  new URL("../../components/screens/portfolio-screen.tsx", import.meta.url),
+  "utf8",
+);
+const globalStylesSource = readFileSync(
+  new URL("../../app/globals.css", import.meta.url),
   "utf8",
 );
 
@@ -74,6 +86,21 @@ test("프로젝트 홈의 진행률은 조건·공동설계·후보·선택 네 
   });
 });
 
+test("현재 프로젝트를 기록에 남기고 새 설계 상태만 초기화한다", () => {
+  assert.match(projectHomeSource, /현재 프로젝트 저장하고 새로 설계/);
+  assert.match(projectHomeSource, /localStorage\.removeItem\("major-evolution-research-tutorial-v1"\)/);
+  assert.match(projectHomeSource, /saveCurrentProjectAndStartNew\(\);[\s\S]*router\.push\("\/research\/tutorial"\)/);
+  const action = researchStoreSource.slice(
+    researchStoreSource.lastIndexOf("  saveCurrentProjectAndStartNew: () =>"),
+    researchStoreSource.lastIndexOf("  removeGrowthProjectRecord:"),
+  );
+  assert.match(action, /appendGrowthProjectRecord/);
+  assert.match(action, /conditions: \{ \.\.\.emptyConditions \}/);
+  assert.match(action, /selectedTopicId: null/);
+  assert.match(action, /\.\.\.emptyProjectProfessorMatchState\(\)/);
+  assert.doesNotMatch(action, /growthProjectHistory: \[\]|growthProfessorHistory: \[\]|professorMatches: \[\]/);
+});
+
 test("기존 프로젝트 조건 편집 주소는 새 조건 편집 화면으로 호환 이동한다", () => {
   assert.match(researchPageSource, /searchParams/);
   assert.match(researchPageSource, /view === "review"/);
@@ -86,4 +113,17 @@ test("프로젝트 홈에서 조건을 수정한 뒤에는 단계형 화면이 �
   assert.match(conditionsPageSource, /returnHref="\/research"/);
   assert.match(conditionsScreenSource, /returnHref/);
   assert.match(conditionsScreenSource, /router\.replace\(returnHref\)/);
+});
+
+test("포트폴리오 빌더는 핵심 성장 기록 네 단계만 구성한다", () => {
+  assert.match(portfolioBuilderSource, /type StepId = "topic" \| "professor" \| "paper" \| "revision"/);
+  assert.doesNotMatch(portfolioBuilderSource, /id: "prepare"|id: "actions"/);
+  assert.match(portfolioBuilderSource, /\{recordedCount\} \/ \{STEP_META\.length\}단계에 기록이 있어요/);
+});
+
+test("포트폴리오 빌더는 중간 화면에서 미리보기를 아래로 보내고 큰 화면에서 세 열로 복원한다", () => {
+  assert.match(globalStylesSource, /@media \(min-width: 768px\)[\s\S]*?\.pf-layout \{ grid-template-columns: 230px minmax\(0, 1fr\);/);
+  assert.match(globalStylesSource, /@media \(min-width: 768px\)[\s\S]*?\.pf-preview-panel \{ grid-column: 1 \/ -1; \}/);
+  assert.match(globalStylesSource, /@media \(min-width: 1280px\)[\s\S]*?\.pf-layout \{ grid-template-columns: 248px minmax\(0, 1fr\) 292px; \}/);
+  assert.match(globalStylesSource, /@media \(min-width: 1280px\)[\s\S]*?\.pf-preview-panel \{ grid-column: auto; \}/);
 });

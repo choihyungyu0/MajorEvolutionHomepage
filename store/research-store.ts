@@ -300,6 +300,7 @@ type ResearchState = {
   selectProfessorPaper: (selection: ProfessorPaperSelection | null) => void;
   saveKnockKitDraft: (key: string, draft: ProfessorKnockKitDraft) => void;
   saveMentorLoopEntry: (key: string, entry: ProfessorMentorLoopEntry) => void;
+  saveCurrentProjectAndStartNew: () => void;
   removeGrowthProjectRecord: (topicId: string) => void;
   removeGrowthProfessorRecord: (
     professorId: string,
@@ -965,6 +966,32 @@ export const useResearchStore = create<ResearchState>()(persist((set, get) => ({
   saveMentorLoopEntry: (key, entry) =>
     set((state) => ({
       mentorLoopEntries: { ...state.mentorLoopEntries, [key]: entry },
+    })),
+  saveCurrentProjectAndStartNew: () =>
+    set((state) => ({
+      growthProjectHistory: state.selectedTopicId
+        ? appendGrowthProjectRecord(
+            state.growthProjectHistory,
+            state.result,
+            state.selectedTopicId,
+          )
+        : state.growthProjectHistory,
+      conditions: { ...emptyConditions },
+      ideaMode: null,
+      coDesignStep: 0,
+      coDesignAnswers: [],
+      coDesignFollowUpQuestions: [],
+      coDesignQuestionSource: null,
+      result: null,
+      resultOrigin: null,
+      groundingNote: null,
+      selectedTopicId: null,
+      seenIds: [],
+      reRecommendNote: null,
+      interestsFull: false,
+      methodsFull: false,
+      loadKey: state.loadKey + 1,
+      ...emptyProjectProfessorMatchState(),
     })),
   removeGrowthProjectRecord: (topicId) =>
     set((state) => ({
