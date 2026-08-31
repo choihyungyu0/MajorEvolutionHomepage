@@ -304,8 +304,8 @@ export function buildUniversalFallbackTopics(
 
   return [
     {
-      id: `${pairId}-safe`,
-      pairId,
+      id: `${pairId}-evidence`,
+      pairId: `${pairId}-evidence`,
       variant: "안전 축소형",
       title: `${major}에서 ${primaryInterest} 문제 지도 만들기`,
       majors: [major],
@@ -329,28 +329,31 @@ export function buildUniversalFallbackTopics(
       evidence: evidence.map((source) => ({ ...source })),
     },
     {
-      id: `${pairId}-deep`,
-      pairId,
+      id: `${pairId}-application`,
+      pairId: `${pairId}-application`,
       variant: "차별 심화형",
-      title: `${major} × ${secondInterest} 비교 프로젝트`,
+      title: `${secondInterest} 의사결정 지원 프로젝트`,
       majors: [major],
       interests,
       methods,
       minWeeks: 8,
       goodDataAccess: conditions.dataAccess ? [conditions.dataAccess] : ["아직 모름"],
       avoidTags: [],
-      problem: `${primaryInterest}를 ${secondInterest}와 비교할 기준과 자료가 필요합니다.`,
-      question: `${major} 관점에서 ${primaryInterest}의 결과는 ${secondInterest}라는 조건에 따라 어떻게 달라질까?`,
-      reason: `같은 입력에서 비교 대상을 하나 더 두어 차이를 설명하는 심화안입니다.`,
+      problem: `${secondInterest} 맥락에서 실제 선택이나 행동을 도울 기준과 자료가 필요합니다.`,
+      question: `${secondInterest} 맥락에서 ${primaryInterest} 관련 의사결정을 돕기 위해 어떤 정보와 기준을 결합해야 할까?`,
+      reason: `첫 후보가 현상을 설명한다면, 이 후보는 다른 관심 맥락에서 실제 선택을 돕는 결과물을 만드는 확장안입니다.`,
       userConfirmed: [major, ...interests],
-      aiProposed: ["비교 대상·시점·자료 조건을 하나씩 추가"],
-      dataOptions: dataOptions.map((option) => ({ ...option })),
-      methodDetail: `${methods.join("·")}로 두 대상의 공통 기준을 비교`,
-      scope: `${period} 동안 비교 대상 2개와 공통 지표 2~3개를 검토`,
-      uncertainties: [
-        "두 대상을 같은 기준으로 비교할 수 있는 자료가 실제로 존재하는지 확인해야 합니다.",
+      aiProposed: ["설명 결과를 의사결정 기준표나 작은 도구로 확장"],
+      dataOptions: [
+        { name: `${secondInterest} 관련 공개 사례·정책 자료`, status: "확인 필요" },
+        { name: `${primaryInterest}와 연결된 선택 기준`, status: "확인 필요" },
       ],
-      firstAction: `${primaryInterest}와 ${secondInterest}를 함께 다룬 공개 사례 2개 찾아 비교표 만들기`,
+      methodDetail: `${methods.join("·")}로 사례를 비교하고 의사결정 기준표 또는 작은 프로토타입 구성`,
+      scope: `${period} 동안 사용자 상황 1개와 선택 기준 2~3개를 검토`,
+      uncertainties: [
+        "실제 사용자가 필요로 하는 선택 기준인지 추가로 확인해야 합니다.",
+      ],
+      firstAction: `${secondInterest} 맥락에서 ${primaryInterest} 관련 결정을 내려야 하는 상황 2개를 찾아 기준표 초안 만들기`,
       evidence: evidence.map((source) => ({ ...source })),
     },
   ];
@@ -381,16 +384,15 @@ export function recommend(c: Conditions, opts: RecommendOptions = {}): Recommend
   const orderedPool = [...pool].sort((left, right) =>
     compareByEvidence(left, right, c));
 
-  // 비교 가치가 있는 서로 다른 2개: 같은 pairId의 안전형↔심화형을 우선
+  // 같은 주제의 난이도 차이보다, 문제 관점이 다른 주제 묶음을 우선합니다.
   const top = orderedPool[0];
-  const partner = orderedPool.find((t) => t.pairId === top.pairId && t.id !== top.id);
-  let picked: ResearchTopic[];
-  if (partner) {
-    picked = [top, partner];
-  } else {
-    const other = orderedPool.find((t) => t.pairId !== top.pairId);
-    picked = other ? [top, other] : [top];
-  }
+  const contrasting = orderedPool.find((topic) =>
+    topic.pairId !== top.pairId && topic.variant !== top.variant);
+  const differentTopic = orderedPool.find((topic) => topic.pairId !== top.pairId);
+  const sameTopicFallback = orderedPool.find((topic) =>
+    topic.pairId === top.pairId && topic.id !== top.id);
+  const other = contrasting ?? differentTopic ?? sameTopicFallback;
+  const picked = other ? [top, other] : [top];
 
   if (picked.length < 2) return { kind: "insufficient", candidate: buildChecks(picked[0], c) };
 

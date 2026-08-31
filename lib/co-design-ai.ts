@@ -62,13 +62,13 @@ export function candidatesToTopics(
   response: CoDesignResponse,
   conditions: Conditions,
 ): [ResearchTopic, ResearchTopic] {
-  const pairId = `co-design-${Date.now()}`;
+  const batchId = `co-design-${Date.now()}`;
   const major = conditions.major;
   if (!major) throw new Error("전공 정보가 없습니다.");
 
   const topics = response.candidates.map((candidate, index): ResearchTopic => ({
-    id: `${pairId}-${index === 0 ? "safe" : "deep"}`,
-    pairId,
+    id: `${batchId}-${index === 0 ? "evidence" : "application"}`,
+    pairId: `${batchId}-${index === 0 ? "evidence" : "application"}`,
     variant: candidate.variant,
     title: candidate.title,
     majors: [major],
